@@ -21,6 +21,7 @@ npm run dev
 | :--- | :--- | :--- |
 | `VITE_IMAGE_API_BASE_URL` | 接口 Base URL。配置后界面设置弹窗自动隐藏该输入框，请求时自动带上 | 空，未配置时需在界面填写 |
 | `VITE_IMAGE_API_KEY` | 开发/构建时预填的令牌 | 空 |
+| `VITE_IMAGE_API_KEY_HINT` | 设置弹窗中关于 API Key 的提示引导文案 | `令牌只保存在本机浏览器，不会上传到工作台服务器` |
 | `BIND_HOST` | 容器端口绑定地址 | `127.0.0.1`（仅本机） |
 | `HOST_PORT` | 宿主机端口 | `3000` |
 | `NGINX_FRAME_ANCESTORS` | 允许嵌入本页的 iframe 父来源 | `*`（任意站点） |

@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { type ApiConfig, DEFAULT_CONFIG, ENV_BASE_URL } from '@/types/config';
+import { type ApiConfig, DEFAULT_CONFIG, ENV_BASE_URL, ENV_API_KEY_HINT } from '@/types/config';
 import type { ProviderConfig } from '@/types/provider';
 
 export const useConfigStore = defineStore('config', () => {
   const hasEnvBaseUrl = computed(() => ENV_BASE_URL.length > 0);
+  const apiKeyHint = computed(() => ENV_API_KEY_HINT);
 
   const baseUrl = ref<string>(localStorage.getItem('gpt_image_base_url') || DEFAULT_CONFIG.baseUrl);
   const apiKey = ref<string>(localStorage.getItem('gpt_image_api_key') || DEFAULT_CONFIG.apiKey);
@@ -43,6 +44,7 @@ export const useConfigStore = defineStore('config', () => {
     effectiveBaseUrl,
     hasEnvBaseUrl,
     apiKey,
+    apiKeyHint,
     model,
     isConfigured,
     providerConfig,

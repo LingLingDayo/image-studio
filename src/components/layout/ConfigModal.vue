@@ -109,7 +109,7 @@ onUnmounted(() => {
             <Key :size="14" />
           </template>
           <template #hint>
-            令牌只保存在本机浏览器，不会上传到工作台服务器
+            {{ configStore.apiKeyHint }}
           </template>
         </UiInput>
       </div>

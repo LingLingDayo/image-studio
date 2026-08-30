@@ -12,6 +12,8 @@ describe('useConfigStore without ENV_BASE_URL', () => {
     vi.doMock('@/types/config', () => ({
       ENV_BASE_URL: '',
       ENV_API_KEY: '',
+      ENV_API_KEY_HINT: '令牌只保存在本机浏览器，不会上传到工作台服务器',
+      DEFAULT_API_KEY_HINT: '令牌只保存在本机浏览器，不会上传到工作台服务器',
       DEFAULT_CONFIG: {
         baseUrl: '',
         apiKey: '',
@@ -24,6 +26,25 @@ describe('useConfigStore without ENV_BASE_URL', () => {
     expect(store.apiKey).toBe('');
     expect(store.model).toBe('gpt-image-2');
     expect(store.hasEnvBaseUrl).toBe(false);
+    expect(store.apiKeyHint).toBe('令牌只保存在本机浏览器，不会上传到工作台服务器');
+  });
+
+  it('should support custom apiKeyHint from environment', async () => {
+    vi.doMock('@/types/config', () => ({
+      ENV_BASE_URL: '',
+      ENV_API_KEY: '',
+      ENV_API_KEY_HINT: '请前往 控制台 -> 令牌管理 复制您的 API Key',
+      DEFAULT_API_KEY_HINT: '令牌只保存在本机浏览器，不会上传到工作台服务器',
+      DEFAULT_CONFIG: {
+        baseUrl: '',
+        apiKey: '',
+        model: 'gpt-image-2'
+      }
+    }));
+
+    const { useConfigStore } = await import('./configStore');
+    const store = useConfigStore();
+    expect(store.apiKeyHint).toBe('请前往 控制台 -> 令牌管理 复制您的 API Key');
   });
 
   it('should load initial values from localStorage', async () => {
