@@ -684,8 +684,6 @@ onUnmounted(() => {
   }
 
   .meta-v {
-    font-family: $font-mono;
-    font-weight: 500;
     color: $text-main;
   }
 }
