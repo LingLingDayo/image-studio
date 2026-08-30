@@ -159,7 +159,7 @@ onUnmounted(() => {
 <template>
   <div v-if="currentActiveItem" class="modal-backdrop" @click.self="emit('close')">
     <div class="modal-card">
-      <button class="modal-close-btn" @click="emit('close')">
+      <button class="modal-close-btn" data-tip="关闭 (Esc)" @click="emit('close')">
         <X :size="18" />
       </button>
 
@@ -231,15 +231,17 @@ onUnmounted(() => {
         <!-- 右侧信息与操作 -->
         <div class="modal-info-panel">
           <div class="info-header">
-            <h3>作品详情</h3>
-            <button 
-              class="btn-fav" 
-              :class="{ 'is-fav': currentActiveItem.isFavorite }" 
-              data-tip="收藏"
-              @click="currentActiveItem.id && emit('toggleFavorite', currentActiveItem.id)"
-            >
-              <Star :size="17" :class="{ 'star-filled': currentActiveItem.isFavorite }" />
-            </button>
+            <div class="header-title-wrap">
+              <h3>作品详情</h3>
+              <button 
+                class="btn-fav" 
+                :class="{ 'is-fav': currentActiveItem.isFavorite }" 
+                :data-tip="currentActiveItem.isFavorite ? '取消收藏' : '收藏此图'"
+                @click="currentActiveItem.id && emit('toggleFavorite', currentActiveItem.id)"
+              >
+                <Star :size="17" :class="{ 'star-filled': currentActiveItem.isFavorite }" />
+              </button>
+            </div>
           </div>
 
           <!-- Prompt -->
@@ -579,11 +581,20 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-right: 36px; // 避开右上角关闭按钮区域
+  min-height: 32px;
 
-  h3 {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: $text-main;
+  .header-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: $text-main;
+      margin: 0;
+    }
   }
 }
 
@@ -593,9 +604,15 @@ onUnmounted(() => {
   color: $text-dim;
   cursor: pointer;
   padding: 4px;
+  border-radius: $radius-sm;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
 
   &:hover {
     color: #ca8a04;
+    background: #fef9c3;
   }
 
   &.is-fav {
