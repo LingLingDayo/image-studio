@@ -14,12 +14,15 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
-  Maximize2
+  Maximize2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-vue-next';
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps<{
   item: MediaAsset | null;
+  allAssets?: MediaAsset[];
 }>();
 
 const emit = defineEmits<{
@@ -33,6 +36,35 @@ const emit = defineEmits<{
 
 const isCopied = ref(false);
 const panelRef = ref<HTMLElement | null>(null);
+const currentActiveItem = ref<MediaAsset | null>(props.item);
+
+watch(() => props.item, (newItem) => {
+  currentActiveItem.value = newItem;
+  resetTransform();
+});
+
+const currentBatchAssets = computed(() => props.allAssets || (currentActiveItem.value ? [currentActiveItem.value] : []));
+const currentAssetIndex = computed(() => {
+  if (!currentActiveItem.value || currentBatchAssets.value.length === 0) return 0;
+  const idx = currentBatchAssets.value.findIndex(a => a.id === currentActiveItem.value?.id || a.url === currentActiveItem.value?.url);
+  return idx !== -1 ? idx : 0;
+});
+
+function handlePrev() {
+  const list = currentBatchAssets.value;
+  if (list.length <= 1) return;
+  const nextIdx = (currentAssetIndex.value - 1 + list.length) % list.length;
+  currentActiveItem.value = list[nextIdx];
+  resetTransform();
+}
+
+function handleNext() {
+  const list = currentBatchAssets.value;
+  if (list.length <= 1) return;
+  const nextIdx = (currentAssetIndex.value + 1) % list.length;
+  currentActiveItem.value = list[nextIdx];
+  resetTransform();
+}
 
 const {
   scale,
@@ -51,25 +83,23 @@ const {
   handleDoubleClick
 } = useViewportCanvas(panelRef);
 
-watch(() => props.item, () => {
-  resetTransform();
-});
-
 async function handleDownload() {
-  if (props.item) {
-    const ext = props.item.format || 'png';
+  const item = currentActiveItem.value;
+  if (item) {
+    const ext = item.format || 'png';
     const normRot = ((rotation.value % 360) + 360) % 360;
     const nameSuffix = normRot !== 0 ? `_r${normRot}` : '';
-    const filename = `image_${props.item.id || Date.now()}${nameSuffix}.${ext}`;
+    const filename = `image_${item.id || Date.now()}${nameSuffix}.${ext}`;
     
-    await downloadRotatedImage(props.item.url, filename, rotation.value, ext);
+    await downloadRotatedImage(item.url, filename, rotation.value, ext);
     emit('showToast', normRot !== 0 ? `已下载旋转 (${normRot}°) 后的高清图！` : '已开始下载高清原图！', 'success');
   }
 }
 
 function handleCopyPrompt() {
-  if (props.item) {
-    navigator.clipboard.writeText(props.item.prompt);
+  const item = currentActiveItem.value;
+  if (item) {
+    navigator.clipboard.writeText(item.prompt);
     isCopied.value = true;
     emit('showToast', '提示词已复制到剪贴板', 'info');
     setTimeout(() => {
@@ -79,24 +109,27 @@ function handleCopyPrompt() {
 }
 
 function handleReuse() {
-  if (props.item) {
-    emit('reuse', props.item);
+  const item = currentActiveItem.value;
+  if (item) {
+    emit('reuse', item);
     emit('close');
     emit('showToast', '已复用提示词与参数', 'info');
   }
 }
 
 function handleEditAsReference() {
-  if (props.item) {
-    emit('editAsReference', props.item);
+  const item = currentActiveItem.value;
+  if (item) {
+    emit('editAsReference', item);
     emit('close');
     emit('showToast', '已将此图置入参考图栏', 'info');
   }
 }
 
 function handleDelete() {
-  if (props.item?.id) {
-    emit('delete', props.item.id);
+  const item = currentActiveItem.value;
+  if (item?.id) {
+    emit('delete', item.id);
     emit('close');
     emit('showToast', '图片已删除', 'info');
   }
@@ -105,6 +138,10 @@ function handleDelete() {
 function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     emit('close');
+  } else if (e.key === 'ArrowLeft') {
+    handlePrev();
+  } else if (e.key === 'ArrowRight') {
+    handleNext();
   }
 }
 
@@ -118,7 +155,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="item" class="modal-backdrop" @click.self="emit('close')">
+  <div v-if="currentActiveItem" class="modal-backdrop" @click.self="emit('close')">
     <div class="modal-card">
       <button class="modal-close-btn" @click="emit('close')">
         <X :size="18" />
@@ -142,14 +179,25 @@ onUnmounted(() => {
             }"
           >
             <img 
-              :src="item.url" 
-              :alt="item.prompt"
+              :src="currentActiveItem.url" 
+              :alt="currentActiveItem.prompt"
               :style="{
                 transform: `rotate(${rotation}deg)`,
                 transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
               }"
               draggable="false"
             />
+          </div>
+
+          <!-- 多图大图切换悬浮按钮 (批次多图时可见) -->
+          <div v-if="currentBatchAssets.length > 1" class="lightbox-carousel-controls" @mousedown.stop>
+            <button class="btn-lightbox-nav prev" data-tip="上一张 (← 键盘左键)" @click.stop="handlePrev">
+              <ChevronLeft :size="20" />
+            </button>
+            <span class="lightbox-counter">{{ currentAssetIndex + 1 }} / {{ currentBatchAssets.length }}</span>
+            <button class="btn-lightbox-nav next" data-tip="下一张 (→ 键盘右键)" @click.stop="handleNext">
+              <ChevronRight :size="20" />
+            </button>
           </div>
 
           <!-- 浮动半透明工具栏 (hover 显示) -->
@@ -186,11 +234,11 @@ onUnmounted(() => {
             <h3>作品详情</h3>
             <button 
               class="btn-fav" 
-              :class="{ 'is-fav': item.isFavorite }" 
+              :class="{ 'is-fav': currentActiveItem.isFavorite }" 
               data-tip="收藏"
-              @click="item.id && emit('toggleFavorite', item.id)"
+              @click="currentActiveItem.id && emit('toggleFavorite', currentActiveItem.id)"
             >
-              <Star :size="17" :class="{ 'star-filled': item.isFavorite }" />
+              <Star :size="17" :class="{ 'star-filled': currentActiveItem.isFavorite }" />
             </button>
           </div>
 
@@ -205,15 +253,15 @@ onUnmounted(() => {
               </button>
             </div>
             <div class="prompt-box">
-              {{ item.prompt }}
+              {{ currentActiveItem.prompt }}
             </div>
           </div>
 
           <!-- Revised Prompt (如有) -->
-          <div v-if="item.revisedPrompt" class="info-block">
+          <div v-if="currentActiveItem.revisedPrompt" class="info-block">
             <span class="block-label">模型优化提示词 (Revised)</span>
             <div class="prompt-box revised">
-              {{ item.revisedPrompt }}
+              {{ currentActiveItem.revisedPrompt }}
             </div>
           </div>
 
@@ -221,23 +269,23 @@ onUnmounted(() => {
           <div class="meta-grid">
             <div class="meta-row">
               <span class="meta-k">模型</span>
-              <span class="meta-v">{{ item.model }}</span>
+              <span class="meta-v">{{ currentActiveItem.model }}</span>
             </div>
             <div class="meta-row">
               <span class="meta-k">尺寸比例</span>
-              <span class="meta-v">{{ item.width ? `${item.width}×${item.height} (${item.ratio || ''})` : item.size }}</span>
+              <span class="meta-v">{{ currentActiveItem.width ? `${currentActiveItem.width}×${currentActiveItem.height} (${currentActiveItem.ratio || ''})` : currentActiveItem.size }}</span>
             </div>
             <div class="meta-row">
               <span class="meta-k">质量 / 格式</span>
-              <span class="meta-v">{{ item.quality }} / {{ (item.format || 'png').toUpperCase() }}</span>
+              <span class="meta-v">{{ currentActiveItem.quality }} / {{ (currentActiveItem.format || 'png').toUpperCase() }}</span>
             </div>
             <div class="meta-row">
               <span class="meta-k">生成耗时</span>
-              <span class="meta-v">{{ item.duration }}</span>
+              <span class="meta-v">{{ currentActiveItem.duration }}</span>
             </div>
             <div class="meta-row">
               <span class="meta-k">创建时间</span>
-              <span class="meta-v">{{ formatFullTime(item.timestamp) }}</span>
+              <span class="meta-v">{{ formatFullTime(currentActiveItem.timestamp) }}</span>
             </div>
           </div>
 
@@ -375,6 +423,50 @@ onUnmounted(() => {
     border: 1px solid rgba(0, 0, 0, 0.04);
     will-change: transform;
     user-select: none;
+  }
+}
+
+/* 多图大图切换悬浮按钮 */
+.lightbox-carousel-controls {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+  padding: 4px 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  .btn-lightbox-nav {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.1);
+    }
+  }
+
+  .lightbox-counter {
+    color: #ffffff;
+    font-family: $font-mono;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0 4px;
   }
 }
 

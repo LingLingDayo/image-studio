@@ -52,14 +52,18 @@ class AssetRepository {
     if (!(asset.blob instanceof Blob) || asset.blob.size === 0) {
       throw new Error('保存失败: 缺少本地图像数据');
     }
-    const { blob, url: _url, ...rest } = asset;
-    return {
+    const { blob, url: _url, id, ...rest } = asset;
+    const record: any = {
       ...rest,
       url: '',
       imageBytes: await blob.arrayBuffer(),
       imageMime: blob.type || 'image/png',
       isFavorite: asset.isFavorite || false
     };
+    if (id !== undefined) {
+      record.id = id;
+    }
+    return record as StoredAsset;
   }
 
   private fromStoredRecord(record: StoredAsset): MediaAsset {

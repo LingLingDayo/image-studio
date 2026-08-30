@@ -74,6 +74,7 @@ export class DimensionAnalysisStage implements IPipelineStage {
       const isAuto = params.size === 'auto';
 
       assets.push({
+        batchId: ctx.task.id,
         url: '',
         blob,
         prompt: params.prompt.trim(),

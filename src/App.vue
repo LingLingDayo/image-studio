@@ -12,6 +12,7 @@ import type { MediaAsset } from '@/types/asset';
 
 const isConfigOpen = ref(false);
 const activeLightboxItem = ref<MediaAsset | null>(null);
+const activeLightboxBatch = ref<MediaAsset[]>([]);
 const toasts = ref<Array<{ id: number; message: string; type: 'success' | 'error' | 'info' }>>([]);
 
 const galleryStore = useGalleryStore();
@@ -35,6 +36,9 @@ const {
   removeReferenceImage,
   clearReferenceImages,
   generate,
+  retryTask,
+  cancelTask,
+  removeTask,
   cancel,
   reuseItem,
   useImageAsReference
@@ -46,20 +50,42 @@ onMounted(async () => {
 
 async function handleGenerate() {
   try {
-    const items = await generate();
-    showToast(`成功生成 ${items.length} 张作品！耗时 ${items[0]?.duration || ''}`, 'success');
+    await generate();
+    showToast('已发起生成任务，正在实时绘制...', 'info');
   } catch (err: any) {
-    showToast(err.message || '生图失败', 'error');
+    showToast(err.message || '发起生图失败', 'error');
   }
 }
 
-function handleRegenerate(item: MediaAsset) {
-  reuseItem(item);
-  handleGenerate();
+function handleRegenerate(item: MediaAsset | any) {
+  if ('params' in item) {
+    retryTask(item);
+  } else {
+    reuseItem(item);
+    handleGenerate();
+  }
 }
 
-function handleReuse(item: MediaAsset) {
-  reuseItem(item);
+function handleRetryTask(task: any) {
+  retryTask(task);
+  showToast('已重新发起生成任务', 'info');
+}
+
+function handleCancelTask(taskId: string) {
+  cancelTask(taskId);
+  showToast('已取消生成任务', 'info');
+}
+
+function handleRemoveTask(taskId: string) {
+  removeTask(taskId);
+}
+
+function handleReuse(item: MediaAsset | any) {
+  if ('params' in item) {
+    prompt.value = item.params.prompt;
+  } else {
+    reuseItem(item);
+  }
   showToast('已复用提示词与参数设置', 'info');
 }
 
@@ -77,12 +103,14 @@ function showToast(message: string, type: 'success' | 'error' | 'info' = 'info')
   }, 4000);
 }
 
-function handleOpenLightbox(item: MediaAsset) {
+function handleOpenLightbox(item: MediaAsset, allAssets?: MediaAsset[]) {
   activeLightboxItem.value = item;
+  activeLightboxBatch.value = allAssets || [item];
 }
 
 function handleCloseLightbox() {
   activeLightboxItem.value = null;
+  activeLightboxBatch.value = [];
 }
 
 async function handleDeleteItem(id: number) {
@@ -103,6 +131,9 @@ async function handleDeleteItem(id: number) {
           @regenerate="handleRegenerate"
           @reuse="handleReuse"
           @edit-as-reference="handleEditAsReference"
+          @retry-task="handleRetryTask"
+          @cancel-task="handleCancelTask"
+          @remove-task="handleRemoveTask"
           @show-toast="showToast"
         />
       </main>
@@ -142,6 +173,7 @@ async function handleDeleteItem(id: number) {
     <!-- 大图高清查看灯箱 -->
     <LightboxModal 
       :item="activeLightboxItem"
+      :all-assets="activeLightboxBatch"
       @close="handleCloseLightbox"
       @reuse="handleReuse"
       @edit-as-reference="handleEditAsReference"

@@ -152,7 +152,7 @@ function handleDrop(e: DragEvent) {
 function handleKeyDown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
-    if (!props.isGenerating) {
+    if (props.prompt.trim()) {
       emit('generate');
     }
   }
@@ -330,25 +330,14 @@ onUnmounted(() => {
             <Paperclip :size="15" />
           </button>
 
-          <!-- 取消按钮 (生成中可见) -->
-          <button 
-            v-if="isGenerating"
-            class="btn-cancel"
-            data-tip="取消本次生成"
-            @click="emit('cancel')"
-          >
-            <Square :size="13" />
-          </button>
-
-          <!-- 生成/进度按钮 -->
+          <!-- 生成/发送按钮 -->
           <button 
             class="btn-send" 
-            :disabled="isGenerating || !prompt.trim()" 
-            :data-tip="isGenerating ? `绘制中: ${elapsedTime}` : '立即生成 (Ctrl+Enter)'"
+            :disabled="!prompt.trim()" 
+            :data-tip="isGenerating ? `发起新生成 (当前有 ${elapsedTime} 绘制中)` : '立即生成 (Ctrl+Enter)'"
             @click="emit('generate')"
           >
-            <Loader2 v-if="isGenerating" :size="16" class="spin-icon" />
-            <ArrowRight v-else :size="17" />
+            <ArrowRight :size="17" />
           </button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
-import type { MediaAsset } from '@/types/asset';
+import type { MediaAsset, ArtworkBatch } from '@/types/asset';
 import { assetRepository } from '@/core/storage/AssetRepository';
 
 export const PAGE_SIZE_STORAGE_KEY = 'gpt_image_page_size';
@@ -24,7 +24,85 @@ export const useGalleryStore = defineStore('gallery', () => {
   );
   const currentPage = ref<number>(1);
 
-  const filteredItems = computed(() => {
+  // 将扁平的 MediaAsset 列表聚合为 ArtworkBatch 列表 (按 batchId 聚合，无 batchId 的按单图独立成组)
+  const batches = computed<ArtworkBatch[]>(() => {
+    const map = new Map<string, ArtworkBatch>();
+    const result: ArtworkBatch[] = [];
+
+    for (const item of items.value) {
+      const groupKey = item.batchId ? `batch_${item.batchId}` : `single_${item.id || item.timestamp}_${Math.random()}`;
+
+      if (item.batchId && map.has(groupKey)) {
+        const batch = map.get(groupKey)!;
+        batch.assets.push(item);
+        if (item.isFavorite) {
+          batch.isFavorite = true;
+        }
+      } else {
+        const newBatch: ArtworkBatch = {
+          id: groupKey,
+          batchId: item.batchId,
+          prompt: item.prompt,
+          revisedPrompt: item.revisedPrompt,
+          model: item.model,
+          size: item.size,
+          ratio: item.ratio,
+          width: item.width,
+          height: item.height,
+          quality: item.quality,
+          format: item.format,
+          transparent: item.transparent,
+          duration: item.duration,
+          timestamp: item.timestamp,
+          isFavorite: Boolean(item.isFavorite),
+          type: item.type,
+          referenceImages: item.referenceImages,
+          assets: [item]
+        };
+        map.set(groupKey, newBatch);
+        result.push(newBatch);
+      }
+    }
+
+    return result;
+  });
+
+  // 筛选后的批次列表
+  const filteredBatches = computed<ArtworkBatch[]>(() => {
+    return batches.value.filter((batch) => {
+      if (filterFavoriteOnly.value) {
+        const hasFav = batch.assets.some((a) => a.isFavorite);
+        if (!hasFav) return false;
+      }
+      const isI2I = batch.type === 'i2i' || (batch.referenceImages && batch.referenceImages.length > 0);
+      if (filterType.value === 'i2i' && !isI2I) {
+        return false;
+      }
+      if (filterType.value === 't2i' && isI2I) {
+        return false;
+      }
+      if (searchQuery.value.trim()) {
+        const q = searchQuery.value.toLowerCase().trim();
+        const matchPrompt = batch.prompt?.toLowerCase().includes(q);
+        const matchRevised = batch.revisedPrompt?.toLowerCase().includes(q);
+        const matchQuality = batch.quality?.toLowerCase().includes(q);
+        const matchSize = batch.size?.toLowerCase().includes(q);
+        const matchFormat = batch.format?.toLowerCase().includes(q);
+        const matchAnyAsset = batch.assets.some((a) =>
+          a.prompt?.toLowerCase().includes(q) ||
+          a.revisedPrompt?.toLowerCase().includes(q) ||
+          a.quality?.toLowerCase().includes(q) ||
+          a.size?.toLowerCase().includes(q) ||
+          a.format?.toLowerCase().includes(q)
+        );
+        return matchPrompt || matchRevised || matchQuality || matchSize || matchFormat || matchAnyAsset;
+      }
+      return true;
+    });
+  });
+
+  // 兼容旧的 filteredItems
+  const filteredItems = computed<MediaAsset[]>(() => {
     return items.value.filter((item) => {
       if (filterFavoriteOnly.value && !item.isFavorite) {
         return false;
@@ -49,8 +127,10 @@ export const useGalleryStore = defineStore('gallery', () => {
     });
   });
 
-  const totalItems = computed(() => filteredItems.value.length);
-  const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / pageSize.value)));
+  // 总数与总页数基于聚合后的 Batches（若没有批次则使用 items 长度）
+  const totalBatches = computed(() => filteredBatches.value.length);
+  const totalItems = computed(() => filteredBatches.value.length > 0 ? filteredBatches.value.length : filteredItems.value.length);
+  const totalPages = computed(() => Math.max(1, Math.ceil(totalBatches.value / pageSize.value)));
 
   // 当筛选或总数改变时，自动将 currentPage 限制在有效范围 [1, totalPages]
   watch(totalPages, (newTotalPages) => {
@@ -64,7 +144,16 @@ export const useGalleryStore = defineStore('gallery', () => {
     currentPage.value = 1;
   });
 
-  const paginatedItems = computed(() => {
+  // 当前页的 Batches
+  const paginatedBatches = computed<ArtworkBatch[]>(() => {
+    const page = Math.min(Math.max(1, currentPage.value), totalPages.value);
+    const start = (page - 1) * pageSize.value;
+    const end = start + pageSize.value;
+    return filteredBatches.value.slice(start, end);
+  });
+
+  // 兼容旧的 paginatedItems (用于单元测试和旧调用)
+  const paginatedItems = computed<MediaAsset[]>(() => {
     const page = Math.min(Math.max(1, currentPage.value), totalPages.value);
     const start = (page - 1) * pageSize.value;
     const end = start + pageSize.value;
@@ -158,6 +247,22 @@ export const useGalleryStore = defineStore('gallery', () => {
     }
   }
 
+  async function removeBatch(batch: ArtworkBatch) {
+    for (const asset of batch.assets) {
+      if (asset.id) {
+        await assetRepository.delete(asset.id);
+      }
+    }
+    const assetIds = new Set(batch.assets.map((a) => a.id).filter(Boolean));
+    items.value = items.value.filter((i) => !assetIds.has(i.id));
+    if (activeItem.value && assetIds.has(activeItem.value.id)) {
+      activeItem.value = null;
+    }
+    if (currentPage.value > totalPages.value) {
+      currentPage.value = totalPages.value;
+    }
+  }
+
   async function clearAll() {
     await assetRepository.clearAll();
     items.value = [];
@@ -171,6 +276,9 @@ export const useGalleryStore = defineStore('gallery', () => {
 
   return {
     items,
+    batches,
+    filteredBatches,
+    paginatedBatches,
     filteredItems,
     paginatedItems,
     activeItem,
@@ -180,6 +288,7 @@ export const useGalleryStore = defineStore('gallery', () => {
     filterType,
     pageSize,
     currentPage,
+    totalBatches,
     totalItems,
     totalPages,
     pageSizeOptions: PAGE_SIZE_OPTIONS,
@@ -193,8 +302,10 @@ export const useGalleryStore = defineStore('gallery', () => {
     toggleFavorite,
     updateItem,
     removeItem,
+    removeBatch,
     clearAll,
     setActiveItem
   };
 });
+
 

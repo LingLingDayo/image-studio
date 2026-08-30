@@ -1,19 +1,35 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useGalleryStore } from '@/stores/galleryStore';
-import type { MediaAsset } from '@/types/asset';
+import { useTaskStore } from '@/stores/taskStore';
+import type { MediaAsset, ArtworkBatch } from '@/types/asset';
+import type { GenerationTask } from '@/types/task';
 import GalleryCard from './GalleryCard.vue';
 import { UiPagination } from '@/components/ui';
 import { ImageOff, Loader2 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
-  (e: 'view', item: MediaAsset): void;
-  (e: 'regenerate', item: MediaAsset): void;
-  (e: 'reuse', item: MediaAsset): void;
+  (e: 'view', item: MediaAsset, allAssets: MediaAsset[]): void;
+  (e: 'regenerate', item: MediaAsset | GenerationTask): void;
+  (e: 'reuse', item: MediaAsset | GenerationTask): void;
   (e: 'editAsReference', item: MediaAsset): void;
+  (e: 'retryTask', task: GenerationTask): void;
+  (e: 'cancelTask', taskId: string): void;
+  (e: 'removeTask', taskId: string): void;
   (e: 'showToast', message: string, type: 'success' | 'error' | 'info'): void;
 }>();
 
 const galleryStore = useGalleryStore();
+const taskStore = useTaskStore();
+
+// 是否在第一页展示进行中的任务卡片
+const showActiveTasks = computed(() => {
+  return galleryStore.currentPage === 1 && taskStore.activeTasks.length > 0;
+});
+
+const isGalleryEmpty = computed(() => {
+  return taskStore.activeTasks.length === 0 && galleryStore.filteredBatches.length === 0;
+});
 
 async function handleToggleFavorite(id: number) {
   await galleryStore.toggleFavorite(id);
@@ -22,6 +38,11 @@ async function handleToggleFavorite(id: number) {
 async function handleDelete(id: number) {
   await galleryStore.removeItem(id);
   emit('showToast', '图片已删除', 'info');
+}
+
+async function handleDeleteBatch(batch: ArtworkBatch) {
+  await galleryStore.removeBatch(batch);
+  emit('showToast', '整批图片已删除', 'info');
 }
 
 function handlePageChange(page: number) {
@@ -42,7 +63,7 @@ function handlePageSizeChange(size: number) {
       <span>加载历史相册中...</span>
     </div>
 
-    <div v-else-if="galleryStore.filteredItems.length === 0" class="gallery-empty">
+    <div v-else-if="isGalleryEmpty" class="gallery-empty">
       <div class="empty-icon-wrap">
         <ImageOff :size="36" />
       </div>
@@ -52,24 +73,38 @@ function handlePageSizeChange(size: number) {
 
     <div v-else class="gallery-content-wrap">
       <div class="cards-grid">
+        <!-- 正在生成中 / 失败重试的任务卡片 (固定在第一页顶部) -->
+        <template v-if="showActiveTasks">
+          <GalleryCard
+            v-for="task in taskStore.activeTasks"
+            :key="task.id"
+            :task="task"
+            @cancel-task="emit('cancelTask', $event)"
+            @retry-task="emit('retryTask', $event)"
+            @remove-task="emit('removeTask', $event)"
+          />
+        </template>
+
+        <!-- 已生成的作品批次卡片 (支持多图聚合与卡片内切换) -->
         <GalleryCard
-          v-for="item in galleryStore.paginatedItems"
-          :key="item.id || item.timestamp"
-          :item="item"
-          @view="emit('view', item)"
-          @regenerate="emit('regenerate', item)"
+          v-for="batch in galleryStore.paginatedBatches"
+          :key="batch.id || batch.timestamp"
+          :batch="batch"
+          @view="(item, all) => emit('view', item, all)"
+          @regenerate="emit('regenerate', $event)"
           @toggle-favorite="handleToggleFavorite"
-          @reuse="emit('reuse', item)"
-          @edit-as-reference="emit('editAsReference', item)"
+          @reuse="emit('reuse', $event)"
+          @edit-as-reference="emit('editAsReference', $event)"
           @delete="handleDelete"
+          @delete-batch="handleDeleteBatch"
         />
       </div>
 
-      <!-- 分页导航栏 -->
-      <div class="pagination-wrapper">
+      <!-- 分页导航栏 (当作品超过一页时展示) -->
+      <div v-if="galleryStore.totalPages > 1 || galleryStore.totalBatches > galleryStore.pageSize" class="pagination-wrapper">
         <UiPagination
           :current-page="galleryStore.currentPage"
-          :total-items="galleryStore.totalItems"
+          :total-items="galleryStore.totalBatches"
           :page-size="galleryStore.pageSize"
           :page-size-options="galleryStore.pageSizeOptions"
           @update:current-page="handlePageChange"

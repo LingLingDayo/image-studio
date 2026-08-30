@@ -1,77 +1,346 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { MediaAsset } from '@/types/asset';
-import { RotateCw, Star, CornerUpLeft, Edit3, Trash2, Code } from 'lucide-vue-next';
+import { ref, computed, watch } from 'vue';
+import type { MediaAsset, ArtworkBatch } from '@/types/asset';
+import type { GenerationTask } from '@/types/task';
+import { 
+  RotateCw, 
+  Star, 
+  CornerUpLeft, 
+  Edit3, 
+  Trash2, 
+  Code, 
+  Loader2, 
+  ChevronLeft, 
+  ChevronRight, 
+  Square, 
+  AlertCircle,
+  Layers
+} from 'lucide-vue-next';
 
 const props = defineProps<{
-  item: MediaAsset;
+  item?: MediaAsset;
+  batch?: ArtworkBatch;
+  task?: GenerationTask;
 }>();
 
 const emit = defineEmits<{
-  (e: 'view', item: MediaAsset): void;
-  (e: 'regenerate', item: MediaAsset): void;
+  (e: 'view', item: MediaAsset, allAssets: MediaAsset[]): void;
+  (e: 'regenerate', item: MediaAsset | GenerationTask): void;
   (e: 'toggleFavorite', id: number): void;
-  (e: 'reuse', item: MediaAsset): void;
+  (e: 'reuse', item: MediaAsset | GenerationTask): void;
   (e: 'editAsReference', item: MediaAsset): void;
   (e: 'delete', id: number): void;
+  (e: 'deleteBatch', batch: ArtworkBatch): void;
+  (e: 'cancelTask', taskId: string): void;
+  (e: 'retryTask', task: GenerationTask): void;
+  (e: 'removeTask', taskId: string): void;
 }>();
 
-const dimensionText = computed(() => {
-  if (props.item.width && props.item.height) {
-    return `${props.item.width}×${props.item.height}`;
+// 是否为任务模式
+const isTaskMode = computed(() => Boolean(props.task));
+
+// 当前卡片内的图片列表
+const assetsList = computed<MediaAsset[]>(() => {
+  if (props.batch && props.batch.assets?.length > 0) {
+    return props.batch.assets;
   }
-  return props.item.size || '1024×1024';
+  if (props.item) {
+    return [props.item];
+  }
+  return [];
 });
 
+const currentAssetIndex = ref(0);
+
+// 当 assets 列表变化时重置或修正 index
+watch(
+  () => assetsList.value.length,
+  (len) => {
+    if (currentAssetIndex.value >= len) {
+      currentAssetIndex.value = Math.max(0, len - 1);
+    }
+  }
+);
+
+// 当前正在展示的图片资产
+const currentAsset = computed<MediaAsset | null>(() => {
+  if (assetsList.value.length === 0) return null;
+  return assetsList.value[currentAssetIndex.value] || assetsList.value[0];
+});
+
+// 图片尺寸文字
+const dimensionText = computed(() => {
+  if (currentAsset.value) {
+    if (currentAsset.value.width && currentAsset.value.height) {
+      return `${currentAsset.value.width}×${currentAsset.value.height}`;
+    }
+    return currentAsset.value.size || '1024×1024';
+  }
+  if (props.task) {
+    return props.task.params.size || '自动尺寸';
+  }
+  return '1024×1024';
+});
+
+// 比例标签
 const ratioTag = computed(() => {
-  if (props.item.ratio) {
-    return props.item.ratio.startsWith('≈') ? props.item.ratio : `#${props.item.ratio}`;
+  if (currentAsset.value?.ratio) {
+    return currentAsset.value.ratio.startsWith('≈') ? currentAsset.value.ratio : `#${currentAsset.value.ratio}`;
+  }
+  if (props.task?.params.aspectRatio) {
+    return `#${props.task.params.aspectRatio}`;
   }
   return '#1:1';
 });
+
+// 提示词
+const promptText = computed(() => {
+  if (currentAsset.value) {
+    return currentAsset.value.prompt;
+  }
+  if (props.batch) {
+    return props.batch.prompt;
+  }
+  if (props.task) {
+    return props.task.params.prompt;
+  }
+  return '';
+});
+
+// 模型名称
+const modelText = computed(() => {
+  const m = currentAsset.value?.model || props.batch?.model || props.task?.params.model || 'gpt-image-2';
+  return m === 'gpt-image-2' ? 'GPT-Image-2' : m;
+});
+
+// 质量与格式
+const qualityText = computed(() => currentAsset.value?.quality || props.batch?.quality || props.task?.params.quality || '中');
+const isI2I = computed(() => {
+  if (currentAsset.value) {
+    return currentAsset.value.type === 'i2i' || (currentAsset.value.referenceImages && currentAsset.value.referenceImages.length > 0);
+  }
+  if (props.batch) {
+    return props.batch.type === 'i2i' || (props.batch.referenceImages && props.batch.referenceImages.length > 0);
+  }
+  if (props.task) {
+    return props.task.type === 'i2i' || (props.task.params.referenceImages && props.task.params.referenceImages.length > 0);
+  }
+  return false;
+});
+
+// 多图切换方法
+function handlePrevImage(e: Event) {
+  e.stopPropagation();
+  const total = assetsList.value.length;
+  if (total <= 1) return;
+  currentAssetIndex.value = (currentAssetIndex.value - 1 + total) % total;
+}
+
+function handleNextImage(e: Event) {
+  e.stopPropagation();
+  const total = assetsList.value.length;
+  if (total <= 1) return;
+  currentAssetIndex.value = (currentAssetIndex.value + 1) % total;
+}
+
+function handleSelectImage(idx: number, e: Event) {
+  e.stopPropagation();
+  currentAssetIndex.value = idx;
+}
+
+function handleCardClick() {
+  if (currentAsset.value) {
+    emit('view', currentAsset.value, assetsList.value);
+  }
+}
 </script>
 
 <template>
-  <div class="gallery-card">
-    <!-- 左侧图片缩略图区 -->
-    <div class="card-image-wrapper" @click="emit('view', item)">
-      <img :src="item.url" :alt="item.prompt" loading="lazy" />
-      
-      <!-- 比例与分辨率悬浮标签 -->
+  <!-- 任务进行中/失败状态卡片 -->
+  <div 
+    v-if="isTaskMode && task" 
+    class="gallery-card task-card"
+    :class="`status-${task.status}`"
+  >
+    <!-- 左侧极简流光加载区 -->
+    <div class="card-image-wrapper task-visual-wrapper">
+      <!-- 极简流光骨架背景与居中指示 -->
+      <div v-if="task.status === 'processing' || task.status === 'queued'" class="task-generating-stage">
+        <div class="shimmer-background"></div>
+        <div class="minimal-loader-box">
+          <Loader2 :size="20" class="spin-icon" />
+          <span class="task-timer">{{ task.durationFormatted || '0.0s' }}</span>
+        </div>
+      </div>
+
+      <!-- 失败/已取消状态 -->
+      <div v-else class="task-failed-stage">
+        <AlertCircle :size="22" class="fail-icon" />
+        <span class="fail-status-text">{{ task.status === 'cancelled' ? '已取消' : '生成失败' }}</span>
+      </div>
+
+      <!-- 比例与尺寸角标 -->
       <div class="image-badge-overlay">
         <span class="ratio-pill">{{ ratioTag }}</span>
-        <span class="size-pill">{{ dimensionText }}</span>
+        <span v-if="task.params.count > 1" class="count-pill">共 {{ task.params.count }} 张</span>
       </div>
     </div>
 
     <!-- 右侧内容与操作区 -->
     <div class="card-content">
       <!-- 提示词 -->
-      <p class="card-prompt" :data-tip="item.prompt" @click="emit('view', item)">
-        {{ item.prompt }}
+      <p class="card-prompt" :data-tip="task.params.prompt">
+        {{ task.params.prompt }}
       </p>
 
       <!-- 参数标签 -->
       <div class="card-tags">
         <span class="tag-badge">
           <Code :size="12" />
-          <span>{{ item.model === 'gpt-image-2' ? 'GPT-Image-2' : item.model }}</span>
+          <span>{{ modelText }}</span>
         </span>
-        <span v-if="item.quality" class="tag-badge">
-          质量 {{ item.quality }}
+        <span class="tag-badge">
+          质量 {{ qualityText }}
         </span>
-        <span v-if="item.referenceImages && item.referenceImages.length > 0" class="tag-badge ref-tag">
+        <span v-if="isI2I" class="tag-badge ref-tag">
           图生图
+        </span>
+        <span v-if="task.params.count > 1" class="tag-badge batch-tag">
+          <Layers :size="11" />
+          <span>批量 {{ task.params.count }} 张</span>
         </span>
       </div>
 
-      <!-- 底部工具栏 -->
+      <!-- 底部工具与状态栏 (高度与作品卡片 actions 保持严格一致 28px，避免高度抖动) -->
+      <div class="card-actions task-card-actions">
+        <!-- 正在生成中: 左侧极简进度条 + 右侧取消按钮 -->
+        <template v-if="task.status === 'processing' || task.status === 'queued'">
+          <div class="task-progress-inline">
+            <div class="progress-track">
+              <div class="progress-fill" :style="{ width: `${Math.max(5, task.progress)}%` }"></div>
+            </div>
+            <span class="progress-text">{{ task.progress }}%</span>
+          </div>
+
+          <button 
+            class="task-action-btn btn-cancel-task"
+            data-tip="取消任务"
+            @click.stop="emit('cancelTask', task.id)"
+          >
+            <Square :size="12" />
+            <span>取消</span>
+          </button>
+        </template>
+
+        <!-- 失败/已取消: 左侧错误信息 + 右侧重试与移除按钮 -->
+        <template v-else>
+          <span class="task-error-inline" :data-tip="task.errorMessage">
+            {{ task.errorMessage || '任务已中止' }}
+          </span>
+
+          <div class="task-btn-group">
+            <button 
+              class="task-action-btn btn-retry-task"
+              data-tip="重试生成"
+              @click.stop="emit('retryTask', task)"
+            >
+              <RotateCw :size="12" />
+              <span>重试</span>
+            </button>
+
+            <button 
+              class="task-action-btn btn-remove-task"
+              data-tip="移除此记录"
+              @click.stop="emit('removeTask', task.id)"
+            >
+              <Trash2 :size="13" />
+            </button>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- 作品结果展示卡片 (支持多图聚合与切换) -->
+  <div v-else-if="currentAsset" class="gallery-card artwork-card">
+    <!-- 左侧图片缩略图区 -->
+    <div class="card-image-wrapper" @click="handleCardClick">
+      <img :src="currentAsset.url" :alt="currentAsset.prompt" loading="lazy" />
+      
+      <!-- 比例与分辨率悬浮标签 -->
+      <div class="image-badge-overlay">
+        <span class="ratio-pill">{{ ratioTag }}</span>
+        <span class="size-pill">{{ dimensionText }}</span>
+      </div>
+
+      <!-- 多图轮播切换左右按钮 (当多于 1 张时展示) -->
+      <div v-if="assetsList.length > 1" class="carousel-nav-overlay" @click.stop>
+        <button 
+          class="carousel-arrow left-arrow" 
+          data-tip="上一张"
+          @click="handlePrevImage"
+        >
+          <ChevronLeft :size="14" />
+        </button>
+
+        <span class="carousel-counter">{{ currentAssetIndex + 1 }} / {{ assetsList.length }}</span>
+
+        <button 
+          class="carousel-arrow right-arrow" 
+          data-tip="下一张"
+          @click="handleNextImage"
+        >
+          <ChevronRight :size="14" />
+        </button>
+      </div>
+
+      <!-- 底部图片小圆点指示器 -->
+      <div v-if="assetsList.length > 1" class="carousel-dots-wrap" @click.stop>
+        <span 
+          v-for="(_, idx) in assetsList" 
+          :key="idx" 
+          class="carousel-dot"
+          :class="{ active: idx === currentAssetIndex }"
+          @click="handleSelectImage(idx, $event)"
+        ></span>
+      </div>
+    </div>
+
+    <!-- 右侧内容与操作区 -->
+    <div class="card-content">
+      <!-- 提示词 -->
+      <p class="card-prompt" :data-tip="promptText" @click="handleCardClick">
+        {{ promptText }}
+      </p>
+
+      <!-- 参数标签 -->
+      <div class="card-tags">
+        <span class="tag-badge">
+          <Code :size="12" />
+          <span>{{ modelText }}</span>
+        </span>
+        <span v-if="currentAsset.quality" class="tag-badge">
+          质量 {{ currentAsset.quality }}
+        </span>
+        <span v-if="isI2I" class="tag-badge ref-tag">
+          图生图
+        </span>
+        <span v-if="assetsList.length > 1" class="tag-badge batch-tag">
+          <Layers :size="11" />
+          <span>共 {{ assetsList.length }} 张</span>
+        </span>
+        <span v-if="currentAsset.duration" class="tag-badge duration-tag">
+          {{ currentAsset.duration }}
+        </span>
+      </div>
+
+      <!-- 底部工具栏 (高度固定 28px) -->
       <div class="card-actions">
         <!-- 重新生成 -->
         <button 
           class="card-action-btn" 
           data-tip="重新生成"
-          @click.stop="emit('regenerate', item)"
+          @click.stop="emit('regenerate', currentAsset)"
         >
           <RotateCw :size="15" />
         </button>
@@ -79,18 +348,18 @@ const ratioTag = computed(() => {
         <!-- 收藏 -->
         <button 
           class="card-action-btn" 
-          :class="{ 'is-favorite': item.isFavorite }"
-          data-tip="收藏"
-          @click.stop="item.id && emit('toggleFavorite', item.id)"
+          :class="{ 'is-favorite': currentAsset.isFavorite }"
+          data-tip="收藏此图"
+          @click.stop="currentAsset.id && emit('toggleFavorite', currentAsset.id)"
         >
-          <Star :size="15" :class="{ 'star-filled': item.isFavorite }" />
+          <Star :size="15" :class="{ 'star-filled': currentAsset.isFavorite }" />
         </button>
 
         <!-- 复用提示词与参数 -->
         <button 
           class="card-action-btn" 
           data-tip="复用提示词与参数"
-          @click.stop="emit('reuse', item)"
+          @click.stop="emit('reuse', currentAsset)"
         >
           <CornerUpLeft :size="15" />
         </button>
@@ -99,16 +368,16 @@ const ratioTag = computed(() => {
         <button 
           class="card-action-btn" 
           data-tip="以此图为参考进行图生图编辑"
-          @click.stop="emit('editAsReference', item)"
+          @click.stop="emit('editAsReference', currentAsset)"
         >
           <Edit3 :size="15" />
         </button>
 
-        <!-- 删除 -->
+        <!-- 删除单张 -->
         <button 
           class="card-action-btn btn-delete" 
-          data-tip="删除"
-          @click.stop="item.id && emit('delete', item.id)"
+          data-tip="删除此图"
+          @click.stop="currentAsset.id && emit('delete', currentAsset.id)"
         >
           <Trash2 :size="15" />
         </button>
@@ -126,8 +395,12 @@ const ratioTag = computed(() => {
   border-radius: $radius-xl;
   overflow: hidden;
   display: flex;
+  height: 148px;
+  min-height: 148px;
+  max-height: 148px;
+  box-sizing: border-box;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 
   &:hover {
     border-color: #93c5fd;
@@ -136,13 +409,197 @@ const ratioTag = computed(() => {
   }
 }
 
+/* ================= 任务状态卡片 ================= */
+.task-card {
+  border: 1px dashed rgba(147, 197, 253, 0.9);
+  background: #ffffff;
+
+  &.status-processing {
+    border-color: #60a5fa;
+    box-shadow: 0 4px 16px -2px rgba(37, 99, 235, 0.08);
+  }
+
+  &.status-failed {
+    border-color: #fca5a5;
+    background: #ffffff;
+  }
+}
+
+.task-visual-wrapper {
+  background: #f8fafc;
+  position: relative;
+  width: 140px;
+  min-width: 140px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.task-generating-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  position: relative;
+
+  .shimmer-background {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+    background-size: 200% 100%;
+    animation: shimmerEffect 1.8s infinite linear;
+  }
+
+  .minimal-loader-box {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: $accent-primary;
+
+    .task-timer {
+      font-family: $font-mono;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: $text-secondary;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 1px 6px;
+      border-radius: 4px;
+      backdrop-filter: blur(4px);
+    }
+  }
+}
+
+.task-failed-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  color: $danger;
+  background: #fff5f5;
+
+  .fail-status-text {
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+}
+
+/* 任务底部内联栏 */
+.task-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.task-progress-inline {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  .progress-track {
+    flex: 1;
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: $accent-gradient;
+    border-radius: 2px;
+    transition: width 0.25s ease-out;
+  }
+
+  .progress-text {
+    font-family: $font-mono;
+    font-size: 0.68rem;
+    color: $text-muted;
+    font-weight: 600;
+    min-width: 28px;
+    text-align: right;
+  }
+}
+
+.task-error-inline {
+  flex: 1;
+  font-size: 0.72rem;
+  color: $danger;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.task-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 3px 8px;
+  height: 26px;
+  border-radius: $radius-sm;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &.btn-cancel-task {
+    background: $bg-surface-subtle;
+    border-color: $border-color;
+    color: $text-muted;
+
+    &:hover {
+      background: $danger-subtle;
+      border-color: #fca5a5;
+      color: $danger;
+    }
+  }
+
+  &.btn-retry-task {
+    background: $accent-subtle;
+    border-color: #bfdbfe;
+    color: $accent-primary;
+
+    &:hover {
+      background: #dbeafe;
+    }
+  }
+
+  &.btn-remove-task {
+    background: transparent;
+    border: none;
+    color: $text-dim;
+    padding: 3px;
+
+    &:hover {
+      color: $danger;
+    }
+  }
+}
+
+/* ================= 作品展示卡片 ================= */
 .card-image-wrapper {
   position: relative;
   width: 140px;
   min-width: 140px;
+  height: 100%;
   background: #f8fafc;
   cursor: pointer;
   overflow: hidden;
+  box-sizing: border-box;
 
   img {
     width: 100%;
@@ -153,7 +610,7 @@ const ratioTag = computed(() => {
   }
 
   &:hover img {
-    transform: scale(1.04);
+    transform: scale(1.03);
   }
 }
 
@@ -165,7 +622,7 @@ const ratioTag = computed(() => {
   gap: 4px;
   z-index: 2;
 
-  .ratio-pill, .size-pill {
+  .ratio-pill, .size-pill, .count-pill {
     background: rgba(15, 23, 42, 0.75);
     color: #ffffff;
     font-size: 0.65rem;
@@ -175,6 +632,83 @@ const ratioTag = computed(() => {
     backdrop-filter: blur(8px);
     font-family: $font-mono;
   }
+
+  .count-pill {
+    background: rgba(37, 99, 235, 0.85);
+  }
+}
+
+/* 多图轮播浮动控制器 */
+.carousel-nav-overlay {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  padding: 2px 4px;
+  border-radius: 9999px;
+  z-index: 3;
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+
+  .carousel-arrow {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: scale(1.15);
+    }
+  }
+
+  .carousel-counter {
+    color: #ffffff;
+    font-family: $font-mono;
+    font-size: 0.65rem;
+    font-weight: 600;
+  }
+}
+
+.carousel-dots-wrap {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  z-index: 3;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(6px);
+  padding: 2px 4px;
+  border-radius: 9999px;
+
+  .carousel-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.45);
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &.active {
+      background: #60a5fa;
+      width: 8px;
+      border-radius: 9999px;
+    }
+  }
 }
 
 .card-content {
@@ -183,7 +717,9 @@ const ratioTag = computed(() => {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 8px;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
   min-width: 0;
 }
 
@@ -192,6 +728,7 @@ const ratioTag = computed(() => {
   font-weight: 600;
   color: $text-main;
   line-height: 1.45;
+  height: 2.9em;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -199,6 +736,7 @@ const ratioTag = computed(() => {
   overflow: hidden;
   cursor: pointer;
   word-break: break-word;
+  margin: 0;
 
   &:hover {
     color: $accent-primary;
@@ -209,7 +747,9 @@ const ratioTag = computed(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  height: 22px;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .tag-badge {
@@ -223,11 +763,24 @@ const ratioTag = computed(() => {
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 500;
+  flex-shrink: 0;
 
   &.ref-tag {
     background: $accent-subtle;
     border-color: #bfdbfe;
     color: $accent-primary;
+  }
+
+  &.batch-tag {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #16a34a;
+    font-weight: 600;
+  }
+
+  &.duration-tag {
+    font-family: $font-mono;
+    font-size: 0.68rem;
   }
 }
 
@@ -235,8 +788,8 @@ const ratioTag = computed(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: auto;
-  padding-top: 4px;
+  height: 28px;
+  box-sizing: border-box;
 }
 
 .card-action-btn {
@@ -272,9 +825,25 @@ const ratioTag = computed(() => {
   }
 }
 
+.spin-icon {
+  animation: spin 1s infinite linear;
+}
+
+@keyframes shimmerEffect {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 @media (max-width: 640px) {
   .gallery-card {
     flex-direction: column;
+    height: auto;
+    min-height: 280px;
+    max-height: none;
   }
 
   .card-image-wrapper {

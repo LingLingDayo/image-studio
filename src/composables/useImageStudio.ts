@@ -4,7 +4,7 @@ import { useModelStore } from '@/stores/modelStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { useGalleryStore } from '@/stores/galleryStore';
 import { defaultTaskScheduler } from '@/core/scheduler/TaskScheduler';
-import type { TaskReferenceImage, TaskGenerationParams } from '@/types/task';
+import type { TaskReferenceImage, TaskGenerationParams, GenerationTask } from '@/types/task';
 import {
   resolveTransparentOutputFormat,
   type ModelFormat,
@@ -92,7 +92,7 @@ export function useImageStudio() {
     referenceImages.value = [];
   }
 
-  async function generate(): Promise<MediaAsset[]> {
+  async function generate(): Promise<GenerationTask> {
     const trimmedPrompt = prompt.value.trim();
     if (!trimmedPrompt) {
       throw new Error('请输入提示词 (Prompt)');
@@ -119,30 +119,77 @@ export function useImageStudio() {
     };
 
     const task = defaultTaskScheduler.createTask(params);
-    taskStore.setCurrentTask(task);
+    taskStore.addTask(task);
 
-    try {
-      const assets = await defaultTaskScheduler.execute(
-        task,
-        configStore.providerConfig,
-        modelStore.activeModel,
-        {
-          onStatusChange: (t) => taskStore.setCurrentTask(t),
-          onProgress: (t) => taskStore.updateCurrentTask(t),
-          onSuccess: (_t, resultAssets) => {
-            galleryStore.addAssets(resultAssets);
-          }
+    // 提交后清空输入框，支持用户立即输入下一个提示词并发绘图
+    prompt.value = '';
+
+    // 异步执行生成流水线，非阻塞返回
+    runTaskExecution(task);
+
+    return task;
+  }
+
+  function runTaskExecution(task: GenerationTask) {
+    defaultTaskScheduler.execute(
+      task,
+      configStore.providerConfig,
+      modelStore.activeModel,
+      {
+        onStatusChange: (t) => {
+          taskStore.updateTask(t.id, { status: t.status });
+        },
+        onProgress: (t) => {
+          taskStore.updateTask(t.id, {
+            progress: t.progress,
+            elapsedSeconds: t.elapsedSeconds,
+            durationFormatted: t.durationFormatted
+          });
+        },
+        onSuccess: (_t, resultAssets) => {
+          galleryStore.addAssets(resultAssets);
+          setTimeout(() => {
+            taskStore.removeTask(task.id);
+          }, 400);
+        },
+        onError: (_t, err) => {
+          taskStore.updateTask(task.id, {
+            status: 'failed',
+            errorMessage: err.message || '生成失败'
+          });
         }
-      );
+      }
+    ).catch(() => {
+      // 错误已在 onError 中捕获处理
+    });
+  }
 
-      return assets;
-    } catch (err) {
-      throw err;
-    }
+  function retryTask(task: GenerationTask) {
+    const updatedTask: GenerationTask = {
+      ...task,
+      status: 'idle',
+      progress: 0,
+      elapsedSeconds: 0,
+      durationFormatted: '0.0s',
+      errorMessage: undefined,
+      updatedAt: Date.now()
+    };
+    taskStore.addTask(updatedTask);
+    runTaskExecution(updatedTask);
+  }
+
+  function cancelTask(taskId: string) {
+    taskStore.cancelTask(taskId);
+  }
+
+  function removeTask(taskId: string) {
+    taskStore.removeTask(taskId);
   }
 
   function cancel() {
-    taskStore.cancelCurrentTask();
+    if (taskStore.currentTask) {
+      taskStore.cancelTask(taskStore.currentTask.id);
+    }
   }
 
   function setSizeAuto() {
@@ -203,8 +250,12 @@ export function useImageStudio() {
     removeReferenceImage,
     clearReferenceImages,
     generate,
+    retryTask,
+    cancelTask,
+    removeTask,
     cancel,
     reuseItem,
     useImageAsReference
   };
 }
+

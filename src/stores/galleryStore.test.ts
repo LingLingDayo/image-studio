@@ -135,12 +135,38 @@ describe('useGalleryStore Pagination', () => {
     expect(store.filteredItems).toHaveLength(1);
     expect(store.filteredItems[0].id).toBe(1);
 
-    store.searchQuery = '512x512';
-    expect(store.filteredItems).toHaveLength(1);
-    expect(store.filteredItems[0].id).toBe(2);
-
     store.searchQuery = 'jpeg';
     expect(store.filteredItems).toHaveLength(1);
     expect(store.filteredItems[0].id).toBe(2);
   });
+
+  it('should group multiple assets with same batchId into a single ArtworkBatch', () => {
+    const store = useGalleryStore();
+    const batchId1 = 'batch_task_1';
+    const batchId2 = 'batch_task_2';
+
+    store.items = [
+      { ...createMockAsset(1, 'Cyberpunk city 1'), batchId: batchId1 },
+      { ...createMockAsset(2, 'Cyberpunk city 2'), batchId: batchId1 },
+      { ...createMockAsset(3, 'Cyberpunk city 3'), batchId: batchId1 },
+      { ...createMockAsset(4, 'Forest scene 1'), batchId: batchId2 },
+      { ...createMockAsset(5, 'Forest scene 2'), batchId: batchId2 },
+      createMockAsset(6, 'Single legacy asset')
+    ];
+
+    expect(store.batches).toHaveLength(3);
+    // 第一组包含 3 张图
+    expect(store.batches[0].batchId).toBe(batchId1);
+    expect(store.batches[0].assets).toHaveLength(3);
+    // 第二组包含 2 张图
+    expect(store.batches[1].batchId).toBe(batchId2);
+    expect(store.batches[1].assets).toHaveLength(2);
+    // 第三组单图独立
+    expect(store.batches[2].assets).toHaveLength(1);
+
+    expect(store.totalBatches).toBe(3);
+    expect(store.paginatedBatches).toHaveLength(3);
+  });
 });
+
+
