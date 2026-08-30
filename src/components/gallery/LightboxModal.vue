@@ -204,15 +204,15 @@ onUnmounted(() => {
 
           <!-- 浮动半透明工具栏 (hover 显示) -->
           <div class="image-floating-toolbar" @mousedown.stop @wheel.stop @dblclick.stop>
-            <button class="tool-btn" data-tip="缩小 (快捷键: 滚轮向下)" @click="zoomOut">
+            <button class="tool-btn" data-tip="缩小 (滚轮向下)" @click="zoomOut">
               <ZoomOut :size="15" />
             </button>
 
-            <button class="tool-btn scale-indicator" data-tip="点击重置缩放为 100%" @click="resetScale">
+            <button class="tool-btn scale-indicator" data-tip="重置缩放 (100%)" @click="resetScale">
               <span>{{ Math.round(scale * 100) }}%</span>
             </button>
 
-            <button class="tool-btn" data-tip="放大 (快捷键: 滚轮向上)" @click="zoomIn">
+            <button class="tool-btn" data-tip="放大 (滚轮向上)" @click="zoomIn">
               <ZoomIn :size="15" />
             </button>
 
@@ -220,12 +220,10 @@ onUnmounted(() => {
 
             <button class="tool-btn" data-tip="顺时针旋转 90°" @click="rotateCw">
               <RotateCw :size="15" />
-              <span class="btn-text">旋转</span>
             </button>
 
-            <button class="tool-btn" data-tip="视图归位 (100% 居中)" @click="resetView">
-              <Maximize2 :size="14" />
-              <span class="btn-text">归位</span>
+            <button class="tool-btn" data-tip="重置视图 (100% 居中)" @click="resetView">
+              <Maximize2 :size="15" />
             </button>
           </div>
         </div>
@@ -517,15 +515,12 @@ onUnmounted(() => {
     border: none;
     color: #475569;
     height: 30px;
-    min-width: 30px;
-    padding: 0 8px;
+    width: 30px;
+    padding: 0;
     border-radius: 9999px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    font-size: 0.75rem;
-    font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
     user-select: none;
@@ -533,16 +528,17 @@ onUnmounted(() => {
     &:hover {
       background: #f1f5f9;
       color: #0f172a;
-      transform: scale(1.04);
+      transform: scale(1.06);
     }
 
     &:active {
-      transform: scale(0.96);
+      transform: scale(0.94);
     }
 
     &.scale-indicator {
       font-family: $font-mono;
       font-size: 0.72rem;
+      width: auto;
       min-width: 48px;
       padding: 0 6px;
       font-weight: 600;
@@ -552,10 +548,6 @@ onUnmounted(() => {
         background: $accent-subtle;
         color: #1d4ed8;
       }
-    }
-
-    .btn-text {
-      font-size: 0.75rem;
     }
   }
 
