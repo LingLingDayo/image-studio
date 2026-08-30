@@ -633,9 +633,23 @@ async function handleDownload() {
     background: transparent;
     border: none;
     color: $text-dim;
-    padding: 3px;
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    min-height: 26px;
+    max-width: 26px;
+    max-height: 26px;
+    aspect-ratio: 1 / 1;
+    flex-shrink: 0;
+    padding: 0;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: $radius-sm;
 
     &:hover {
+      background: $danger-subtle;
       color: $danger;
     }
   }
@@ -849,12 +863,25 @@ async function handleDownload() {
   color: $text-dim;
   width: 28px;
   height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  max-width: 28px;
+  max-height: 28px;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  padding: 0;
+  box-sizing: border-box;
   border-radius: $radius-sm;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.15s ease;
+
+  svg {
+    flex-shrink: 0;
+    pointer-events: none;
+  }
 
   &:hover {
     background: #f1f5f9;
