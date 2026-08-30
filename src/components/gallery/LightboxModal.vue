@@ -310,7 +310,7 @@ onUnmounted(() => {
                 <span>以此图编辑</span>
               </button>
 
-              <button class="btn-danger-outline" @click="handleDelete">
+              <button class="btn-danger-outline btn-icon" data-tip="删除此图片" @click="handleDelete">
                 <Trash2 :size="15" />
               </button>
             </div>
@@ -701,6 +701,15 @@ onUnmounted(() => {
 .action-btn-row {
   display: flex;
   gap: 8px;
+  align-items: center;
+
+  .btn-danger-outline {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    aspect-ratio: 1 / 1;
+    flex-shrink: 0;
+  }
 }
 
 .flex-1 {

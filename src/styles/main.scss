@@ -139,7 +139,9 @@ body {
   border: 1px solid #fecaca;
   color: $danger;
   border-radius: $radius-sm;
-  padding: 6px 12px;
+  padding: 7px 12px;
+  height: 36px;
+  box-sizing: border-box;
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
@@ -147,11 +149,22 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  box-shadow: $shadow-xs;
   transition: all 0.15s ease;
 
   &:hover {
     background: $danger-subtle;
     border-color: $danger;
+    transform: translateY(-0.5px);
+  }
+
+  &.btn-icon,
+  &:has(> svg:only-child) {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    flex-shrink: 0;
+    aspect-ratio: 1 / 1;
   }
 }
 
