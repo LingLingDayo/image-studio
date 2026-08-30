@@ -455,18 +455,19 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   padding: 4px 10px;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.1), 0 2px 6px -1px rgba(15, 23, 42, 0.05);
   z-index: 10;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 
   .btn-lightbox-nav {
     background: transparent;
     border: none;
-    color: #ffffff;
+    color: #475569;
     width: 28px;
     height: 28px;
     border-radius: 50%;
@@ -477,13 +478,14 @@ onUnmounted(() => {
     transition: all 0.15s ease;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(241, 245, 249, 0.95);
+      color: #0f172a;
       transform: scale(1.1);
     }
   }
 
   .lightbox-counter {
-    color: #ffffff;
+    color: #334155;
     font-family: $font-mono;
     font-size: 0.8rem;
     font-weight: 600;
@@ -496,11 +498,11 @@ onUnmounted(() => {
   bottom: 20px;
   left: 50%;
   transform: translate(-50%, 10px);
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.3), 0 0 1px rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.12), 0 4px 12px -2px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   border-radius: 9999px;
   padding: 5px 8px;
   display: flex;
@@ -514,7 +516,7 @@ onUnmounted(() => {
   .tool-btn {
     background: transparent;
     border: none;
-    color: #e2e8f0;
+    color: #475569;
     height: 30px;
     min-width: 30px;
     padding: 0 8px;
@@ -530,8 +532,8 @@ onUnmounted(() => {
     user-select: none;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.18);
-      color: #ffffff;
+      background: #f1f5f9;
+      color: #0f172a;
       transform: scale(1.04);
     }
 
@@ -545,11 +547,11 @@ onUnmounted(() => {
       min-width: 48px;
       padding: 0 6px;
       font-weight: 600;
-      color: #93c5fd;
+      color: $accent-primary;
 
       &:hover {
-        background: rgba(59, 130, 246, 0.25);
-        color: #ffffff;
+        background: $accent-subtle;
+        color: #1d4ed8;
       }
     }
 
@@ -561,7 +563,7 @@ onUnmounted(() => {
   .tool-divider {
     width: 1px;
     height: 14px;
-    background: rgba(255, 255, 255, 0.2);
+    background: #e2e8f0;
     margin: 0 2px;
   }
 }
