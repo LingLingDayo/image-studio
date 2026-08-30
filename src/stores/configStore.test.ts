@@ -1,25 +1,47 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
-import { useConfigStore } from './configStore';
 
-describe('useConfigStore', () => {
+describe('useConfigStore without ENV_BASE_URL', () => {
   beforeEach(() => {
     localStorage.clear();
     setActivePinia(createPinia());
     vi.resetModules();
   });
 
-  it('should initialize with default values when localStorage is empty', () => {
+  it('should initialize with default values when localStorage is empty', async () => {
+    vi.doMock('@/types/config', () => ({
+      ENV_BASE_URL: '',
+      ENV_API_KEY: '',
+      DEFAULT_CONFIG: {
+        baseUrl: '',
+        apiKey: '',
+        model: 'gpt-image-2'
+      }
+    }));
+
+    const { useConfigStore } = await import('./configStore');
     const store = useConfigStore();
     expect(store.apiKey).toBe('');
     expect(store.model).toBe('gpt-image-2');
+    expect(store.hasEnvBaseUrl).toBe(false);
   });
 
-  it('should load initial values from localStorage', () => {
+  it('should load initial values from localStorage', async () => {
     localStorage.setItem('gpt_image_base_url', 'https://api.openai.com/v1');
     localStorage.setItem('gpt_image_api_key', 'sk-test123456');
     localStorage.setItem('gpt_image_model', 'gpt-image-2');
 
+    vi.doMock('@/types/config', () => ({
+      ENV_BASE_URL: '',
+      ENV_API_KEY: '',
+      DEFAULT_CONFIG: {
+        baseUrl: '',
+        apiKey: '',
+        model: 'gpt-image-2'
+      }
+    }));
+
+    const { useConfigStore } = await import('./configStore');
     const store = useConfigStore();
     expect(store.baseUrl).toBe('https://api.openai.com/v1');
     expect(store.apiKey).toBe('sk-test123456');
@@ -28,7 +50,18 @@ describe('useConfigStore', () => {
     expect(store.isConfigured).toBe(true);
   });
 
-  it('should update config and persist to localStorage', () => {
+  it('should update config and persist to localStorage', async () => {
+    vi.doMock('@/types/config', () => ({
+      ENV_BASE_URL: '',
+      ENV_API_KEY: '',
+      DEFAULT_CONFIG: {
+        baseUrl: '',
+        apiKey: '',
+        model: 'gpt-image-2'
+      }
+    }));
+
+    const { useConfigStore } = await import('./configStore');
     const store = useConfigStore();
     store.updateConfig({
       baseUrl: 'https://proxy.example.com/v1',
@@ -48,17 +81,26 @@ describe('useConfigStore', () => {
     });
   });
 
-  it('should compute isConfigured correctly based on keys and url', () => {
+  it('should compute isConfigured correctly based on keys and url', async () => {
+    vi.doMock('@/types/config', () => ({
+      ENV_BASE_URL: '',
+      ENV_API_KEY: '',
+      DEFAULT_CONFIG: {
+        baseUrl: '',
+        apiKey: '',
+        model: 'gpt-image-2'
+      }
+    }));
+
+    const { useConfigStore } = await import('./configStore');
     const store = useConfigStore();
     expect(store.isConfigured).toBe(false);
 
     store.updateConfig({ apiKey: 'sk-123' });
-    expect(store.isConfigured).toBe(store.hasEnvBaseUrl);
+    expect(store.isConfigured).toBe(false);
 
-    if (!store.hasEnvBaseUrl) {
-      store.updateConfig({ baseUrl: 'https://api.example.com' });
-      expect(store.isConfigured).toBe(true);
-    }
+    store.updateConfig({ baseUrl: 'https://api.example.com' });
+    expect(store.isConfigured).toBe(true);
   });
 });
 
