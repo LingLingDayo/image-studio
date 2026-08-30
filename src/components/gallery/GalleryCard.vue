@@ -217,7 +217,7 @@ async function handleDownload() {
     const list = assetsList.value;
     for (let i = 0; i < list.length; i++) {
       const a = list[i];
-      const ext = a.format || 'png';
+      const ext = (a.format || 'png').replace(/^\./, '');
       const filename = `image_${a.id || `${Date.now()}_${i + 1}`}.${ext}`;
       await downloadImage(a.url, filename);
       if (i < list.length - 1) {
@@ -227,7 +227,7 @@ async function handleDownload() {
     emit('showToast', `已开始批量下载全部 ${list.length} 张原图`, 'success');
   } else if (currentAsset.value) {
     const a = currentAsset.value;
-    const ext = a.format || 'png';
+    const ext = (a.format || 'png').replace(/^\./, '');
     const filename = `image_${a.id || Date.now()}.${ext}`;
     await downloadImage(a.url, filename);
     emit('showToast', '已开始下载原图', 'success');

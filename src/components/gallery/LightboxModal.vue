@@ -89,7 +89,7 @@ const {
 async function handleDownload() {
   const item = currentActiveItem.value;
   if (item) {
-    const ext = item.format || 'png';
+    const ext = (item.format || 'png').replace(/^\./, '');
     const normRot = ((rotation.value % 360) + 360) % 360;
     const nameSuffix = normRot !== 0 ? `_r${normRot}` : '';
     const filename = `image_${item.id || Date.now()}${nameSuffix}.${ext}`;

@@ -1,34 +1,47 @@
-export async function downloadImage(url: string, filename: string): Promise<void> {
-  try {
-    if (url.startsWith('data:')) {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      return;
-    }
+/**
+ * 安全触发浏览器原生文件下载
+ */
+function triggerBrowserDownload(url: string, filename: string, isTemporaryBlob: boolean = false): void {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener noreferrer';
+  // 严禁设置 a.target = '_blank'，否则 Chromium 会将其作为页面导航并忽略 a.download 文件名与后缀
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 
+  if (isTemporaryBlob) {
+    // 延迟 60 秒注销，确保浏览器后台下载进程已完成异步流读取
+    setTimeout(() => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        // ignore
+      }
+    }, 60000);
+  }
+}
+
+export async function downloadImage(url: string, filename: string): Promise<void> {
+  if (!url) return;
+
+  // 1. 如果本身就是 data: URL 或 blob: URL，直接触发下载
+  if (url.startsWith('data:') || url.startsWith('blob:')) {
+    triggerBrowserDownload(url, filename, false);
+    return;
+  }
+
+  // 2. 远程 http/https 链接，通过 fetch 转 blob 避免跨域导致浏览器直接打开网页
+  try {
     const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP fetch status ${response.status}`);
     const blob = await response.blob();
     const objectUrl = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = objectUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(objectUrl);
-  } catch {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.target = '_blank';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    triggerBrowserDownload(objectUrl, filename, true);
+  } catch (err) {
+    console.warn('远程图片流式下载失败，降级为直连下载:', err);
+    triggerBrowserDownload(url, filename, false);
   }
 }
 
@@ -68,7 +81,13 @@ export async function downloadRotatedImage(
     });
 
     if (cleanupUrl) {
-      URL.revokeObjectURL(cleanupUrl);
+      setTimeout(() => {
+        try {
+          URL.revokeObjectURL(cleanupUrl!);
+        } catch {
+          // ignore
+        }
+      }, 60000);
     }
 
     const canvas = document.createElement('canvas');
@@ -85,9 +104,10 @@ export async function downloadRotatedImage(
     ctx.rotate((normDeg * Math.PI) / 180);
     ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
 
-    const mime = (format.toLowerCase() === 'jpg' || format.toLowerCase() === 'jpeg')
+    const cleanFormat = format.toLowerCase().replace(/^\./, '');
+    const mime = (cleanFormat === 'jpg' || cleanFormat === 'jpeg')
       ? 'image/jpeg'
-      : format.toLowerCase() === 'webp'
+      : cleanFormat === 'webp'
         ? 'image/webp'
         : 'image/png';
 
@@ -100,15 +120,9 @@ export async function downloadRotatedImage(
     }
 
     const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = objectUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(objectUrl);
+    triggerBrowserDownload(objectUrl, filename, true);
   } catch (err) {
-    console.warn('Rotated image export error, falling back to original image', err);
+    console.warn('旋转图像导出失败，降级使用原图下载:', err);
     return downloadImage(url, filename);
   }
 }
@@ -134,3 +148,4 @@ export function formatFullTime(timestamp: number): string {
   const date = new Date(timestamp);
   return date.toLocaleString('zh-CN', { hour12: false });
 }
+
