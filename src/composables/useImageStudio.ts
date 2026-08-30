@@ -95,7 +95,7 @@ export function useImageStudio() {
   async function generate(): Promise<GenerationTask> {
     const trimmedPrompt = prompt.value.trim();
     if (!trimmedPrompt) {
-      throw new Error('请输入提示词 (Prompt)');
+      throw new Error('请输入提示词');
     }
 
     if (!configStore.isConfigured) {

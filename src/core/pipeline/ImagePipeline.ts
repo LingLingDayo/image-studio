@@ -22,7 +22,7 @@ export class ValidationStage implements IPipelineStage {
     }
 
     if (!ctx.task.params.prompt || ctx.task.params.prompt.trim() === '') {
-      throw new Error('请输入提示词 (Prompt)');
+      throw new Error('请输入提示词');
     }
 
     if (ctx.task.params.type === 'i2i' && (!ctx.task.params.referenceImages || ctx.task.params.referenceImages.length === 0)) {

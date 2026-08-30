@@ -248,7 +248,7 @@ onUnmounted(() => {
           <!-- Prompt -->
           <div class="info-block">
             <div class="block-label">
-              <span>提示词 (Prompt)</span>
+              <span>提示词</span>
               <button class="btn-text-copy" @click="handleCopyPrompt">
                 <Check v-if="isCopied" :size="13" />
                 <Copy v-else :size="13" />
@@ -262,7 +262,7 @@ onUnmounted(() => {
 
           <!-- Revised Prompt (如有) -->
           <div v-if="currentActiveItem.revisedPrompt" class="info-block">
-            <span class="block-label">模型优化提示词 (Revised)</span>
+            <span class="block-label">模型优化提示词</span>
             <div class="prompt-box revised">
               {{ currentActiveItem.revisedPrompt }}
             </div>
