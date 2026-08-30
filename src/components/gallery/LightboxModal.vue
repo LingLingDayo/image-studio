@@ -340,6 +340,8 @@ onUnmounted(() => {
 .modal-card {
   max-width: 1060px;
   width: 100%;
+  height: 86vh;
+  min-height: 560px;
   max-height: 90vh;
   background: $bg-surface;
   border: 1px solid $border-color;
@@ -349,6 +351,11 @@ onUnmounted(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+
+  @media (max-width: 860px) {
+    height: auto;
+    min-height: 0;
+  }
 }
 
 .modal-close-btn {
@@ -375,13 +382,15 @@ onUnmounted(() => {
 }
 
 .modal-body {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: 1fr 380px;
-  min-height: 520px;
-  max-height: 85vh;
+  overflow: hidden;
 
   @media (max-width: 860px) {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     max-height: 90vh;
     overflow-y: auto;
   }
@@ -401,6 +410,15 @@ onUnmounted(() => {
   cursor: grab;
   user-select: none;
   touch-action: none;
+  height: 100%;
+
+  @media (max-width: 860px) {
+    min-height: 380px;
+    height: 48vh;
+    border-right: none;
+    border-bottom: 1px solid $border-color;
+    flex-shrink: 0;
+  }
 
   &.is-dragging {
     cursor: grabbing;
