@@ -1,0 +1,27 @@
+{
+  "name": "gpt-image-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "lucide-vue-next": "^0.359.0",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.21"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.4",
+    "fake-indexeddb": "^6.2.5",
+    "happy-dom": "^20.11.6",
+    "sass": "^1.72.0",
+    "typescript": "^5.4.2",
+    "vite": "^5.1.6",
+    "vitest": "^4.1.11",
+    "vue-tsc": "^2.0.6"
+  }
+}
