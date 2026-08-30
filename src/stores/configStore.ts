@@ -1,21 +1,25 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { type ApiConfig, DEFAULT_CONFIG } from '@/types/config';
+import { type ApiConfig, DEFAULT_CONFIG, ENV_BASE_URL } from '@/types/config';
 import type { ProviderConfig } from '@/types/provider';
 
 export const useConfigStore = defineStore('config', () => {
+  const hasEnvBaseUrl = computed(() => ENV_BASE_URL.length > 0);
+
   const baseUrl = ref<string>(localStorage.getItem('gpt_image_base_url') || DEFAULT_CONFIG.baseUrl);
   const apiKey = ref<string>(localStorage.getItem('gpt_image_api_key') || DEFAULT_CONFIG.apiKey);
   // 请求仍携带 model；当前默认 gpt-image-2，配置弹窗不暴露以免误配其他模型
   const model = ref<string>(localStorage.getItem('gpt_image_model') || DEFAULT_CONFIG.model);
 
+  const effectiveBaseUrl = computed(() => (hasEnvBaseUrl.value ? ENV_BASE_URL : baseUrl.value.trim()));
+
   const isConfigured = computed(
-    () => apiKey.value.trim().length > 0 && baseUrl.value.trim().length > 0
+    () => apiKey.value.trim().length > 0 && effectiveBaseUrl.value.length > 0
   );
 
   const providerConfig = computed<ProviderConfig>(() => ({
-    baseUrl: baseUrl.value,
-    apiKey: apiKey.value,
+    baseUrl: effectiveBaseUrl.value,
+    apiKey: apiKey.value.trim(),
     model: model.value
   }));
 
@@ -36,6 +40,8 @@ export const useConfigStore = defineStore('config', () => {
 
   return {
     baseUrl,
+    effectiveBaseUrl,
+    hasEnvBaseUrl,
     apiKey,
     model,
     isConfigured,

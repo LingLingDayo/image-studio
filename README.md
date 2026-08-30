@@ -19,7 +19,7 @@ npm run dev
 
 | 变量 | 作用 | 默认 |
 | :--- | :--- | :--- |
-| `VITE_IMAGE_API_BASE_URL` | 开发/构建时预填的接口地址 | 空，需在界面填写 |
+| `VITE_IMAGE_API_BASE_URL` | 接口 Base URL。配置后界面设置弹窗自动隐藏该输入框，请求时自动带上 | 空，未配置时需在界面填写 |
 | `VITE_IMAGE_API_KEY` | 开发/构建时预填的令牌 | 空 |
 | `BIND_HOST` | 容器端口绑定地址 | `127.0.0.1`（仅本机） |
 | `HOST_PORT` | 宿主机端口 | `3000` |

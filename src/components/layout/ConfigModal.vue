@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useConfigStore } from '@/stores/configStore';
 import { X, Save, Key, Globe } from 'lucide-vue-next';
 import { UiInput, UiButton } from '@/components/ui';
@@ -18,6 +18,13 @@ const configStore = useConfigStore();
 const localBaseUrl = ref(configStore.baseUrl);
 const localApiKey = ref(configStore.apiKey);
 
+const isFormValid = computed(() => {
+  if (configStore.hasEnvBaseUrl) {
+    return localApiKey.value.trim().length > 0;
+  }
+  return localBaseUrl.value.trim().length > 0 && localApiKey.value.trim().length > 0;
+});
+
 watch(
   () => props.isOpen,
   (val) => {
@@ -29,11 +36,11 @@ watch(
 );
 
 function handleSave() {
-  if (!localBaseUrl.value.trim() || !localApiKey.value.trim()) {
+  if (!isFormValid.value) {
     return;
   }
   configStore.updateConfig({
-    baseUrl: localBaseUrl.value,
+    ...(configStore.hasEnvBaseUrl ? {} : { baseUrl: localBaseUrl.value }),
     apiKey: localApiKey.value
   });
   emit('saved');
@@ -65,7 +72,7 @@ onUnmounted(() => {
           </div>
           <div>
             <h3>API 配置</h3>
-            <p>配置接口地址与密钥</p>
+            <p>{{ configStore.hasEnvBaseUrl ? '配置接口密钥' : '配置接口地址与密钥' }}</p>
           </div>
         </div>
         <button class="btn-close" @click="emit('close')">
@@ -75,6 +82,7 @@ onUnmounted(() => {
 
       <div class="dialog-body">
         <UiInput
+          v-if="!configStore.hasEnvBaseUrl"
           id="baseUrl"
           v-model="localBaseUrl"
           label="API Base URL"
@@ -112,7 +120,7 @@ onUnmounted(() => {
         </UiButton>
         <UiButton
           variant="primary"
-          :disabled="!localBaseUrl.trim() || !localApiKey.trim()"
+          :disabled="!isFormValid"
           @click="handleSave"
         >
           <template #icon>
