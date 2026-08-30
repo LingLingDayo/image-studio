@@ -6,7 +6,7 @@ import { useViewportCanvas } from '@/composables/useViewportCanvas';
 import { 
   X, 
   Download, 
-  RotateCcw, 
+  CornerUpLeft, 
   Trash2, 
   Copy, 
   Edit3, 
@@ -300,7 +300,7 @@ onUnmounted(() => {
 
             <div class="action-btn-row">
               <button class="btn-secondary flex-1" @click="handleReuse">
-                <RotateCcw :size="15" />
+                <CornerUpLeft :size="15" />
                 <span>复用参数</span>
               </button>
 
