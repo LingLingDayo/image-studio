@@ -72,12 +72,8 @@ export function useViewportCanvas(panelRef: Ref<HTMLElement | null>, options: Vi
   }
 
   function resetScale() {
-    if (!panelRef.value) {
-      scale.value = 1;
-      return;
-    }
-    const rect = panelRef.value.getBoundingClientRect();
-    zoomTo(1, rect.width / 2, rect.height / 2);
+    const clampedScale = Math.min(Math.max(1, minScale), maxScale);
+    scale.value = clampedScale;
   }
 
   function resetView() {

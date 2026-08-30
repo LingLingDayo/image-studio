@@ -56,4 +56,25 @@ describe('useViewportCanvas (useViewportCanvas.ts)', () => {
     expect(canvas.translateY.value).toBe(0);
     expect(canvas.rotation.value).toBe(0);
   });
+
+  it('should reset scale based on image center while preserving translation', () => {
+    const dummyRef = ref<HTMLElement | null>(null);
+    const canvas = useViewportCanvas(dummyRef);
+
+    canvas.translateX.value = 120;
+    canvas.translateY.value = -80;
+    canvas.scale.value = 3.5;
+
+    // resetScale 仅重置缩放比例，保持当前的平移位置不变（以图片中心缩放）
+    canvas.resetScale();
+    expect(canvas.scale.value).toBe(1);
+    expect(canvas.translateX.value).toBe(120);
+    expect(canvas.translateY.value).toBe(-80);
+
+    // resetView 重置缩放并归零平移（100% 居中）
+    canvas.resetView();
+    expect(canvas.scale.value).toBe(1);
+    expect(canvas.translateX.value).toBe(0);
+    expect(canvas.translateY.value).toBe(0);
+  });
 });
