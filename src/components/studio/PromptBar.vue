@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted, onUnmounted, computed } from 'vue';
-import { Paperclip, ArrowRight, X, Trash2, Loader2, UploadCloud, Square } from 'lucide-vue-next';
+import { Paperclip, ArrowRight, X, Trash2, UploadCloud } from 'lucide-vue-next';
 import {
   TRANSPARENT_DEFAULT_FORMAT,
   supportsAlphaChannel,

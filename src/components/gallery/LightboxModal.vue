@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { MediaAsset } from '@/types/asset';
 import { formatFullTime, downloadRotatedImage } from '@/utils/download';
+import { formatQualityLabel, getResolutionDisplay } from '@/utils/imageSize';
 import { useViewportCanvas } from '@/composables/useViewportCanvas';
 import { 
   X, 
@@ -50,6 +51,8 @@ const currentAssetIndex = computed(() => {
   return idx !== -1 ? idx : 0;
 });
 
+const resolutionText = computed(() => getResolutionDisplay(currentActiveItem.value || undefined));
+
 function handlePrev() {
   const list = currentBatchAssets.value;
   if (list.length <= 1) return;
@@ -92,7 +95,7 @@ async function handleDownload() {
     const filename = `image_${item.id || Date.now()}${nameSuffix}.${ext}`;
     
     await downloadRotatedImage(item.url, filename, rotation.value, ext);
-    emit('showToast', normRot !== 0 ? `已下载旋转 (${normRot}°) 后的高清图！` : '已开始下载高清原图！', 'success');
+    emit('showToast', normRot !== 0 ? `已下载旋转 (${normRot}°) 后的原图！` : '已开始下载原图！', 'success');
   }
 }
 
@@ -268,8 +271,8 @@ onUnmounted(() => {
           <!-- 参数详情表格 -->
           <div class="meta-grid">
             <div class="meta-row">
-              <span class="meta-k">模型</span>
-              <span class="meta-v">{{ currentActiveItem.model }}</span>
+              <span class="meta-k">分辨率</span>
+              <span class="meta-v">{{ resolutionText }}</span>
             </div>
             <div class="meta-row">
               <span class="meta-k">尺寸比例</span>
@@ -277,7 +280,7 @@ onUnmounted(() => {
             </div>
             <div class="meta-row">
               <span class="meta-k">质量 / 格式</span>
-              <span class="meta-v">{{ currentActiveItem.quality }} / {{ (currentActiveItem.format || 'png').toUpperCase() }}</span>
+              <span class="meta-v">{{ formatQualityLabel(currentActiveItem.quality) }} / {{ (currentActiveItem.format || 'png').toUpperCase() }}</span>
             </div>
             <div class="meta-row">
               <span class="meta-k">生成耗时</span>
@@ -293,7 +296,7 @@ onUnmounted(() => {
           <div class="modal-actions">
             <button class="btn-primary full-width" @click="handleDownload">
               <Download :size="16" />
-              <span>{{ rotation % 360 !== 0 ? `下载旋转 (${((rotation % 360) + 360) % 360}°) 原图` : '下载高清原图' }}</span>
+              <span>{{ rotation % 360 !== 0 ? `下载旋转 (${((rotation % 360) + 360) % 360}°) 原图` : '下载原图' }}</span>
             </button>
 
             <div class="action-btn-row">

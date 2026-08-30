@@ -366,3 +366,45 @@ export function applySizePromptHint(prompt: string, hint: string | null): string
   if (!hint) return prompt;
   return `${prompt.trim()}\n\n[输出要求: ${hint}]`;
 }
+
+/**
+ * 将质量英文/代码值转换为友好中文
+ */
+export function formatQualityLabel(quality?: string): string {
+  if (!quality) return '中';
+  const q = quality.toLowerCase().trim();
+  const map: Record<string, string> = {
+    auto: '自动',
+    low: '低',
+    medium: '中',
+    high: '高',
+    standard: '标准',
+    hd: '高清'
+  };
+  return map[q] || quality;
+}
+
+/**
+ * 推导或格式化作品/任务的分辨率标签 (1K/2K/4K)
+ */
+export function getResolutionDisplay(item?: {
+  width?: number;
+  height?: number;
+  size?: string;
+  resolution?: ResolutionTier;
+}): string {
+  if (item?.resolution && item.resolution !== 'auto') {
+    return item.resolution.toUpperCase();
+  }
+  if (item?.width && item.height) {
+    return inferResolutionTier(Math.max(item.width, item.height)).toUpperCase();
+  }
+  if (item?.size && item.size !== 'auto') {
+    const parsed = parseSizeString(item.size);
+    if (parsed) {
+      return inferResolutionTier(Math.max(parsed.width, parsed.height)).toUpperCase();
+    }
+  }
+  return '1K';
+}
+

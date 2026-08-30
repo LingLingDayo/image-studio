@@ -52,7 +52,7 @@ class AssetRepository {
     if (!(asset.blob instanceof Blob) || asset.blob.size === 0) {
       throw new Error('保存失败: 缺少本地图像数据');
     }
-    const { blob, url: _url, id, ...rest } = asset;
+    const { blob, url: _url, ...rest } = asset;
     const record: any = {
       ...rest,
       url: '',
@@ -60,8 +60,8 @@ class AssetRepository {
       imageMime: blob.type || 'image/png',
       isFavorite: asset.isFavorite || false
     };
-    if (id !== undefined) {
-      record.id = id;
+    if ('id' in asset && asset.id !== undefined) {
+      record.id = asset.id;
     }
     return record as StoredAsset;
   }

@@ -8,7 +8,7 @@ import {
   CornerUpLeft, 
   Edit3, 
   Trash2, 
-  Code, 
+  Download,
   Loader2, 
   ChevronLeft, 
   ChevronRight, 
@@ -16,6 +16,8 @@ import {
   AlertCircle,
   Layers
 } from 'lucide-vue-next';
+import { downloadImage } from '@/utils/download';
+import { formatQualityLabel, getResolutionDisplay } from '@/utils/imageSize';
 
 const props = defineProps<{
   item?: MediaAsset;
@@ -34,6 +36,7 @@ const emit = defineEmits<{
   (e: 'cancelTask', taskId: string): void;
   (e: 'retryTask', task: GenerationTask): void;
   (e: 'removeTask', taskId: string): void;
+  (e: 'showToast', message: string, type: 'success' | 'error' | 'info'): void;
 }>();
 
 // 是否为任务模式
@@ -82,15 +85,30 @@ const dimensionText = computed(() => {
   return '1024×1024';
 });
 
-// 比例标签
-const ratioTag = computed(() => {
+// 比例文字 (如 1:1, 16:9)
+const ratioText = computed(() => {
   if (currentAsset.value?.ratio) {
-    return currentAsset.value.ratio.startsWith('≈') ? currentAsset.value.ratio : `#${currentAsset.value.ratio}`;
+    return currentAsset.value.ratio.replace(/^#/, '');
   }
-  if (props.task?.params.aspectRatio) {
-    return `#${props.task.params.aspectRatio}`;
+  if (props.batch?.ratio) {
+    return props.batch.ratio.replace(/^#/, '');
   }
-  return '#1:1';
+  if (props.task?.params.aspectRatio && props.task.params.aspectRatio !== 'auto') {
+    return props.task.params.aspectRatio.replace(/^#/, '');
+  }
+  return '1:1';
+});
+
+// 分辨率文字 (1K/2K/4K)
+const resolutionText = computed(() => {
+  if (props.task) {
+    return getResolutionDisplay({
+      size: props.task.params.size,
+      resolution: props.task.params.resolution
+    });
+  }
+  const a = currentAsset.value || props.batch;
+  return getResolutionDisplay(a || undefined);
 });
 
 // 提示词
@@ -107,14 +125,12 @@ const promptText = computed(() => {
   return '';
 });
 
-// 模型名称
-const modelText = computed(() => {
-  const m = currentAsset.value?.model || props.batch?.model || props.task?.params.model || 'gpt-image-2';
-  return m === 'gpt-image-2' ? 'GPT-Image-2' : m;
+// 质量中文标签
+const qualityChineseText = computed(() => {
+  const q = currentAsset.value?.quality || props.batch?.quality || props.task?.params.quality;
+  return formatQualityLabel(q);
 });
 
-// 质量与格式
-const qualityText = computed(() => currentAsset.value?.quality || props.batch?.quality || props.task?.params.quality || '中');
 const isI2I = computed(() => {
   if (currentAsset.value) {
     return currentAsset.value.type === 'i2i' || (currentAsset.value.referenceImages && currentAsset.value.referenceImages.length > 0);
@@ -153,6 +169,29 @@ function handleCardClick() {
     emit('view', currentAsset.value, assetsList.value);
   }
 }
+
+// 下载单张或批量多张原图
+async function handleDownload() {
+  if (assetsList.value.length > 1) {
+    const list = assetsList.value;
+    for (let i = 0; i < list.length; i++) {
+      const a = list[i];
+      const ext = a.format || 'png';
+      const filename = `image_${a.id || `${Date.now()}_${i + 1}`}.${ext}`;
+      await downloadImage(a.url, filename);
+      if (i < list.length - 1) {
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    }
+    emit('showToast', `已开始批量下载全部 ${list.length} 张原图`, 'success');
+  } else if (currentAsset.value) {
+    const a = currentAsset.value;
+    const ext = a.format || 'png';
+    const filename = `image_${a.id || Date.now()}.${ext}`;
+    await downloadImage(a.url, filename);
+    emit('showToast', '已开始下载原图', 'success');
+  }
+}
 </script>
 
 <template>
@@ -179,9 +218,9 @@ function handleCardClick() {
         <span class="fail-status-text">{{ task.status === 'cancelled' ? '已取消' : '生成失败' }}</span>
       </div>
 
-      <!-- 比例与尺寸角标 -->
+      <!-- 尺寸与数量角标 (左上角仅显示尺寸与多图数量) -->
       <div class="image-badge-overlay">
-        <span class="ratio-pill">{{ ratioTag }}</span>
+        <span class="size-pill">{{ dimensionText }}</span>
         <span v-if="task.params.count > 1" class="count-pill">共 {{ task.params.count }} 张</span>
       </div>
     </div>
@@ -193,14 +232,16 @@ function handleCardClick() {
         {{ task.params.prompt }}
       </p>
 
-      <!-- 参数标签 -->
+      <!-- 参数标签 (展示比例、分辨率、中文质量) -->
       <div class="card-tags">
         <span class="tag-badge">
-          <Code :size="12" />
-          <span>{{ modelText }}</span>
+          {{ ratioText }}
         </span>
         <span class="tag-badge">
-          质量 {{ qualityText }}
+          {{ resolutionText }}
+        </span>
+        <span class="tag-badge">
+          质量 {{ qualityChineseText }}
         </span>
         <span v-if="isI2I" class="tag-badge ref-tag">
           图生图
@@ -267,9 +308,8 @@ function handleCardClick() {
     <div class="card-image-wrapper" @click="handleCardClick">
       <img :src="currentAsset.url" :alt="currentAsset.prompt" loading="lazy" />
       
-      <!-- 比例与分辨率悬浮标签 -->
+      <!-- 尺寸悬浮标签 (仅左上角显示尺寸) -->
       <div class="image-badge-overlay">
-        <span class="ratio-pill">{{ ratioTag }}</span>
         <span class="size-pill">{{ dimensionText }}</span>
       </div>
 
@@ -313,14 +353,16 @@ function handleCardClick() {
         {{ promptText }}
       </p>
 
-      <!-- 参数标签 -->
+      <!-- 参数标签 (展示比例、分辨率、中文质量) -->
       <div class="card-tags">
         <span class="tag-badge">
-          <Code :size="12" />
-          <span>{{ modelText }}</span>
+          {{ ratioText }}
         </span>
-        <span v-if="currentAsset.quality" class="tag-badge">
-          质量 {{ currentAsset.quality }}
+        <span class="tag-badge">
+          {{ resolutionText }}
+        </span>
+        <span class="tag-badge">
+          质量 {{ qualityChineseText }}
         </span>
         <span v-if="isI2I" class="tag-badge ref-tag">
           图生图
@@ -371,6 +413,15 @@ function handleCardClick() {
           @click.stop="emit('editAsReference', currentAsset)"
         >
           <Edit3 :size="15" />
+        </button>
+
+        <!-- 下载原图 (单图/多图批量下载) -->
+        <button 
+          class="card-action-btn" 
+          :data-tip="assetsList.length > 1 ? `批量下载全部原图 (${assetsList.length} 张)` : '下载原图'"
+          @click.stop="handleDownload"
+        >
+          <Download :size="15" />
         </button>
 
         <!-- 删除单张 -->

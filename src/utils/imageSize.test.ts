@@ -9,7 +9,9 @@ import {
   buildSizePromptHint,
   calcMaxSize,
   createDefaultImageSizeState,
+  formatQualityLabel,
   formatSizeParam,
+  getResolutionDisplay,
   hydrateImageSizeFromAsset,
   inferResolutionTier,
   materializeSize,
@@ -205,4 +207,25 @@ describe('imageSize (imageSize.ts)', () => {
       height: 576
     });
   });
+
+  it('should format quality labels into friendly Chinese text', () => {
+    expect(formatQualityLabel('low')).toBe('低');
+    expect(formatQualityLabel('medium')).toBe('中');
+    expect(formatQualityLabel('high')).toBe('高');
+    expect(formatQualityLabel('auto')).toBe('自动');
+    expect(formatQualityLabel('hd')).toBe('高清');
+    expect(formatQualityLabel('中')).toBe('中');
+    expect(formatQualityLabel(undefined)).toBe('中');
+  });
+
+  it('should get resolution display string accurately', () => {
+    expect(getResolutionDisplay({ resolution: '2k' })).toBe('2K');
+    expect(getResolutionDisplay({ width: 1024, height: 1024 })).toBe('1K');
+    expect(getResolutionDisplay({ width: 1920, height: 1080 })).toBe('2K');
+    expect(getResolutionDisplay({ width: 4096, height: 2160 })).toBe('4K');
+    expect(getResolutionDisplay({ size: '1254×1254' })).toBe('2K');
+    expect(getResolutionDisplay({ size: '1024x1024' })).toBe('1K');
+    expect(getResolutionDisplay({})).toBe('1K');
+  });
 });
+

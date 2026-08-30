@@ -97,6 +97,7 @@ function handlePageSizeChange(size: number) {
           @edit-as-reference="emit('editAsReference', $event)"
           @delete="handleDelete"
           @delete-batch="handleDeleteBatch"
+          @show-toast="(msg, type) => emit('showToast', msg, type)"
         />
       </div>
 
