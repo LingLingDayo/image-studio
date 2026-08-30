@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { MediaAsset } from '@/types/asset';
-import { formatFullTime, downloadRotatedImage } from '@/utils/download';
+import { formatFullTime, downloadRotatedImage, generateAssetFilename } from '@/utils/download';
 import { formatQualityLabel, getResolutionDisplay } from '@/utils/imageSize';
 import { useViewportCanvas } from '@/composables/useViewportCanvas';
 import { 
@@ -90,9 +90,8 @@ async function handleDownload() {
   const item = currentActiveItem.value;
   if (item) {
     const ext = (item.format || 'png').replace(/^\./, '');
+    const filename = generateAssetFilename(item, undefined, rotation.value);
     const normRot = ((rotation.value % 360) + 360) % 360;
-    const nameSuffix = normRot !== 0 ? `_r${normRot}` : '';
-    const filename = `image_${item.id || Date.now()}${nameSuffix}.${ext}`;
     
     await downloadRotatedImage(item.url, filename, rotation.value, ext);
     emit('showToast', normRot !== 0 ? `已下载旋转 (${normRot}°) 后的原图！` : '已开始下载原图！', 'success');

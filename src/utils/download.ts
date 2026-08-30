@@ -149,3 +149,54 @@ export function formatFullTime(timestamp: number): string {
   return date.toLocaleString('zh-CN', { hour12: false });
 }
 
+/**
+ * 格式化生成图像下载文件名
+ * 规范: 对应的前缀标识_xxxx.xx.xx_xx.xx.xx_时间戳后四位.扩展名
+ * 示例:
+ *   - 文生图: t2i_2026.08.31_02.57.33_1234.png
+ *   - 图生图: i2i_2026.08.31_02.57.33_1234.png
+ */
+export function generateAssetFilename(
+  asset: {
+    type?: 't2i' | 'i2i' | string;
+    referenceImages?: string[];
+    timestamp?: number;
+    format?: string;
+  },
+  batchIndex?: number,
+  rotationDeg: number = 0
+): string {
+  // 1. 判断前缀标识 (文生图: t2i, 图生图: i2i)
+  const isI2I = asset.type === 'i2i' || (Boolean(asset.referenceImages && asset.referenceImages.length > 0));
+  const prefix = isI2I ? 'i2i' : 't2i';
+
+  // 2. 时间戳与日期解析
+  let ts = asset.timestamp && !isNaN(asset.timestamp) && asset.timestamp > 0 ? asset.timestamp : Date.now();
+  if (typeof batchIndex === 'number' && batchIndex > 0) {
+    ts += batchIndex;
+  }
+  const date = new Date(ts);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+
+  // 时间戳后四位
+  const tsStr = String(ts);
+  const lastFour = tsStr.length >= 4 ? tsStr.slice(-4) : tsStr.padStart(4, '0');
+
+  // 旋转后缀（若存在旋转）
+  const normRot = ((rotationDeg % 360) + 360) % 360;
+  const rotSuffix = normRot !== 0 ? `_r${normRot}` : '';
+
+  // 文件扩展名
+  const ext = (asset.format || 'png').toLowerCase().replace(/^\./, '');
+  const cleanExt = ext === 'jpeg' ? 'jpeg' : (ext === 'jpg' ? 'jpg' : (ext === 'webp' ? 'webp' : 'png'));
+
+  return `${prefix}_${year}.${month}.${day}_${hours}.${minutes}.${seconds}_${lastFour}${rotSuffix}.${cleanExt}`;
+}
+
+

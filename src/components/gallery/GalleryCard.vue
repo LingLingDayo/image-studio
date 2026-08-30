@@ -17,7 +17,7 @@ import {
   Layers,
   Clock
 } from 'lucide-vue-next';
-import { downloadImage } from '@/utils/download';
+import { downloadImage, generateAssetFilename } from '@/utils/download';
 import { formatQualityLabel, getResolutionDisplay } from '@/utils/imageSize';
 
 const props = defineProps<{
@@ -217,8 +217,7 @@ async function handleDownload() {
     const list = assetsList.value;
     for (let i = 0; i < list.length; i++) {
       const a = list[i];
-      const ext = (a.format || 'png').replace(/^\./, '');
-      const filename = `image_${a.id || `${Date.now()}_${i + 1}`}.${ext}`;
+      const filename = generateAssetFilename(a, i);
       await downloadImage(a.url, filename);
       if (i < list.length - 1) {
         await new Promise((r) => setTimeout(r, 200));
@@ -227,8 +226,7 @@ async function handleDownload() {
     emit('showToast', `已开始批量下载全部 ${list.length} 张原图`, 'success');
   } else if (currentAsset.value) {
     const a = currentAsset.value;
-    const ext = (a.format || 'png').replace(/^\./, '');
-    const filename = `image_${a.id || Date.now()}.${ext}`;
+    const filename = generateAssetFilename(a);
     await downloadImage(a.url, filename);
     emit('showToast', '已开始下载原图', 'success');
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { downloadImage, dataUrlToFile, formatTime, formatFullTime } from './download';
+import { downloadImage, dataUrlToFile, formatTime, formatFullTime, generateAssetFilename } from './download';
 
 describe('download utils', () => {
   beforeEach(() => {
@@ -63,6 +63,44 @@ describe('download utils', () => {
     expect(clickedTarget).toBe('');
   });
 
+  it('generates filename for text-to-image (t2i) correctly', () => {
+    const fixedTime = new Date('2026-08-31T02:57:33.456').getTime();
+    const filename = generateAssetFilename({
+      type: 't2i',
+      timestamp: fixedTime,
+      format: 'png'
+    });
+
+    // 格式: t2i_xxxx.xx.xx_xx.xx.xx_时间戳后四位.png
+    const lastFour = String(fixedTime).slice(-4);
+    expect(filename).toBe(`t2i_2026.08.31_02.57.33_${lastFour}.png`);
+  });
+
+  it('generates filename for image-to-image (i2i) correctly', () => {
+    const fixedTime = new Date('2026-08-31T02:57:33.789').getTime();
+    const filename = generateAssetFilename({
+      type: 'i2i',
+      referenceImages: ['data:image/png;base64,...'],
+      timestamp: fixedTime,
+      format: 'jpeg'
+    });
+
+    const lastFour = String(fixedTime).slice(-4);
+    expect(filename).toBe(`i2i_2026.08.31_02.57.33_${lastFour}.jpeg`);
+  });
+
+  it('generates filename with rotation suffix when rotated', () => {
+    const fixedTime = new Date('2026-08-31T02:57:33.123').getTime();
+    const filename = generateAssetFilename({
+      type: 't2i',
+      timestamp: fixedTime,
+      format: 'webp'
+    }, undefined, 90);
+
+    const lastFour = String(fixedTime).slice(-4);
+    expect(filename).toBe(`t2i_2026.08.31_02.57.33_${lastFour}_r90.webp`);
+  });
+
   it('converts dataUrl to File correctly', () => {
     const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
     const file = dataUrlToFile(dataUrl, 'sample.png');
@@ -77,3 +115,4 @@ describe('download utils', () => {
     expect(formatFullTime(ts)).toContain('2026');
   });
 });
+
