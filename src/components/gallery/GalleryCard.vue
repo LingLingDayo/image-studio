@@ -942,12 +942,18 @@ async function handleDownload() {
   }
 
   &.is-favorite {
-    color: #ca8a04;
+    color: $favorite;
+
+    &:hover {
+      background: rgba(245, 158, 11, 0.1);
+      color: #d97706;
+    }
   }
 
   .star-filled {
-    fill: #eab308;
-    color: #ca8a04;
+    fill: $favorite;
+    color: $favorite;
+    filter: drop-shadow(0 1px 2px rgba(245, 158, 11, 0.25));
   }
 
   &.btn-delete:hover {

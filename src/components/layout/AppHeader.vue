@@ -131,20 +131,22 @@ function clearSearch() {
   flex-shrink: 0;
 
   &:hover {
-    border-color: #fde047;
-    color: #ca8a04;
+    border-color: rgba(245, 158, 11, 0.45);
+    color: $favorite;
     transform: translateY(-0.5px);
   }
 
   &.active {
-    background: #fefce8;
-    border-color: #fde047;
-    color: #ca8a04;
-    box-shadow: 0 2px 6px rgba(202, 138, 4, 0.15);
+    background: $favorite-subtle;
+    border-color: rgba(245, 158, 11, 0.45);
+    color: $favorite;
+    box-shadow: 0 2px 8px $favorite-glow;
   }
 
   .star-active {
-    fill: #ca8a04;
+    fill: $favorite;
+    color: $favorite;
+    filter: drop-shadow(0 1px 2px rgba(245, 158, 11, 0.25));
   }
 }
 

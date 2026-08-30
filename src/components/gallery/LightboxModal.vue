@@ -603,25 +603,37 @@ onUnmounted(() => {
   border: none;
   color: $text-dim;
   cursor: pointer;
-  padding: 4px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border-radius: $radius-sm;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    color: #ca8a04;
-    background: #fef9c3;
+    color: $favorite;
+    background: rgba(245, 158, 11, 0.1);
+    transform: scale(1.08);
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 
   &.is-fav {
-    color: #ca8a04;
+    color: $favorite;
+
+    &:hover {
+      background: rgba(245, 158, 11, 0.14);
+    }
   }
 
   .star-filled {
-    fill: #eab308;
-    color: #ca8a04;
+    fill: $favorite;
+    color: $favorite;
+    filter: drop-shadow(0 1px 3px rgba(245, 158, 11, 0.28));
   }
 }
 
