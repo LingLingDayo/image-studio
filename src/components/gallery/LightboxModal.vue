@@ -17,7 +17,12 @@ import {
   RotateCw,
   Maximize2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Cpu,
+  Sliders,
+  Image as ImageIcon,
+  Timer,
+  Clock
 } from 'lucide-vue-next';
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 
@@ -51,7 +56,69 @@ const currentAssetIndex = computed(() => {
   return idx !== -1 ? idx : 0;
 });
 
-const resolutionText = computed(() => getResolutionDisplay(currentActiveItem.value || undefined));
+// 生图设定 vs 最终输出真实值
+const presetModel = computed(() => currentActiveItem.value?.model || '标准模型');
+
+const presetTypeLabel = computed(() => {
+  const item = currentActiveItem.value;
+  if (!item) return '文生图';
+  return item.type === 'i2i' || (item.referenceImages && item.referenceImages.length > 0) ? '图生图' : '文生图';
+});
+
+// 设定目标分辨率
+const presetResolution = computed(() => {
+  const item = currentActiveItem.value;
+  if (!item) return '1K';
+  if (item.targetResolution) {
+    return item.targetResolution === 'auto' ? '自动' : item.targetResolution.toUpperCase();
+  }
+  return getResolutionDisplay(item);
+});
+
+// 设定目标比例 / 尺寸
+const presetRatioOrSize = computed(() => {
+  const item = currentActiveItem.value;
+  if (!item) return '1:1';
+  if (item.targetRatio && item.targetRatio !== 'auto') {
+    return item.targetRatio;
+  }
+  if (item.targetSize && item.targetSize !== 'auto') {
+    return item.targetSize;
+  }
+  if (item.ratio && item.ratio !== 'auto') {
+    return item.ratio;
+  }
+  return '自动';
+});
+
+// 设定画质
+const presetQuality = computed(() => {
+  return formatQualityLabel(currentActiveItem.value?.quality);
+});
+
+// 格式与透明设定
+const formatLabel = computed(() => {
+  const item = currentActiveItem.value;
+  if (!item) return 'PNG';
+  return (item.format || 'png').toUpperCase();
+});
+
+// 实际真实输出尺寸
+const actualDimensionText = computed(() => {
+  const item = currentActiveItem.value;
+  if (!item) return '-';
+  if (item.width && item.height) {
+    return `${item.width}×${item.height}`;
+  }
+  return item.size || '-';
+});
+
+// 实际真实比例
+const actualRatioText = computed(() => {
+  const item = currentActiveItem.value;
+  if (!item) return '-';
+  return item.ratio || '1:1';
+});
 
 function handlePrev() {
   const list = currentBatchAssets.value;
@@ -267,27 +334,80 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- 参数详情表格 -->
-          <div class="meta-grid">
-            <div class="meta-row">
-              <span class="meta-k">分辨率</span>
-              <span class="meta-v">{{ resolutionText }}</span>
+          <!-- 参数与规格看板 (生图设定 vs 最终输出真实值) -->
+          <div v-if="currentActiveItem" class="params-dashboard">
+            <!-- 顶栏：模型与生图模式标识 -->
+            <div class="model-badge-header">
+              <div class="model-pill" :data-tip="`生图模型: ${presetModel}`">
+                <Cpu :size="13" class="model-icon" />
+                <span class="model-name">{{ presetModel }}</span>
+              </div>
+              <div class="mode-tag-group">
+                <span class="mode-tag" :class="presetTypeLabel === '图生图' ? 'is-i2i' : 'is-t2i'">
+                  {{ presetTypeLabel }}
+                </span>
+                <span v-if="currentActiveItem.transparent" class="mode-tag is-transparent">
+                  透明底
+                </span>
+              </div>
             </div>
-            <div class="meta-row">
-              <span class="meta-k">尺寸比例</span>
-              <span class="meta-v">{{ currentActiveItem.width ? `${currentActiveItem.width}×${currentActiveItem.height} (${currentActiveItem.ratio || ''})` : currentActiveItem.size }}</span>
+
+            <!-- 对比网格：生图设定 vs 实际产物 -->
+            <div class="specs-grid">
+              <!-- 左侧：生图设定 -->
+              <div class="spec-card preset-card">
+                <div class="spec-card-title">
+                  <Sliders :size="11" />
+                  <span>生图设定</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-k">目标分辨率</span>
+                  <span class="spec-v">{{ presetResolution }}</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-k">设定比例</span>
+                  <span class="spec-v">{{ presetRatioOrSize }}</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-k">设定画质</span>
+                  <span class="spec-v">{{ presetQuality }}</span>
+                </div>
+              </div>
+
+              <!-- 右侧：实际产物 -->
+              <div class="spec-card output-card">
+                <div class="spec-card-title">
+                  <ImageIcon :size="11" />
+                  <span>实际产出</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-k">真实尺寸</span>
+                  <span class="spec-v highlight-mono">{{ actualDimensionText }}</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-k">实际比例</span>
+                  <span class="spec-v">{{ actualRatioText }}</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-k">文件格式</span>
+                  <span class="spec-v">{{ formatLabel }}</span>
+                </div>
+              </div>
             </div>
-            <div class="meta-row">
-              <span class="meta-k">质量 / 格式</span>
-              <span class="meta-v">{{ formatQualityLabel(currentActiveItem.quality) }} / {{ (currentActiveItem.format || 'png').toUpperCase() }}</span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-k">生成耗时</span>
-              <span class="meta-v">{{ currentActiveItem.duration }}</span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-k">创建时间</span>
-              <span class="meta-v">{{ formatFullTime(currentActiveItem.timestamp) }}</span>
+
+            <!-- 底部统计：生成耗时与创建时间 -->
+            <div class="meta-footer">
+              <div class="meta-stat-item" :data-tip="`生成耗时: ${currentActiveItem.duration}`">
+                <Timer :size="12" class="stat-icon" />
+                <span class="stat-k">耗时</span>
+                <span class="stat-v">{{ currentActiveItem.duration }}</span>
+              </div>
+              <div class="meta-stat-divider"></div>
+              <div class="meta-stat-item" :data-tip="`创建时间: ${formatFullTime(currentActiveItem.timestamp)}`">
+                <Clock :size="12" class="stat-icon" />
+                <span class="stat-k">时间</span>
+                <span class="stat-v">{{ formatFullTime(currentActiveItem.timestamp) }}</span>
+              </div>
             </div>
           </div>
 
@@ -686,28 +806,175 @@ onUnmounted(() => {
   }
 }
 
-.meta-grid {
+.params-dashboard {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   background: $bg-surface-subtle;
   padding: 12px;
-  border-radius: $radius-md;
+  border-radius: $radius-lg;
   border: 1px solid $border-color;
 }
 
-.meta-row {
+.model-badge-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed $border-color;
+}
+
+.model-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid $border-color;
+  padding: 3px 8px;
+  border-radius: $radius-sm;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: $text-main;
+  max-width: 200px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+
+  .model-icon {
+    color: $accent-primary;
+    flex-shrink: 0;
+  }
+
+  .model-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.mode-tag-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mode-tag {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: $radius-sm;
+  font-weight: 500;
+
+  &.is-t2i {
+    background: $accent-subtle;
+    color: $accent-primary;
+  }
+
+  &.is-i2i {
+    background: rgba(168, 85, 247, 0.1);
+    color: #9333ea;
+  }
+
+  &.is-transparent {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+  }
+}
+
+.specs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+
+  @media (max-width: 340px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.spec-card {
+  background: #ffffff;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .spec-card-title {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding-bottom: 4px;
+    border-bottom: 1px solid $border-light;
+  }
+
+  &.preset-card .spec-card-title {
+    color: $accent-primary;
+  }
+
+  &.output-card .spec-card-title {
+    color: #059669;
+  }
+}
+
+.spec-item {
   display: flex;
   justify-content: space-between;
-  font-size: 0.8rem;
+  align-items: center;
+  font-size: 0.74rem;
 
-  .meta-k {
+  .spec-k {
     color: $text-muted;
   }
 
-  .meta-v {
+  .spec-v {
     color: $text-main;
+    font-weight: 500;
+
+    &.highlight-mono {
+      font-family: $font-mono;
+      font-size: 0.72rem;
+    }
   }
+}
+
+.meta-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  padding: 6px 10px;
+  font-size: 0.74rem;
+}
+
+.meta-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: $text-muted;
+
+  .stat-icon {
+    color: $text-dim;
+    flex-shrink: 0;
+  }
+
+  .stat-k {
+    color: $text-muted;
+  }
+
+  .stat-v {
+    color: $text-main;
+    font-weight: 500;
+    font-family: $font-mono;
+  }
+}
+
+.meta-stat-divider {
+  width: 1px;
+  height: 12px;
+  background: $border-color;
 }
 
 .modal-actions {

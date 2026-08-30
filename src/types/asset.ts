@@ -1,3 +1,5 @@
+import type { ResolutionTier } from './model';
+
 export interface MediaAsset {
   id?: number;
   batchId?: string;
@@ -10,6 +12,9 @@ export interface MediaAsset {
   ratio?: string;
   width?: number;
   height?: number;
+  targetResolution?: ResolutionTier;
+  targetRatio?: string;
+  targetSize?: string;
   quality: string;
   format?: string;
   transparent?: boolean;
@@ -30,6 +35,9 @@ export interface ArtworkBatch {
   ratio?: string;
   width?: number;
   height?: number;
+  targetResolution?: ResolutionTier;
+  targetRatio?: string;
+  targetSize?: string;
   quality: string;
   format?: string;
   transparent?: boolean;

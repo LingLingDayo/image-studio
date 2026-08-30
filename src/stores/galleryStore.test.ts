@@ -167,6 +167,26 @@ describe('useGalleryStore Pagination', () => {
     expect(store.totalBatches).toBe(3);
     expect(store.paginatedBatches).toHaveLength(3);
   });
+
+  it('should preserve targetResolution, targetRatio and targetSize in ArtworkBatch', () => {
+    const store = useGalleryStore();
+    const asset = {
+      ...createMockAsset(10, 'A futuristic car'),
+      targetResolution: '2k' as const,
+      targetRatio: '16:9',
+      targetSize: 'auto',
+      width: 1920,
+      height: 1080
+    };
+    store.items = [asset];
+
+    expect(store.batches).toHaveLength(1);
+    expect(store.batches[0].targetResolution).toBe('2k');
+    expect(store.batches[0].targetRatio).toBe('16:9');
+    expect(store.batches[0].targetSize).toBe('auto');
+    expect(store.batches[0].width).toBe(1920);
+    expect(store.batches[0].height).toBe(1080);
+  });
 });
 
 
