@@ -341,7 +341,7 @@ onUnmounted(() => {
   max-width: 1060px;
   width: 100%;
   height: 86vh;
-  min-height: 560px;
+  min-height: min(560px, 90vh);
   max-height: 90vh;
   background: $bg-surface;
   border: 1px solid $border-color;
