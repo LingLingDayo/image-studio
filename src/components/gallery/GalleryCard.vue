@@ -14,7 +14,8 @@ import {
   ChevronRight, 
   Square, 
   AlertCircle,
-  Layers
+  Layers,
+  Clock
 } from 'lucide-vue-next';
 import { downloadImage } from '@/utils/download';
 import { formatQualityLabel, getResolutionDisplay } from '@/utils/imageSize';
@@ -69,6 +70,46 @@ watch(
 const currentAsset = computed<MediaAsset | null>(() => {
   if (assetsList.value.length === 0) return null;
   return assetsList.value[currentAssetIndex.value] || assetsList.value[0];
+});
+
+// 生成时间计算与展示 (单纯时间，无相对时间)
+const itemTimestamp = computed<number>(() => {
+  if (props.task) {
+    return props.task.createdAt || props.task.updatedAt || Date.now();
+  }
+  if (props.batch) {
+    return props.batch.timestamp || props.batch.assets?.[0]?.timestamp || Date.now();
+  }
+  if (props.item) {
+    return props.item.timestamp || Date.now();
+  }
+  return Date.now();
+});
+
+const simpleTimeText = computed(() => {
+  const ts = itemTimestamp.value;
+  if (!ts) return '';
+  const date = new Date(ts);
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  return `${month}-${day} ${hours}:${minutes}`;
+});
+
+const fullTimeText = computed(() => {
+  const ts = itemTimestamp.value;
+  if (!ts) return '';
+  const date = new Date(ts);
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  const seconds = pad(date.getSeconds());
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 });
 
 // 图片尺寸文字
@@ -232,7 +273,7 @@ async function handleDownload() {
         {{ task.params.prompt }}
       </p>
 
-      <!-- 参数标签 (展示比例、分辨率、中文质量) -->
+      <!-- 参数标签 (展示比例、分辨率、中文质量、生成时间) -->
       <div class="card-tags">
         <span class="tag-badge">
           {{ ratioText }}
@@ -249,6 +290,10 @@ async function handleDownload() {
         <span v-if="task.params.count > 1" class="tag-badge batch-tag">
           <Layers :size="11" />
           <span>批量 {{ task.params.count }} 张</span>
+        </span>
+        <span class="tag-badge time-tag" :title="`创建时间：${fullTimeText}`">
+          <Clock :size="11" />
+          <span>{{ simpleTimeText }}</span>
         </span>
       </div>
 
@@ -353,7 +398,7 @@ async function handleDownload() {
         {{ promptText }}
       </p>
 
-      <!-- 参数标签 (展示比例、分辨率、中文质量) -->
+      <!-- 参数标签 (展示比例、分辨率、中文质量、生成时间) -->
       <div class="card-tags">
         <span class="tag-badge">
           {{ ratioText }}
@@ -370,6 +415,10 @@ async function handleDownload() {
         <span v-if="assetsList.length > 1" class="tag-badge batch-tag">
           <Layers :size="11" />
           <span>共 {{ assetsList.length }} 张</span>
+        </span>
+        <span class="tag-badge time-tag" :title="`生成时间：${fullTimeText}`">
+          <Clock :size="11" />
+          <span>{{ simpleTimeText }}</span>
         </span>
         <span v-if="currentAsset.duration" class="tag-badge duration-tag">
           {{ currentAsset.duration }}
@@ -811,7 +860,7 @@ async function handleDownload() {
 .card-tags {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   height: 22px;
   overflow: hidden;
   white-space: nowrap;
@@ -820,12 +869,12 @@ async function handleDownload() {
 .tag-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.72rem;
+  gap: 3px;
+  font-size: 0.70rem;
   color: $text-muted;
   background: #f8fafc;
   border: 1px solid rgba(226, 232, 240, 0.8);
-  padding: 2px 6px;
+  padding: 1.5px 5px;
   border-radius: 4px;
   font-weight: 500;
   flex-shrink: 0;
@@ -846,6 +895,12 @@ async function handleDownload() {
   &.duration-tag {
     font-family: $font-mono;
     font-size: 0.68rem;
+  }
+
+  &.time-tag {
+    font-family: $font-mono;
+    font-size: 0.67rem;
+    color: $text-secondary;
   }
 }
 
