@@ -18,7 +18,6 @@ import {
   Maximize2,
   ChevronLeft,
   ChevronRight,
-  Cpu,
   Sliders,
   Image as ImageIcon,
   Timer,
@@ -57,8 +56,6 @@ const currentAssetIndex = computed(() => {
 });
 
 // 生图设定 vs 最终输出真实值
-const presetModel = computed(() => currentActiveItem.value?.model || '标准模型');
-
 const presetTypeLabel = computed(() => {
   const item = currentActiveItem.value;
   if (!item) return '文生图';
@@ -336,29 +333,18 @@ onUnmounted(() => {
 
           <!-- 参数与规格看板 (生图设定 vs 最终输出真实值) -->
           <div v-if="currentActiveItem" class="params-dashboard">
-            <!-- 顶栏：模型与生图模式标识 -->
-            <div class="model-badge-header">
-              <div class="model-pill" :data-tip="`生图模型: ${presetModel}`">
-                <Cpu :size="13" class="model-icon" />
-                <span class="model-name">{{ presetModel }}</span>
-              </div>
-              <div class="mode-tag-group">
-                <span class="mode-tag" :class="presetTypeLabel === '图生图' ? 'is-i2i' : 'is-t2i'">
-                  {{ presetTypeLabel }}
-                </span>
-                <span v-if="currentActiveItem.transparent" class="mode-tag is-transparent">
-                  透明底
-                </span>
-              </div>
-            </div>
-
             <!-- 对比网格：生图设定 vs 实际产物 -->
             <div class="specs-grid">
               <!-- 左侧：生图设定 -->
               <div class="spec-card preset-card">
                 <div class="spec-card-title">
-                  <Sliders :size="11" />
-                  <span>生图设定</span>
+                  <div class="title-left">
+                    <Sliders :size="11" />
+                    <span>生图设定</span>
+                  </div>
+                  <span class="mode-mini-tag" :class="presetTypeLabel === '图生图' ? 'is-i2i' : 'is-t2i'">
+                    {{ presetTypeLabel }}
+                  </span>
                 </div>
                 <div class="spec-item">
                   <span class="spec-k">目标分辨率</span>
@@ -377,8 +363,13 @@ onUnmounted(() => {
               <!-- 右侧：实际产物 -->
               <div class="spec-card output-card">
                 <div class="spec-card-title">
-                  <ImageIcon :size="11" />
-                  <span>实际产出</span>
+                  <div class="title-left">
+                    <ImageIcon :size="11" />
+                    <span>实际产出</span>
+                  </div>
+                  <span v-if="currentActiveItem.transparent" class="mode-mini-tag is-transparent">
+                    透明底
+                  </span>
                 </div>
                 <div class="spec-item">
                   <span class="spec-k">真实尺寸</span>
@@ -816,69 +807,6 @@ onUnmounted(() => {
   border: 1px solid $border-color;
 }
 
-.model-badge-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px dashed $border-color;
-}
-
-.model-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #ffffff;
-  border: 1px solid $border-color;
-  padding: 3px 8px;
-  border-radius: $radius-sm;
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: $text-main;
-  max-width: 200px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-
-  .model-icon {
-    color: $accent-primary;
-    flex-shrink: 0;
-  }
-
-  .model-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-.mode-tag-group {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.mode-tag {
-  font-size: 0.7rem;
-  padding: 2px 6px;
-  border-radius: $radius-sm;
-  font-weight: 500;
-
-  &.is-t2i {
-    background: $accent-subtle;
-    color: $accent-primary;
-  }
-
-  &.is-i2i {
-    background: rgba(168, 85, 247, 0.1);
-    color: #9333ea;
-  }
-
-  &.is-transparent {
-    background: rgba(16, 185, 129, 0.1);
-    color: #059669;
-  }
-}
-
 .specs-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -901,18 +829,47 @@ onUnmounted(() => {
   .spec-card-title {
     display: flex;
     align-items: center;
-    gap: 4px;
+    justify-content: space-between;
     font-size: 0.72rem;
     font-weight: 600;
     padding-bottom: 4px;
     border-bottom: 1px solid $border-light;
+
+    .title-left {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
   }
 
-  &.preset-card .spec-card-title {
+  &.preset-card .spec-card-title .title-left {
     color: $accent-primary;
   }
 
-  &.output-card .spec-card-title {
+  &.output-card .spec-card-title .title-left {
+    color: #059669;
+  }
+}
+
+.mode-mini-tag {
+  font-size: 0.68rem;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 500;
+  line-height: 1.2;
+
+  &.is-t2i {
+    background: $accent-subtle;
+    color: $accent-primary;
+  }
+
+  &.is-i2i {
+    background: rgba(168, 85, 247, 0.1);
+    color: #9333ea;
+  }
+
+  &.is-transparent {
+    background: rgba(16, 185, 129, 0.1);
     color: #059669;
   }
 }
