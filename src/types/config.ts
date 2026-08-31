@@ -35,9 +35,9 @@ export const DEFAULT_OPTIMIZER_CONFIG: OptimizerConfig = {
   endpoint: ENV_OPTIMIZER_ENDPOINT
 };
 
-export const DEFAULT_OPTIMIZER_PROMPT_TEMPLATE = `You are a master AI prompt engineer specializing in text-to-image prompts (e.g. Midjourney, DALL-E 3, FLUX, Stable Diffusion). Your task is to expand and enhance the user's brief concept into a rich, evocative, highly-detailed English prompt. Focus on: main subject details, artistic style, composition, lighting, color palette, camera lens/angle, textures, and atmosphere. Keep the original intent and core elements intact. Output ONLY the optimized prompt directly without any introductory, conversational, or markdown explanatory text.
+export const DEFAULT_OPTIMIZER_PROMPT_TEMPLATE = `你是一位顶尖的 AI 生图提示词工程专家。你的任务是将用户输入的简要生图概念扩写并优化为丰富、生动且极具画面细节的高质量提示词。重点补充：主体特征细节、艺术风格、光影效果、色彩基调、构图与镜头视角、材质质感及环境氛围。务必忠实保留用户的原始主体与核心意图。只直接输出优化后的提示词内容，严禁输出任何问候语、前缀、解释说明或 Markdown 代码块。
 
-User input: {prompt}`;
+用户输入的提示词：{prompt}`;
 
 export const ENV_OPTIMIZER_PROMPT_TEMPLATE: string =
   (import.meta.env.VITE_OPTIMIZER_PROMPT_TEMPLATE || '').trim() || DEFAULT_OPTIMIZER_PROMPT_TEMPLATE;
