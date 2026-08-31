@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted, onUnmounted, computed } from 'vue';
-import { Paperclip, ArrowRight, X, Trash2, UploadCloud } from 'lucide-vue-next';
+import { Paperclip, ArrowRight, X, Trash2, UploadCloud, Sparkles, RotateCcw } from 'lucide-vue-next';
 import {
   TRANSPARENT_DEFAULT_FORMAT,
   supportsAlphaChannel,
@@ -10,6 +10,8 @@ import {
 } from '@/types/model';
 import type { TaskReferenceImage } from '@/types/task';
 import { useModelStore } from '@/stores/modelStore';
+import { useConfigStore } from '@/stores/configStore';
+import { PromptOptimizerService } from '@/core/services/PromptOptimizerService';
 import { UiSelect, UiSizeInput, UiStepper } from '@/components/ui';
 
 const props = defineProps<{
@@ -45,10 +47,58 @@ const emit = defineEmits<{
   (e: 'clearImages'): void;
   (e: 'generate'): void;
   (e: 'cancel'): void;
+  (e: 'openConfigOptimizer'): void;
+  (e: 'showToast', message: string, type?: 'success' | 'error' | 'info'): void;
 }>();
 
 const modelStore = useModelStore();
+const configStore = useConfigStore();
 const activeModel = computed(() => modelStore.activeModel);
+
+const isOptimizing = ref(false);
+const previousPrompt = ref<string | null>(null);
+
+const canRestorePrompt = computed(() => {
+  return previousPrompt.value !== null && previousPrompt.value.trim() !== props.prompt.trim();
+});
+
+async function handleOptimizePrompt() {
+  const currentText = props.prompt.trim();
+  if (!currentText) {
+    emit('showToast', '请先输入提示词后再进行优化', 'info');
+    return;
+  }
+
+  if (!configStore.isOptimizerConfigured) {
+    emit('openConfigOptimizer');
+    emit('showToast', '请先在系统设置中配置提示词优化 API', 'info');
+    return;
+  }
+
+  isOptimizing.value = true;
+  previousPrompt.value = props.prompt;
+
+  try {
+    const enhanced = await PromptOptimizerService.optimizePrompt(
+      configStore.optimizerConfig,
+      currentText
+    );
+    emit('update:prompt', enhanced);
+    emit('showToast', '提示词优化成功！已扩写画面细节', 'success');
+  } catch (err: any) {
+    emit('showToast', err.message || '提示词优化失败', 'error');
+  } finally {
+    isOptimizing.value = false;
+  }
+}
+
+function handleRestorePrompt() {
+  if (previousPrompt.value !== null) {
+    emit('update:prompt', previousPrompt.value);
+    previousPrompt.value = null;
+    emit('showToast', '已恢复原提示词', 'info');
+  }
+}
 
 const transparentOptions = [
   { label: '关闭', value: false },
@@ -311,6 +361,31 @@ onUnmounted(() => {
 
         <!-- 右侧动作按钮 -->
         <div class="actions-group">
+          <!-- 撤销优化恢复原词 -->
+          <button 
+            v-if="canRestorePrompt"
+            type="button" 
+            class="btn-restore-prompt" 
+            data-tip="撤销优化，恢复修改前的原始提示词"
+            @click="handleRestorePrompt"
+          >
+            <RotateCcw :size="13" />
+            <span>撤销优化</span>
+          </button>
+
+          <!-- AI 提示词智能优化按钮 -->
+          <button 
+            type="button" 
+            class="btn-magic" 
+            :class="{ 'is-optimizing': isOptimizing }"
+            :disabled="isOptimizing || !prompt.trim()"
+            data-tip="使用大模型智能优化提示词 (AI 润色扩写细节)"
+            @click="handleOptimizePrompt"
+          >
+            <Sparkles :size="14" :class="{ 'spin-pulse': isOptimizing }" />
+            <span>{{ isOptimizing ? '优化中...' : 'AI 优化' }}</span>
+          </button>
+
           <input 
             ref="fileInputRef" 
             type="file" 
@@ -548,6 +623,82 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   margin-left: auto;
+}
+
+.btn-magic {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(147, 197, 253, 0.5);
+  background: linear-gradient(135deg, rgba(238, 242, 255, 0.95), rgba(245, 243, 255, 0.95));
+  color: #6366f1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: $shadow-xs;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:hover:not(:disabled) {
+    border-color: #818cf8;
+    background: linear-gradient(135deg, #e0e7ff, #ede9fe);
+    color: #4f46e5;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.18);
+    transform: translateY(-0.5px);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &.is-optimizing {
+    background: linear-gradient(135deg, #ede9fe, #f5f3ff);
+    color: #7c3aed;
+    border-color: #c4b5fd;
+  }
+}
+
+.btn-restore-prompt {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: #ffffff;
+  color: $text-muted;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: $shadow-xs;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    color: $text-main;
+  }
+}
+
+.spin-pulse {
+  animation: spinPulse 1.2s ease infinite;
+}
+
+@keyframes spinPulse {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.15);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
 }
 
 .hidden-file-input {

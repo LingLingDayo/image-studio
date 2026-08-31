@@ -11,9 +11,15 @@ import { useImageStudio } from '@/composables/useImageStudio';
 import type { MediaAsset } from '@/types/asset';
 
 const isConfigOpen = ref(false);
+const configInitialTab = ref<'image' | 'optimizer'>('image');
 const activeLightboxItem = ref<MediaAsset | null>(null);
 const activeLightboxBatch = ref<MediaAsset[]>([]);
 const toasts = ref<Array<{ id: number; message: string; type: 'success' | 'error' | 'info' }>>([]);
+
+function openConfig(tab: 'image' | 'optimizer' = 'image') {
+  configInitialTab.value = tab;
+  isConfigOpen.value = true;
+}
 
 const galleryStore = useGalleryStore();
 const {
@@ -122,7 +128,7 @@ async function handleDeleteItem(id: number) {
   <div class="app-layout">
     <div class="app-main-content">
       <!-- 顶部导航与搜索栏 -->
-      <AppHeader @open-config="isConfigOpen = true" />
+      <AppHeader @open-config="openConfig('image')" />
 
       <!-- 主画廊相册展示区 -->
       <main class="content-area">
@@ -160,14 +166,17 @@ async function handleDeleteItem(id: number) {
         @clear-images="clearReferenceImages"
         @generate="handleGenerate"
         @cancel="cancel"
+        @open-config-optimizer="openConfig('optimizer')"
+        @show-toast="showToast"
       />
     </div>
 
     <!-- 设置弹窗 -->
     <ConfigModal 
-      :is-open="isConfigOpen" 
+      :is-open="isConfigOpen"
+      :initial-tab="configInitialTab"
       @close="isConfigOpen = false" 
-      @saved="showToast('配置已保存', 'success')" 
+      @saved="showToast('系统设置已保存', 'success')" 
     />
 
     <!-- 大图高清查看灯箱 -->

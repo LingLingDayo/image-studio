@@ -18,6 +18,17 @@ describe('useConfigStore without ENV_BASE_URL', () => {
         baseUrl: '',
         apiKey: '',
         model: 'gpt-image-2'
+      },
+      ENV_OPTIMIZER_BASE_URL: '',
+      ENV_OPTIMIZER_API_KEY: '',
+      ENV_OPTIMIZER_MODEL: 'gpt-4o-mini',
+      ENV_OPTIMIZER_ENDPOINT: '/v1/chat/completions',
+      ENV_OPTIMIZER_API_KEY_HINT: '令牌只保存在本机浏览器，不会上传到工作台服务器',
+      DEFAULT_OPTIMIZER_CONFIG: {
+        baseUrl: '',
+        apiKey: '',
+        model: 'gpt-4o-mini',
+        endpoint: '/v1/chat/completions'
       }
     }));
 
@@ -39,6 +50,17 @@ describe('useConfigStore without ENV_BASE_URL', () => {
         baseUrl: '',
         apiKey: '',
         model: 'gpt-image-2'
+      },
+      ENV_OPTIMIZER_BASE_URL: '',
+      ENV_OPTIMIZER_API_KEY: '',
+      ENV_OPTIMIZER_MODEL: 'gpt-4o-mini',
+      ENV_OPTIMIZER_ENDPOINT: '/v1/chat/completions',
+      ENV_OPTIMIZER_API_KEY_HINT: '令牌只保存在本机浏览器，不会上传到工作台服务器',
+      DEFAULT_OPTIMIZER_CONFIG: {
+        baseUrl: '',
+        apiKey: '',
+        model: 'gpt-4o-mini',
+        endpoint: '/v1/chat/completions'
       }
     }));
 
@@ -59,6 +81,17 @@ describe('useConfigStore without ENV_BASE_URL', () => {
         baseUrl: '',
         apiKey: '',
         model: 'gpt-image-2'
+      },
+      ENV_OPTIMIZER_BASE_URL: '',
+      ENV_OPTIMIZER_API_KEY: '',
+      ENV_OPTIMIZER_MODEL: 'gpt-4o-mini',
+      ENV_OPTIMIZER_ENDPOINT: '/v1/chat/completions',
+      ENV_OPTIMIZER_API_KEY_HINT: '令牌只保存在本机浏览器，不会上传到工作台服务器',
+      DEFAULT_OPTIMIZER_CONFIG: {
+        baseUrl: '',
+        apiKey: '',
+        model: 'gpt-4o-mini',
+        endpoint: '/v1/chat/completions'
       }
     }));
 
@@ -79,6 +112,17 @@ describe('useConfigStore without ENV_BASE_URL', () => {
         baseUrl: '',
         apiKey: '',
         model: 'gpt-image-2'
+      },
+      ENV_OPTIMIZER_BASE_URL: '',
+      ENV_OPTIMIZER_API_KEY: '',
+      ENV_OPTIMIZER_MODEL: 'gpt-4o-mini',
+      ENV_OPTIMIZER_ENDPOINT: '/v1/chat/completions',
+      ENV_OPTIMIZER_API_KEY_HINT: '令牌只保存在本机浏览器，不会上传到工作台服务器',
+      DEFAULT_OPTIMIZER_CONFIG: {
+        baseUrl: '',
+        apiKey: '',
+        model: 'gpt-4o-mini',
+        endpoint: '/v1/chat/completions'
       }
     }));
 
@@ -110,6 +154,17 @@ describe('useConfigStore without ENV_BASE_URL', () => {
         baseUrl: '',
         apiKey: '',
         model: 'gpt-image-2'
+      },
+      ENV_OPTIMIZER_BASE_URL: '',
+      ENV_OPTIMIZER_API_KEY: '',
+      ENV_OPTIMIZER_MODEL: 'gpt-4o-mini',
+      ENV_OPTIMIZER_ENDPOINT: '/v1/chat/completions',
+      ENV_OPTIMIZER_API_KEY_HINT: '令牌只保存在本机浏览器，不会上传到工作台服务器',
+      DEFAULT_OPTIMIZER_CONFIG: {
+        baseUrl: '',
+        apiKey: '',
+        model: 'gpt-4o-mini',
+        endpoint: '/v1/chat/completions'
       }
     }));
 
@@ -122,6 +177,52 @@ describe('useConfigStore without ENV_BASE_URL', () => {
 
     store.updateConfig({ baseUrl: 'https://api.example.com' });
     expect(store.isConfigured).toBe(true);
+  });
+
+  it('should manage optimizer config state and persistence correctly', async () => {
+    vi.doMock('@/types/config', () => ({
+      ENV_BASE_URL: '',
+      ENV_API_KEY: '',
+      DEFAULT_CONFIG: {
+        baseUrl: '',
+        apiKey: '',
+        model: 'gpt-image-2'
+      },
+      ENV_OPTIMIZER_BASE_URL: '',
+      ENV_OPTIMIZER_API_KEY: '',
+      ENV_OPTIMIZER_MODEL: 'gpt-4o-mini',
+      ENV_OPTIMIZER_ENDPOINT: '/v1/chat/completions',
+      ENV_OPTIMIZER_API_KEY_HINT: '令牌只保存在本机浏览器，不会上传到工作台服务器',
+      DEFAULT_OPTIMIZER_CONFIG: {
+        baseUrl: '',
+        apiKey: '',
+        model: 'gpt-4o-mini',
+        endpoint: '/v1/chat/completions'
+      }
+    }));
+
+    const { useConfigStore } = await import('./configStore');
+    const store = useConfigStore();
+
+    expect(store.isOptimizerConfigured).toBe(false);
+
+    store.updateOptimizerConfig({
+      baseUrl: 'https://optimizer.example.com',
+      apiKey: 'sk-opt-123',
+      model: 'claude-3-5-sonnet',
+      endpoint: '/v1/chat/completions'
+    });
+
+    expect(store.isOptimizerConfigured).toBe(true);
+    expect(store.optimizerConfig).toEqual({
+      baseUrl: 'https://optimizer.example.com',
+      apiKey: 'sk-opt-123',
+      model: 'claude-3-5-sonnet',
+      endpoint: '/v1/chat/completions'
+    });
+    expect(localStorage.getItem('gpt_optimizer_base_url')).toBe('https://optimizer.example.com');
+    expect(localStorage.getItem('gpt_optimizer_api_key')).toBe('sk-opt-123');
+    expect(localStorage.getItem('gpt_optimizer_model')).toBe('claude-3-5-sonnet');
   });
 });
 
@@ -140,6 +241,17 @@ describe('useConfigStore with ENV_BASE_URL', () => {
         baseUrl: 'https://env-gateway.example.com/v1',
         apiKey: '',
         model: 'gpt-image-2'
+      },
+      ENV_OPTIMIZER_BASE_URL: 'https://env-optimizer.example.com',
+      ENV_OPTIMIZER_API_KEY: '',
+      ENV_OPTIMIZER_MODEL: 'gpt-4o-mini',
+      ENV_OPTIMIZER_ENDPOINT: '/v1/chat/completions',
+      ENV_OPTIMIZER_API_KEY_HINT: '令牌只保存在本机浏览器，不会上传到工作台服务器',
+      DEFAULT_OPTIMIZER_CONFIG: {
+        baseUrl: 'https://env-optimizer.example.com',
+        apiKey: '',
+        model: 'gpt-4o-mini',
+        endpoint: '/v1/chat/completions'
       }
     }));
 
@@ -155,5 +267,9 @@ describe('useConfigStore with ENV_BASE_URL', () => {
     expect(store.isConfigured).toBe(true);
     expect(store.providerConfig.baseUrl).toBe('https://env-gateway.example.com/v1');
     expect(store.providerConfig.apiKey).toBe('sk-my-token');
+
+    // 优化模型也支持 env 优先
+    expect(store.hasEnvOptimizerBaseUrl).toBe(true);
+    expect(store.effectiveOptimizerBaseUrl).toBe('https://env-optimizer.example.com');
   });
 });
