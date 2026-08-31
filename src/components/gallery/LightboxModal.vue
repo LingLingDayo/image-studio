@@ -331,15 +331,15 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- 参数与规格看板 (生图设定 vs 最终输出真实值) -->
+          <!-- 参数与规格看板 (单层一体化布局) -->
           <div v-if="currentActiveItem" class="params-dashboard">
-            <!-- 对比网格：生图设定 vs 实际产物 -->
+            <!-- 核心规格双栏对比区 -->
             <div class="specs-grid">
-              <!-- 左侧：生图设定 -->
-              <div class="spec-card preset-card">
-                <div class="spec-card-title">
-                  <div class="title-left">
-                    <Sliders :size="11" />
+              <!-- 左栏：生图设定 -->
+              <div class="spec-column preset-column">
+                <div class="spec-column-header">
+                  <div class="header-title">
+                    <Sliders :size="12" />
                     <span>生图设定</span>
                   </div>
                   <span class="mode-mini-tag" :class="presetTypeLabel === '图生图' ? 'is-i2i' : 'is-t2i'">
@@ -360,11 +360,11 @@ onUnmounted(() => {
                 </div>
               </div>
 
-              <!-- 右侧：实际产物 -->
-              <div class="spec-card output-card">
-                <div class="spec-card-title">
-                  <div class="title-left">
-                    <ImageIcon :size="11" />
+              <!-- 右栏：实际产出 -->
+              <div class="spec-column output-column">
+                <div class="spec-column-header">
+                  <div class="header-title">
+                    <ImageIcon :size="12" />
                     <span>实际产出</span>
                   </div>
                   <span v-if="currentActiveItem.transparent" class="mode-mini-tag is-transparent">
@@ -386,7 +386,7 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- 底部统计：生成耗时与创建时间 -->
+            <!-- 底部一体化元数据栏 -->
             <div class="meta-footer">
               <div class="meta-stat-item" :data-tip="`生成耗时: ${currentActiveItem.duration}`">
                 <Timer :size="12" class="stat-icon" />
@@ -798,55 +798,64 @@ onUnmounted(() => {
 }
 
 .params-dashboard {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
   background: $bg-surface-subtle;
-  padding: 12px;
+  padding: 12px 14px;
   border-radius: $radius-lg;
   border: 1px solid $border-color;
+  display: flex;
+  flex-direction: column;
 }
 
 .specs-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 16px;
 
-  @media (max-width: 340px) {
+  @media (max-width: 360px) {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 
-.spec-card {
-  background: #ffffff;
-  border: 1px solid $border-color;
-  border-radius: $radius-md;
-  padding: 8px 10px;
+.spec-column {
   display: flex;
   flex-direction: column;
   gap: 6px;
 
-  .spec-card-title {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 0.72rem;
-    font-weight: 600;
-    padding-bottom: 4px;
-    border-bottom: 1px solid $border-light;
+  &:first-child {
+    padding-right: 4px;
+    border-right: 1px solid $border-color;
 
-    .title-left {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+    @media (max-width: 360px) {
+      padding-right: 0;
+      border-right: none;
+      padding-bottom: 8px;
+      border-bottom: 1px solid $border-color;
     }
   }
 
-  &.preset-card .spec-card-title .title-left {
+  .spec-column-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.73rem;
+    font-weight: 600;
+    padding-bottom: 5px;
+    margin-bottom: 2px;
+    border-bottom: 1px solid $border-light;
+
+    .header-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+  }
+
+  &.preset-column .spec-column-header .header-title {
     color: $accent-primary;
   }
 
-  &.output-card .spec-card-title .title-left {
+  &.output-column .spec-column-header .header-title {
     color: #059669;
   }
 }
@@ -896,13 +905,12 @@ onUnmounted(() => {
 }
 
 .meta-footer {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid $border-color;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #ffffff;
-  border: 1px solid $border-color;
-  border-radius: $radius-md;
-  padding: 6px 10px;
   font-size: 0.74rem;
 }
 
