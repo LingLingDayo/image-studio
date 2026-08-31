@@ -63,15 +63,13 @@ const canRestorePrompt = computed(() => {
 });
 
 async function handleOptimizePrompt() {
-  const currentText = props.prompt.trim();
-  if (!currentText) {
-    emit('showToast', '请先输入提示词后再进行优化', 'info');
+  if (!configStore.isOptimizerConfigured) {
     return;
   }
 
-  if (!configStore.isOptimizerConfigured) {
-    emit('openConfigOptimizer');
-    emit('showToast', '请先在系统设置中配置提示词优化 API', 'info');
+  const currentText = props.prompt.trim();
+  if (!currentText) {
+    emit('showToast', '请先输入提示词后再进行优化', 'info');
     return;
   }
 
@@ -361,9 +359,9 @@ onUnmounted(() => {
 
         <!-- 右侧动作按钮 -->
         <div class="actions-group">
-          <!-- 撤销优化恢复原词 -->
+          <!-- 撤销优化恢复原词 (仅在配置了优化器且可恢复时显示) -->
           <button 
-            v-if="canRestorePrompt"
+            v-if="configStore.isOptimizerConfigured && canRestorePrompt"
             type="button" 
             class="btn-restore-prompt" 
             data-tip="撤销优化，恢复修改前的原始提示词"
@@ -373,8 +371,9 @@ onUnmounted(() => {
             <span>撤销优化</span>
           </button>
 
-          <!-- AI 提示词智能优化按钮 -->
+          <!-- AI 提示词智能优化按钮 (未配置完整信息时不展示) -->
           <button 
+            v-if="configStore.isOptimizerConfigured"
             type="button" 
             class="btn-magic" 
             :class="{ 'is-optimizing': isOptimizing }"
@@ -382,7 +381,7 @@ onUnmounted(() => {
             data-tip="使用大模型智能优化提示词 (AI 润色扩写细节)"
             @click="handleOptimizePrompt"
           >
-            <Sparkles :size="14" :class="{ 'spin-pulse': isOptimizing }" />
+            <Sparkles :size="14" />
             <span>{{ isOptimizing ? '优化中...' : 'AI 优化' }}</span>
           </button>
 
@@ -685,21 +684,6 @@ onUnmounted(() => {
   }
 }
 
-.spin-pulse {
-  animation: spinPulse 1.2s ease infinite;
-}
-
-@keyframes spinPulse {
-  0% {
-    transform: rotate(0deg) scale(1);
-  }
-  50% {
-    transform: rotate(180deg) scale(1.15);
-  }
-  100% {
-    transform: rotate(360deg) scale(1);
-  }
-}
 
 .hidden-file-input {
   display: none;
