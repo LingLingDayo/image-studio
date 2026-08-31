@@ -114,9 +114,9 @@ const actualDimension = computed(() => {
   const item = currentActiveItem.value;
   if (!item) return '-';
   if (item.width && item.height) {
-    return `${item.width} × ${item.height} px`;
+    return `${item.width}×${item.height}`;
   }
-  return item.size ? `${item.size} px` : '-';
+  return item.size ? item.size.replace(/x/i, '×') : '-';
 });
 
 // 4. 质量与格式：设定画质 vs 实际格式
@@ -909,14 +909,19 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   font-size: 0.74rem;
+  gap: 8px;
 
   .spec-k {
     color: $text-muted;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .spec-v {
     color: $text-main;
     font-weight: 500;
+    white-space: nowrap;
+    text-align: right;
 
     &.highlight-mono {
       font-family: $font-mono;
