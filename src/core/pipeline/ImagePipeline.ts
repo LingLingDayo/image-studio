@@ -73,12 +73,16 @@ export class DimensionAnalysisStage implements IPipelineStage {
       URL.revokeObjectURL(previewUrl);
       const isAuto = params.size === 'auto';
 
+      const trimmedPrompt = params.prompt.trim();
+      const rawRevised = item.revised_prompt?.trim();
+      const revisedPrompt = rawRevised && rawRevised !== trimmedPrompt ? rawRevised : undefined;
+
       assets.push({
         batchId: ctx.task.id,
         url: '',
         blob,
-        prompt: params.prompt.trim(),
-        revisedPrompt: item.revised_prompt,
+        prompt: trimmedPrompt,
+        revisedPrompt,
         model: params.model,
         size: isAuto ? `${width}×${height}` : params.size,
         targetResolution: params.resolution,

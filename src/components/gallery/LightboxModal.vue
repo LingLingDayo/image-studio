@@ -55,6 +55,15 @@ const currentAssetIndex = computed(() => {
   return idx !== -1 ? idx : 0;
 });
 
+// 模型优化提示词有效性判定（存在且不等于原提示词）
+const hasRevisedPrompt = computed(() => {
+  const item = currentActiveItem.value;
+  if (!item?.revisedPrompt) return false;
+  const revised = item.revisedPrompt.trim();
+  const origin = (item.prompt || '').trim();
+  return revised !== '' && revised !== origin;
+});
+
 // 生图模式标签
 const presetTypeLabel = computed(() => {
   const item = currentActiveItem.value;
@@ -336,11 +345,11 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Revised Prompt (如有) -->
-          <div v-if="currentActiveItem.revisedPrompt" class="info-block">
+          <!-- Revised Prompt (如有且与原提示词不同) -->
+          <div v-if="hasRevisedPrompt" class="info-block">
             <span class="block-label">模型优化提示词</span>
             <div class="prompt-box revised">
-              {{ currentActiveItem.revisedPrompt }}
+              {{ currentActiveItem?.revisedPrompt }}
             </div>
           </div>
 
