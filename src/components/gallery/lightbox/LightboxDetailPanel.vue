@@ -100,13 +100,21 @@ const actualFormat = computed(() => {
   return (props.item.format || 'png').toUpperCase();
 });
 
-function handleCopyPrompt() {
-  navigator.clipboard.writeText(props.item.prompt);
-  isCopied.value = true;
-  emit('showToast', '提示词已复制到剪贴板', 'info');
-  setTimeout(() => {
-    isCopied.value = false;
-  }, 2000);
+async function handleCopyPrompt() {
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(props.item.prompt);
+      isCopied.value = true;
+      emit('showToast', '提示词已复制到剪贴板', 'info');
+      setTimeout(() => {
+        isCopied.value = false;
+      }, 2000);
+    } else {
+      throw new Error('Clipboard API not available');
+    }
+  } catch {
+    emit('showToast', '复制失败，请手动选中文本复制', 'error');
+  }
 }
 </script>
 
