@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { MediaAsset } from '@/types/asset';
 import { formatFullTime, downloadRotatedImage, generateAssetFilename } from '@/utils/download';
-import { formatQualityLabel, getResolutionDisplay } from '@/utils/imageSize';
+import { formatQualityLabel, getResolutionDisplay, inferResolutionTier } from '@/utils/imageSize';
 import { useViewportCanvas } from '@/composables/useViewportCanvas';
 import { 
   X, 
@@ -55,66 +55,79 @@ const currentAssetIndex = computed(() => {
   return idx !== -1 ? idx : 0;
 });
 
-// 生图设定 vs 最终输出真实值
+// 生图模式标签
 const presetTypeLabel = computed(() => {
   const item = currentActiveItem.value;
   if (!item) return '文生图';
   return item.type === 'i2i' || (item.referenceImages && item.referenceImages.length > 0) ? '图生图' : '文生图';
 });
 
-// 设定目标分辨率
+// 1. 分辨率：设定分辨率 vs 实际分辨率
 const presetResolution = computed(() => {
   const item = currentActiveItem.value;
-  if (!item) return '1K';
+  if (!item) return '自动';
   if (item.targetResolution) {
     return item.targetResolution === 'auto' ? '自动' : item.targetResolution.toUpperCase();
+  }
+  return item.size === 'auto' ? '自动' : getResolutionDisplay(item);
+});
+
+const actualResolution = computed(() => {
+  const item = currentActiveItem.value;
+  if (!item) return '-';
+  if (item.width && item.height) {
+    return inferResolutionTier(Math.max(item.width, item.height)).toUpperCase();
   }
   return getResolutionDisplay(item);
 });
 
-// 设定目标比例 / 尺寸
-const presetRatioOrSize = computed(() => {
+// 2. 宽高比：设定比例 vs 实际比例
+const presetRatio = computed(() => {
   const item = currentActiveItem.value;
-  if (!item) return '1:1';
-  if (item.targetRatio && item.targetRatio !== 'auto') {
-    return item.targetRatio;
+  if (!item) return '自动';
+  if (item.targetRatio) {
+    return item.targetRatio === 'auto' ? '自动' : item.targetRatio;
   }
-  if (item.targetSize && item.targetSize !== 'auto') {
-    return item.targetSize;
+  return item.ratio && item.ratio !== 'auto' ? item.ratio : '自动';
+});
+
+const actualRatio = computed(() => {
+  const item = currentActiveItem.value;
+  if (!item) return '-';
+  return item.ratio || '1:1';
+});
+
+// 3. 物理尺寸：设定尺寸 vs 真实尺寸
+const presetSize = computed(() => {
+  const item = currentActiveItem.value;
+  if (!item) return '自动';
+  if (item.targetSize) {
+    return item.targetSize === 'auto' ? '自动' : item.targetSize.replace(/x/i, '×');
   }
-  if (item.ratio && item.ratio !== 'auto') {
-    return item.ratio;
+  if (item.size && item.size !== 'auto') {
+    return item.size.replace(/x/i, '×');
   }
   return '自动';
 });
 
-// 设定画质
+const actualDimension = computed(() => {
+  const item = currentActiveItem.value;
+  if (!item) return '-';
+  if (item.width && item.height) {
+    return `${item.width} × ${item.height} px`;
+  }
+  return item.size ? `${item.size} px` : '-';
+});
+
+// 4. 质量与格式：设定画质 vs 实际格式
 const presetQuality = computed(() => {
   return formatQualityLabel(currentActiveItem.value?.quality);
 });
 
-// 格式与透明设定
-const formatLabel = computed(() => {
+const actualFormat = computed(() => {
   const item = currentActiveItem.value;
   if (!item) return 'PNG';
   return (item.format || 'png').toUpperCase();
-});
-
-// 实际真实输出尺寸
-const actualDimensionText = computed(() => {
-  const item = currentActiveItem.value;
-  if (!item) return '-';
-  if (item.width && item.height) {
-    return `${item.width}×${item.height}`;
-  }
-  return item.size || '-';
-});
-
-// 实际真实比例
-const actualRatioText = computed(() => {
-  const item = currentActiveItem.value;
-  if (!item) return '-';
-  return item.ratio || '1:1';
 });
 
 function handlePrev() {
@@ -335,7 +348,7 @@ onUnmounted(() => {
           <div v-if="currentActiveItem" class="params-dashboard">
             <!-- 核心规格双栏对比区 -->
             <div class="specs-grid">
-              <!-- 左栏：生图设定 -->
+              <!-- 左栏：生图设定 (4项核心维度) -->
               <div class="spec-column preset-column">
                 <div class="spec-column-header">
                   <div class="header-title">
@@ -347,12 +360,16 @@ onUnmounted(() => {
                   </span>
                 </div>
                 <div class="spec-item">
-                  <span class="spec-k">目标分辨率</span>
+                  <span class="spec-k">设定分辨率</span>
                   <span class="spec-v">{{ presetResolution }}</span>
                 </div>
                 <div class="spec-item">
                   <span class="spec-k">设定比例</span>
-                  <span class="spec-v">{{ presetRatioOrSize }}</span>
+                  <span class="spec-v">{{ presetRatio }}</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-k">设定尺寸</span>
+                  <span class="spec-v">{{ presetSize }}</span>
                 </div>
                 <div class="spec-item">
                   <span class="spec-k">设定画质</span>
@@ -360,28 +377,32 @@ onUnmounted(() => {
                 </div>
               </div>
 
-              <!-- 右栏：实际产出 -->
+              <!-- 右栏：实际结果 (4项核心维度) -->
               <div class="spec-column output-column">
                 <div class="spec-column-header">
                   <div class="header-title">
                     <ImageIcon :size="12" />
-                    <span>实际产出</span>
+                    <span>实际结果</span>
                   </div>
                   <span v-if="currentActiveItem.transparent" class="mode-mini-tag is-transparent">
                     透明底
                   </span>
                 </div>
                 <div class="spec-item">
-                  <span class="spec-k">真实尺寸</span>
-                  <span class="spec-v highlight-mono">{{ actualDimensionText }}</span>
+                  <span class="spec-k">实际分辨率</span>
+                  <span class="spec-v">{{ actualResolution }}</span>
                 </div>
                 <div class="spec-item">
                   <span class="spec-k">实际比例</span>
-                  <span class="spec-v">{{ actualRatioText }}</span>
+                  <span class="spec-v">{{ actualRatio }}</span>
                 </div>
                 <div class="spec-item">
-                  <span class="spec-k">文件格式</span>
-                  <span class="spec-v">{{ formatLabel }}</span>
+                  <span class="spec-k">真实尺寸</span>
+                  <span class="spec-v highlight-mono">{{ actualDimension }}</span>
+                </div>
+                <div class="spec-item">
+                  <span class="spec-k">图像格式</span>
+                  <span class="spec-v">{{ actualFormat }}</span>
                 </div>
               </div>
             </div>
