@@ -74,7 +74,7 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
         size: 'auto',
         resolution: '4k',
         aspectRatio: '9:16',
-        quality: 'standard',
+        quality: 'medium',
         format: 'jpeg',
         transparent: false,
         count: 2
@@ -88,7 +88,7 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
     expect(studio.aspectRatio.value).toBe('9:16');
     expect(studio.sizeWidth.value).toBeNull();
     expect(studio.sizeHeight.value).toBeNull();
-    expect(studio.quality.value).toBe('standard');
+    expect(studio.quality.value).toBe('medium');
     expect(studio.format.value).toBe('jpeg');
     expect(studio.transparent.value).toBe(false);
     expect(studio.count.value).toBe(2);
@@ -109,7 +109,7 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
       ratio: '1:1',
       width: 1024,
       height: 1024,
-      quality: 'hd',
+      quality: 'high',
       format: 'webp',
       transparent: false,
       duration: '5.1s',
@@ -123,7 +123,7 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
           prompt: '多图批次提示词',
           model: 'gpt-image-2',
           size: '1024×1024',
-          quality: 'hd',
+          quality: 'high',
           duration: '5.1s',
           timestamp: Date.now()
         },
@@ -134,7 +134,7 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
           prompt: '多图批次提示词',
           model: 'gpt-image-2',
           size: '1024×1024',
-          quality: 'hd',
+          quality: 'high',
           duration: '5.1s',
           timestamp: Date.now()
         }
@@ -146,7 +146,7 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
     expect(studio.prompt.value).toBe('多图批次提示词');
     expect(studio.resolution.value).toBe('auto');
     expect(studio.aspectRatio.value).toBe('auto');
-    expect(studio.quality.value).toBe('hd');
+    expect(studio.quality.value).toBe('high');
     expect(studio.format.value).toBe('webp');
     expect(studio.count.value).toBe(2);
   });
@@ -166,7 +166,7 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
       size: 'auto',
       resolution: '1k',
       aspectRatio: '1:1',
-      quality: 'standard',
+      quality: 'medium',
       format: 'png',
       transparent: false,
       count: 1
