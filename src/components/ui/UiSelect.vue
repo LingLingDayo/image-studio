@@ -62,6 +62,13 @@ const currentDisplayLabel = computed(() => {
   return currentOption.value ? currentOption.value.label : props.placeholder;
 });
 
+const triggerTitle = computed(() => {
+  if (props.label && currentDisplayLabel.value) {
+    return `${props.label}: ${currentDisplayLabel.value}`;
+  }
+  return currentDisplayLabel.value || props.placeholder;
+});
+
 // 点击外部关闭
 useClickOutside(selectRef, () => {
   closeDropdown();
@@ -176,6 +183,8 @@ function handleKeyDown(e: KeyboardEvent) {
       type="button" 
       class="select-trigger" 
       :disabled="disabled"
+      :data-tip="triggerTitle"
+      :aria-label="triggerTitle"
       @click="toggleDropdown"
     >
       <span v-if="label" class="select-label">{{ label }}</span>
@@ -415,7 +424,7 @@ function handleKeyDown(e: KeyboardEvent) {
 .select-dropdown {
   position: absolute;
   left: 0;
-  min-width: 100%;
+  min-width: 140px;
   width: max-content;
   max-width: 280px;
   background: rgba(255, 255, 255, 0.98);
@@ -518,5 +527,55 @@ function handleKeyDown(e: KeyboardEvent) {
 .dropdown-leave-to {
   opacity: 0;
   transform: scale(0.96);
+}
+
+/* 响应式断点：当屏幕宽度不够时，select-trigger 变为只显示箭头的正方形按钮 */
+@media (max-width: 640px) {
+  .ui-select:not(.is-block) {
+    flex-shrink: 0;
+
+    .select-trigger {
+      padding: 0 !important;
+      justify-content: center !important;
+      align-items: center !important;
+      aspect-ratio: 1 / 1;
+
+      .select-label,
+      .select-value {
+        display: none !important;
+      }
+
+      .select-arrow {
+        margin-left: 0 !important;
+        margin: 0 !important;
+      }
+    }
+
+    &.size-sm {
+      .select-trigger {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+      }
+      &.variant-pill .select-trigger {
+        width: 28px;
+        height: 28px;
+        min-width: 28px;
+        border-radius: 9999px;
+      }
+    }
+
+    &.size-md .select-trigger {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+    }
+
+    &.size-lg .select-trigger {
+      width: 42px;
+      height: 42px;
+      min-width: 42px;
+    }
+  }
 }
 </style>

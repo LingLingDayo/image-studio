@@ -270,7 +270,7 @@ async function handleDownload() {
           <Layers :size="11" />
           <span>共 {{ assetsList.length }} 张</span>
         </span>
-        <span class="tag-badge time-tag" :title="`生成时间：${fullTimeText}`">
+        <span class="tag-badge time-tag" :data-tip="`生成时间：${fullTimeText}`">
           <Clock :size="11" />
           <span>{{ simpleTimeText }}</span>
         </span>

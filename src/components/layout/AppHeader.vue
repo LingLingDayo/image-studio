@@ -215,4 +215,11 @@ function clearSearch() {
     background: #ef4444;
   }
 }
+
+/* 响应式适配：在手机等窄屏宽度下隐藏作品数量信息 */
+@media (max-width: 600px) {
+  .stat-badge {
+    display: none;
+  }
+}
 </style>

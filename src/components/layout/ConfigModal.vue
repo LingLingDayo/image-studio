@@ -170,7 +170,7 @@ onUnmounted(() => {
           <span
             v-if="configStore.isOptimizerConfigured"
             class="badge-configured"
-            title="已就绪"
+            data-tip="已就绪"
           ></span>
         </button>
       </div>

@@ -141,7 +141,7 @@ const isI2I = computed(() => {
           <Layers :size="11" />
           <span>批量 {{ task.params.count }} 张</span>
         </span>
-        <span class="tag-badge time-tag" :title="`创建时间：${fullTimeText}`">
+        <span class="tag-badge time-tag" :data-tip="`创建时间：${fullTimeText}`">
           <Clock :size="11" />
           <span>{{ simpleTimeText }}</span>
         </span>
