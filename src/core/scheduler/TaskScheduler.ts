@@ -12,8 +12,74 @@ export interface TaskExecuteCallbacks {
 }
 
 /**
+ * 根据分辨率等级获取任务基准估算耗时（秒）
+ * 1k: 30s
+ * 2k: 40s
+ * 4k: 50s
+ * auto / 其它: 40s
+ */
+export function getBaseDurationSeconds(resolution?: string | null): number {
+  if (!resolution) return 40;
+  const lower = resolution.toLowerCase();
+  if (lower === '1k') return 30;
+  if (lower === '2k') return 40;
+  if (lower === '4k') return 50;
+  return 40;
+}
+
+/**
+ * 进度估算计算器
+ * 在基准时间内：平滑从 0% 增长到 95%
+ * 超过基准时间：卡在 95%，随后每 5s~10s 递增 1%（96% -> 97% -> 98% -> 99%），达到 99% 后保持不变
+ */
+export class TaskProgressTracker {
+  private baseSeconds: number;
+  private stepThresholds: number[];
+
+  constructor(resolution?: string | null, customDelays?: number[]) {
+    this.baseSeconds = getBaseDurationSeconds(resolution);
+    let current = this.baseSeconds;
+    this.stepThresholds = [];
+    for (let i = 0; i < 4; i++) {
+      const stepDuration = customDelays?.[i] ?? (5 + Math.random() * 5);
+      current += stepDuration;
+      this.stepThresholds.push(current);
+    }
+  }
+
+  public getBaseSeconds(): number {
+    return this.baseSeconds;
+  }
+
+  public calculateProgress(elapsedSeconds: number): number {
+    if (elapsedSeconds <= 0) {
+      return 0;
+    }
+
+    if (elapsedSeconds <= this.baseSeconds) {
+      // 基准时间内，平滑增长到 95%
+      const ratio = elapsedSeconds / this.baseSeconds;
+      return Math.min(95, Math.floor(ratio * 95));
+    }
+
+    // 超出基准时间：卡在 95%，每 5s~10s 加 1%，一直加到 99%
+    if (elapsedSeconds < this.stepThresholds[0]) {
+      return 95;
+    } else if (elapsedSeconds < this.stepThresholds[1]) {
+      return 96;
+    } else if (elapsedSeconds < this.stepThresholds[2]) {
+      return 97;
+    } else if (elapsedSeconds < this.stepThresholds[3]) {
+      return 98;
+    } else {
+      return 99;
+    }
+  }
+}
+
+/**
  * 任务调度器 (Task Scheduler)
- * 负责任务生命周期管理、计时器控制与取消机制
+ * 负责任务生命周期管理、动态平滑计时进度与取消机制
  */
 export class TaskScheduler {
   private activeAbortControllers = new Map<string, AbortController>();
@@ -48,15 +114,21 @@ export class TaskScheduler {
     const controller = new AbortController();
     this.activeAbortControllers.set(task.id, controller);
 
+    const tracker = new TaskProgressTracker(task.params.resolution);
+
     task.status = 'processing';
-    task.progress = 5;
+    task.progress = 0;
+    task.elapsedSeconds = 0;
+    task.durationFormatted = '0.0s';
     task.updatedAt = Date.now();
     callbacks?.onStatusChange?.(task);
+    callbacks?.onProgress?.(task);
 
     const startTime = Date.now();
     const timer = setInterval(() => {
       task.elapsedSeconds = (Date.now() - startTime) / 1000;
       task.durationFormatted = `${task.elapsedSeconds.toFixed(1)}s`;
+      task.progress = tracker.calculateProgress(task.elapsedSeconds);
       callbacks?.onProgress?.(task);
     }, 100);
 
@@ -66,10 +138,6 @@ export class TaskScheduler {
         config,
         modelProfile,
         signal: controller.signal,
-        onProgress: (percent) => {
-          task.progress = percent;
-          callbacks?.onProgress?.(task);
-        },
         generatedAssets: []
       });
 
@@ -80,6 +148,7 @@ export class TaskScheduler {
       task.progress = 100;
       task.updatedAt = Date.now();
 
+      callbacks?.onProgress?.(task);
       callbacks?.onStatusChange?.(task);
       callbacks?.onSuccess?.(task, assets);
       return assets;

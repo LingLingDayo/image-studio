@@ -150,7 +150,7 @@ export function useImageStudio() {
           galleryStore.addAssets(resultAssets);
           setTimeout(() => {
             taskStore.removeTask(task.id);
-          }, 400);
+          }, 500);
         },
         onError: (_t, err) => {
           taskStore.updateTask(task.id, {

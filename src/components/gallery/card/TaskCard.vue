@@ -5,7 +5,6 @@ import {
   RotateCw, 
   Trash2, 
   Loader2, 
-  Square, 
   AlertCircle,
   Layers,
   Clock,
@@ -153,7 +152,7 @@ const isI2I = computed(() => {
         <template v-if="task.status === 'processing' || task.status === 'queued'">
           <div class="task-progress-inline">
             <div class="progress-track">
-              <div class="progress-fill" :style="{ width: `${Math.max(5, task.progress)}%` }"></div>
+              <div class="progress-fill" :style="{ width: `${task.progress}%` }"></div>
             </div>
             <span class="progress-text">{{ task.progress }}%</span>
           </div>
@@ -163,7 +162,6 @@ const isI2I = computed(() => {
             data-tip="取消任务"
             @click.stop="emit('cancelTask', task.id)"
           >
-            <Square :size="12" />
             <span>取消</span>
           </button>
         </template>
@@ -427,7 +425,7 @@ const isI2I = computed(() => {
     height: 100%;
     background: $accent-gradient;
     border-radius: 2px;
-    transition: width 0.25s ease-out;
+    transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .progress-text {
