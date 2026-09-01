@@ -508,3 +508,69 @@ export function formatDisplayRatio(ratio?: string): string {
   return cleaned;
 }
 
+/**
+ * 格式化作品详情页中的“实际比例”
+ * 如果不是确定的比例（如带有约等号前缀、或非预设的小数近似比例），前面加上约等号 ≈
+ */
+export function formatActualRatio(
+  ratio?: string,
+  dimensions?: { width?: number; height?: number }
+): string {
+  let targetRatio = ratio;
+
+  // 1. 如果没有 ratio，但有真实宽高，先推导 ratio
+  if ((!targetRatio || targetRatio === 'auto') && dimensions?.width && dimensions?.height) {
+    const w = dimensions.width;
+    const h = dimensions.height;
+    const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+    const divisor = gcd(w, h);
+    const reducedW = w / divisor;
+    const reducedH = h / divisor;
+    const r = w / h;
+
+    // 检查是否完美匹配已知预设
+    const matchedPreset = PRESET_RATIO_VALUES.find((p) => {
+      const parsed = parseRatio(p);
+      return parsed && Math.abs(r - parsed.w / parsed.h) < 0.0001;
+    });
+
+    if (matchedPreset) {
+      targetRatio = matchedPreset;
+    } else if (reducedW <= 50 && reducedH <= 50) {
+      targetRatio = `${reducedW}:${reducedH}`;
+    } else {
+      targetRatio = `≈${Math.round(r * 10) / 10}:1`;
+    }
+  }
+
+  if (!targetRatio || targetRatio === 'auto') return '1:1';
+
+  const raw = String(targetRatio).trim();
+  const hasApproxPrefix = /^[≈~]/.test(raw);
+  const displayRatio = formatDisplayRatio(raw);
+
+  // 1. 如果原始字符串本身带有约等号前缀，则输出带约等号
+  if (hasApproxPrefix) {
+    return `≈${displayRatio}`;
+  }
+
+  // 2. 如果是标准预设比例（如 16:9, 1:1, 1.91:1, 1:1.91 等），为确定比例
+  if (PRESET_RATIO_VALUES.includes(displayRatio)) {
+    return displayRatio;
+  }
+
+  // 3. 检查是否为整数之比（如 8:5）
+  const parts = displayRatio.split(':');
+  if (parts.length === 2) {
+    const w = Number(parts[0]);
+    const h = Number(parts[1]);
+    if (Number.isInteger(w) && Number.isInteger(h)) {
+      return displayRatio;
+    }
+  }
+
+  // 4. 其他情况（如 2.3:1, 1.8:1, 0.6:1 等非预设小数近似比）属于约等于比例
+  return `≈${displayRatio}`;
+}
+
+
