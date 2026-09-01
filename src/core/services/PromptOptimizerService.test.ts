@@ -92,6 +92,46 @@ describe('PromptOptimizerService', () => {
       expect(result).toBe('A cinematic photo of a beautiful bird, highly detailed, soft sunlight');
     });
 
+    it('should correctly format request and parse response for Claude Messages API', async () => {
+      let sentBody: any = null;
+      let sentHeaders: any = null;
+      globalThis.fetch = vi.fn().mockImplementation(async (_url: any, init: any) => {
+        sentBody = JSON.parse(init.body);
+        sentHeaders = init.headers;
+        return {
+          ok: true,
+          json: async () => ({
+            id: 'msg_123',
+            type: 'message',
+            role: 'assistant',
+            content: [
+              {
+                type: 'text',
+                text: 'A majestic lion basking in golden hour light, 8k resolution'
+              }
+            ]
+          })
+        };
+      });
+
+      const result = await PromptOptimizerService.optimizePrompt(
+        {
+          baseUrl: 'https://api.anthropic.com',
+          apiKey: 'sk-ant-test',
+          model: 'claude-3-5-sonnet-20241022',
+          endpoint: '/v1/messages'
+        },
+        'a golden lion',
+        'Enhance: {prompt}'
+      );
+
+      expect(sentBody.max_tokens).toBe(2048);
+      expect(sentBody.messages[0].content).toBe('Enhance: a golden lion');
+      expect(sentHeaders['x-api-key']).toBe('sk-ant-test');
+      expect(sentHeaders['anthropic-version']).toBe('2023-06-01');
+      expect(result).toBe('A majestic lion basking in golden hour light, 8k resolution');
+    });
+
     it('should throw error if prompt is empty', async () => {
       await expect(
         PromptOptimizerService.optimizePrompt(

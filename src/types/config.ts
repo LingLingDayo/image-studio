@@ -44,6 +44,6 @@ export const ENV_OPTIMIZER_PROMPT_TEMPLATE: string =
 
 export const COMMON_OPTIMIZER_ENDPOINTS = [
   { label: '/v1/chat/completions (推荐)', value: '/v1/chat/completions' },
-  { label: '/v1/responses', value: '/v1/responses' },
-  { label: '/v1/completions', value: '/v1/completions' }
+  { label: '/v1/messages (Claude)', value: '/v1/messages' },
+  { label: '/v1/responses', value: '/v1/responses' }
 ];

@@ -32,12 +32,16 @@ export class PromptOptimizerService {
 
     const endpoint = normalizeEndpointUrl(baseUrl, '/models');
 
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${apiKey.trim()}`,
+      'x-api-key': apiKey.trim(),
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json'
+    };
+
     const response = await fetch(endpoint, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey.trim()}`,
-        'Content-Type': 'application/json'
-      },
+      headers,
       signal
     });
 
@@ -78,7 +82,7 @@ export class PromptOptimizerService {
     // 去重并对模型做智能排序（常用大模型优先排前）
     const uniqueIds = Array.from(new Set(modelIds));
     return uniqueIds.sort((a, b) => {
-      const priorityKeywords = ['gpt-5.6-terra', 'gpt-5.6', 'gpt-5', 'gpt-4o', 'gpt-4', 'claude-3', 'deepseek', 'gemini', 'qwen'];
+      const priorityKeywords = ['gpt-5.6-terra', 'gpt-5.6', 'gpt-5', 'gpt-4o', 'gpt-4', 'claude-3', 'claude', 'deepseek', 'gemini', 'qwen'];
       const aScore = priorityKeywords.findIndex((k) => a.toLowerCase().includes(k));
       const bScore = priorityKeywords.findIndex((k) => b.toLowerCase().includes(k));
 
@@ -110,14 +114,22 @@ export class PromptOptimizerService {
 
     const endpointPath = config.endpoint || '/v1/chat/completions';
     const targetUrl = normalizeEndpointUrl(config.baseUrl, endpointPath);
+    const isClaudeMessages = endpointPath.includes('/messages');
 
     const rawTemplate = (customTemplate || ENV_OPTIMIZER_PROMPT_TEMPLATE).trim();
     const promptContent = rawTemplate.includes('{prompt}')
       ? rawTemplate.replace(/\{prompt\}/g, userPrompt.trim())
       : `${rawTemplate}\n\nUser input: ${userPrompt.trim()}`;
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.apiKey.trim()}`,
+      'x-api-key': config.apiKey.trim(),
+      'anthropic-version': '2023-06-01'
+    };
+
     const payload: Record<string, any> = {
-      model: config.model || 'gpt-5.6-terra',
+      model: config.model || (isClaudeMessages ? 'claude-3-5-sonnet-20241022' : 'gpt-5.6-terra'),
       messages: [
         {
           role: 'user',
@@ -127,12 +139,14 @@ export class PromptOptimizerService {
       temperature: 0.7
     };
 
+    // Claude Messages API 必须带有 max_tokens 参数
+    if (isClaudeMessages) {
+      payload.max_tokens = 2048;
+    }
+
     const response = await fetch(targetUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey.trim()}`
-      },
+      headers,
       body: JSON.stringify(payload),
       signal
     });
@@ -156,12 +170,22 @@ export class PromptOptimizerService {
     const json = await response.json();
     let content = '';
 
-    if (json.choices && json.choices[0]?.message?.content) {
+    // 智能解析各厂商大模型返回格式 (Claude Messages / OpenAI Chat / Responses API 等)
+    if (Array.isArray(json.content)) {
+      content = json.content
+        .map((item: any) => (typeof item === 'string' ? item : item.text || ''))
+        .join('')
+        .trim();
+    } else if (typeof json.content === 'string') {
+      content = json.content;
+    } else if (json.choices && json.choices[0]?.message?.content) {
       content = json.choices[0].message.content;
     } else if (json.choices && json.choices[0]?.text) {
       content = json.choices[0].text;
     } else if (typeof json.output === 'string') {
       content = json.output;
+    } else if (json.response) {
+      content = typeof json.response === 'string' ? json.response : json.response.text || '';
     }
 
     if (!content || !content.trim()) {
