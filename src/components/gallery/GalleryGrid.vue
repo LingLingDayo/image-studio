@@ -82,6 +82,7 @@ function handlePageSizeChange(size: number) {
             @cancel-task="emit('cancelTask', $event)"
             @retry-task="emit('retryTask', $event)"
             @remove-task="emit('removeTask', $event)"
+            @reuse="emit('reuse', $event)"
           />
         </template>
 

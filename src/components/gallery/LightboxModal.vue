@@ -85,13 +85,11 @@ async function handleDownload() {
 function handleReuse(item: MediaAsset) {
   emit('reuse', item);
   emit('close');
-  emit('showToast', '已复用提示词与参数', 'info');
 }
 
 function handleEditAsReference(item: MediaAsset) {
   emit('editAsReference', item);
   emit('close');
-  emit('showToast', '已将此图置入参考图栏', 'info');
 }
 
 function handleDelete(id: number) {

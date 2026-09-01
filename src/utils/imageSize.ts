@@ -321,18 +321,66 @@ export function nearestAspectRatio(width: number, height: number, tolerance = 0.
   return best;
 }
 
-export function hydrateImageSizeFromAsset(input: {
+export function hydrateImageSizeFromSettings(input: {
   size?: string;
   width?: number;
   height?: number;
   ratio?: string;
+  resolution?: ResolutionTier;
+  aspectRatio?: string;
+  targetResolution?: ResolutionTier;
+  targetRatio?: string;
+  targetSize?: string;
 }): ImageSizeState {
+  const targetResolution = input.targetResolution ?? input.resolution;
+  const targetRatio = input.targetRatio ?? input.aspectRatio;
+  const targetSize = input.targetSize ?? input.size;
+
+  // 1. 优先使用生图设定 (targetResolution / targetRatio / targetSize 或 resolution / aspectRatio / size)
+  if (targetResolution !== undefined || targetRatio !== undefined || targetSize !== undefined) {
+    if (targetSize === 'auto' || (!targetSize && (targetResolution || targetRatio))) {
+      return {
+        width: null,
+        height: null,
+        resolution: targetResolution || 'auto',
+        aspectRatio: targetRatio || 'auto'
+      };
+    }
+
+    if (targetSize) {
+      const parsed = parseSizeString(targetSize);
+      if (parsed) {
+        const presetFromItem = (targetRatio && targetRatio !== 'auto')
+          ? targetRatio
+          : (input.ratio && parseRatio(input.ratio) ? input.ratio : null);
+        const matchedPreset = presetFromItem && PRESET_RATIO_VALUES.includes(presetFromItem)
+          ? presetFromItem
+          : nearestAspectRatio(parsed.width, parsed.height);
+
+        return {
+          width: parsed.width,
+          height: parsed.height,
+          resolution: targetResolution || inferResolutionTier(Math.max(parsed.width, parsed.height)),
+          aspectRatio: matchedPreset
+        };
+      }
+    }
+  }
+
+  // 2. 向后兼容旧数据（无 target* 且无 resolution/aspectRatio 时回退到实际图片尺寸）
   const parsed =
     input.width && input.height
       ? { width: input.width, height: input.height }
       : parseSizeString(input.size);
 
-  if (!parsed) return createDefaultImageSizeState();
+  if (!parsed) {
+    return {
+      width: null,
+      height: null,
+      resolution: targetResolution || 'auto',
+      aspectRatio: targetRatio || input.ratio || 'auto'
+    };
+  }
 
   const presetFromItem = input.ratio && parseRatio(input.ratio) ? input.ratio : null;
   const matchedPreset = presetFromItem && PRESET_RATIO_VALUES.includes(presetFromItem)
@@ -342,9 +390,21 @@ export function hydrateImageSizeFromAsset(input: {
   return {
     width: parsed.width,
     height: parsed.height,
-    resolution: inferResolutionTier(Math.max(parsed.width, parsed.height)),
+    resolution: targetResolution || inferResolutionTier(Math.max(parsed.width, parsed.height)),
     aspectRatio: matchedPreset
   };
+}
+
+export function hydrateImageSizeFromAsset(input: {
+  size?: string;
+  width?: number;
+  height?: number;
+  ratio?: string;
+  targetResolution?: ResolutionTier;
+  targetRatio?: string;
+  targetSize?: string;
+}): ImageSizeState {
+  return hydrateImageSizeFromSettings(input);
 }
 
 export function hydrateImageSizeFromParams(input: {
@@ -355,34 +415,7 @@ export function hydrateImageSizeFromParams(input: {
   resolution?: ResolutionTier;
   aspectRatio?: string;
 }): ImageSizeState {
-  const parsed =
-    input.width && input.height
-      ? { width: input.width, height: input.height }
-      : parseSizeString(input.size);
-
-  if (!parsed) {
-    return {
-      width: null,
-      height: null,
-      resolution: input.resolution || 'auto',
-      aspectRatio: input.aspectRatio || input.ratio || 'auto'
-    };
-  }
-
-  const presetFromItem = (input.aspectRatio && input.aspectRatio !== 'auto') 
-    ? input.aspectRatio 
-    : (input.ratio && parseRatio(input.ratio) ? input.ratio : null);
-
-  const matchedPreset = presetFromItem && PRESET_RATIO_VALUES.includes(presetFromItem)
-    ? presetFromItem
-    : nearestAspectRatio(parsed.width, parsed.height);
-
-  return {
-    width: parsed.width,
-    height: parsed.height,
-    resolution: input.resolution || inferResolutionTier(Math.max(parsed.width, parsed.height)),
-    aspectRatio: matchedPreset
-  };
+  return hydrateImageSizeFromSettings(input);
 }
 
 

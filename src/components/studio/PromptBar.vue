@@ -59,7 +59,11 @@ const isOptimizing = ref(false);
 const previousPrompt = ref<string | null>(null);
 
 const canRestorePrompt = computed(() => {
-  return previousPrompt.value !== null && previousPrompt.value.trim() !== props.prompt.trim();
+  return (
+    previousPrompt.value !== null &&
+    props.prompt.trim().length > 0 &&
+    previousPrompt.value.trim() !== props.prompt.trim()
+  );
 });
 
 async function handleOptimizePrompt() {
@@ -96,6 +100,12 @@ function handleRestorePrompt() {
     previousPrompt.value = null;
     emit('showToast', '已恢复原提示词', 'info');
   }
+}
+
+function handleGenerateClick() {
+  if (!props.prompt.trim()) return;
+  previousPrompt.value = null;
+  emit('generate');
 }
 
 const transparentOptions = [
@@ -200,17 +210,27 @@ function handleDrop(e: DragEvent) {
 function handleKeyDown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
-    if (props.prompt.trim()) {
-      emit('generate');
-    }
+    handleGenerateClick();
   }
 }
 
 watch(
   () => props.prompt,
-  async () => {
+  async (newVal) => {
+    if (!newVal || !newVal.trim()) {
+      previousPrompt.value = null;
+    }
     await nextTick();
     syncTextareaHeight();
+  }
+);
+
+watch(
+  () => props.isGenerating,
+  (generating) => {
+    if (generating) {
+      previousPrompt.value = null;
+    }
   }
 );
 
@@ -409,7 +429,7 @@ onUnmounted(() => {
             class="btn-send" 
             :disabled="!prompt.trim()" 
             :data-tip="isGenerating ? `发起新生成 (当前有 ${elapsedTime} 绘制中)` : '立即生成 (Ctrl+Enter)'"
-            @click="emit('generate')"
+            @click="handleGenerateClick"
           >
             <ArrowRight :size="17" />
           </button>

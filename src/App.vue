@@ -76,7 +76,7 @@ async function handleGenerate() {
   }
 }
 
-function handleRegenerate(item: MediaAsset | any) {
+async function handleRegenerate(item: MediaAsset | any) {
   if (!configStore.isConfigured) {
     isApiKeyMissingDialogOpen.value = true;
     return;
@@ -84,8 +84,8 @@ function handleRegenerate(item: MediaAsset | any) {
   if ('params' in item) {
     retryTask(item);
   } else {
-    reuseItem(item);
-    handleGenerate();
+    await reuseItem(item);
+    await handleGenerate();
   }
 }
 
@@ -107,13 +107,13 @@ function handleRemoveTask(taskId: string) {
   removeTask(taskId);
 }
 
-function handleReuse(item: MediaAsset | GenerationTask | any) {
-  reuseItem(item);
+async function handleReuse(item: MediaAsset | GenerationTask | any) {
+  await reuseItem(item);
   showToast('已复用提示词与全部参数设置', 'info');
 }
 
 async function handleEditAsReference(item: MediaAsset) {
-  reuseItem(item);
+  await reuseItem(item);
   await useImageAsReference(item.url);
   showToast('已将选定图片加入参考图栏', 'info');
 }

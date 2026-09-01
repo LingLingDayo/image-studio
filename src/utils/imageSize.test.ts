@@ -194,14 +194,65 @@ describe('imageSize (imageSize.ts)', () => {
     expect(inferResolutionTier(4096)).toBe('4k');
   });
 
-  it('should restore size state from a gallery asset', () => {
-    const restored = hydrateImageSizeFromAsset({
+  it('should restore size state from a gallery asset using generation settings', () => {
+    // 设定为 2K 16:9 auto，即使实际图片下载尺寸是 2048x1152，复用生图设定时应保持 width/height 为 null
+    const fromTargetSettings = hydrateImageSizeFromAsset({
+      targetResolution: '2k',
+      targetRatio: '16:9',
+      targetSize: 'auto',
+      size: '2048×1152',
+      width: 2048,
+      height: 1152,
+      ratio: '16:9'
+    });
+    expect(fromTargetSettings).toEqual({
+      resolution: '2k',
+      aspectRatio: '16:9',
+      width: null,
+      height: null
+    });
+
+    // 设定为自动模式 auto/auto
+    const fromAutoSettings = hydrateImageSizeFromAsset({
+      targetResolution: 'auto',
+      targetRatio: 'auto',
+      targetSize: 'auto',
+      size: '1024×1024',
+      width: 1024,
+      height: 1024,
+      ratio: '1:1'
+    });
+    expect(fromAutoSettings).toEqual({
+      resolution: 'auto',
+      aspectRatio: 'auto',
+      width: null,
+      height: null
+    });
+
+    // 设定为明确自定义像素尺寸 1200x800
+    const fromExplicitSettings = hydrateImageSizeFromAsset({
+      targetResolution: '1k',
+      targetRatio: 'auto',
+      targetSize: '1200x800',
+      size: '1200x800',
+      width: 1200,
+      height: 800
+    });
+    expect(fromExplicitSettings).toEqual({
+      resolution: '1k',
+      aspectRatio: '3:2',
+      width: 1200,
+      height: 800
+    });
+
+    // 向后兼容旧数据（无 target* 参数时回退到实际图片尺寸）
+    const legacyRestored = hydrateImageSizeFromAsset({
       size: '1024x576',
       width: 1024,
       height: 576,
       ratio: '16:9'
     });
-    expect(restored).toEqual({
+    expect(legacyRestored).toEqual({
       resolution: '1k',
       aspectRatio: '16:9',
       width: 1024,
