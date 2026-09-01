@@ -28,6 +28,13 @@ const effectiveOptimizerBaseUrl = computed(() =>
     : localOptimizerBaseUrl.value.trim()
 );
 
+// 计算优化服务有效 API Key
+const effectiveOptimizerApiKey = computed(() =>
+  configStore.hasEnvOptimizerApiKey
+    ? configStore.effectiveOptimizerApiKey
+    : localOptimizerApiKey.value.trim()
+);
+
 // 下拉模型选项
 const modelSelectOptions = computed(() => {
   if (fetchedModels.value.length === 0) {
@@ -42,7 +49,7 @@ const modelSelectOptions = computed(() => {
 // 获取可用模型列表
 async function handleFetchModels() {
   const url = effectiveOptimizerBaseUrl.value;
-  const key = localOptimizerApiKey.value.trim();
+  const key = effectiveOptimizerApiKey.value;
 
   // 如果用户填写的信息不全，不自动填入默认模型
   if (!url) {
@@ -98,6 +105,7 @@ defineExpose({
 
 <template>
   <div class="tab-content">
+    <!-- 仅在未通过环境变量配置时展示优化 API Base URL 输入框；已在 env 配置则直接隐藏 -->
     <UiInput
       v-if="!configStore.hasEnvOptimizerBaseUrl"
       id="optimizerBaseUrl"
@@ -110,15 +118,10 @@ defineExpose({
         <Globe :size="14" />
       </template>
     </UiInput>
-    <div v-else class="env-info-box">
-      <div class="env-info-header">
-        <Globe :size="14" />
-        <span>优化 API Base URL</span>
-      </div>
-      <div class="env-info-value mono">{{ configStore.effectiveOptimizerBaseUrl }}</div>
-    </div>
 
+    <!-- 仅在未通过环境变量配置时展示优化 API Key 输入框；已在 env 配置则直接隐藏 -->
     <UiInput
+      v-if="!configStore.hasEnvOptimizerApiKey"
       id="optimizerApiKey"
       v-model="localOptimizerApiKey"
       label="优化 API Key"
@@ -135,8 +138,8 @@ defineExpose({
       </template>
     </UiInput>
 
-    <!-- 模型拉取与端点设置控制面板 (仅在填写 API Key 后展示) -->
-    <div v-if="localOptimizerApiKey.trim()" class="control-subcard">
+    <!-- 模型拉取与端点设置控制面板 (仅在具备有效 API Key 后展示) -->
+    <div v-if="effectiveOptimizerApiKey" class="control-subcard">
       <div class="subcard-header">
         <div class="subcard-title">
           <Cpu :size="14" />
@@ -147,7 +150,7 @@ defineExpose({
         <UiButton
           size="sm"
           variant="secondary"
-          :disabled="isFetchingModels || !localOptimizerApiKey.trim()"
+          :disabled="isFetchingModels || !effectiveOptimizerApiKey"
           @click="handleFetchModels"
         >
           <template #icon>

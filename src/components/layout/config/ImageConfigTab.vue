@@ -11,6 +11,7 @@ const localApiKey = defineModel<string>('apiKey', { required: true });
 
 <template>
   <div class="tab-content">
+    <!-- 仅在未通过环境变量配置时展示生图 API Base URL 输入框；已在 env 配置则直接隐藏 -->
     <UiInput
       v-if="!configStore.hasEnvBaseUrl"
       id="baseUrl"
@@ -24,15 +25,10 @@ const localApiKey = defineModel<string>('apiKey', { required: true });
         <Globe :size="14" />
       </template>
     </UiInput>
-    <div v-else class="env-info-box">
-      <div class="env-info-header">
-        <Globe :size="14" />
-        <span>生图 API Base URL</span>
-      </div>
-      <div class="env-info-value mono">{{ configStore.effectiveBaseUrl }}</div>
-    </div>
 
+    <!-- 仅在未通过环境变量配置时展示生图 API Key 输入框；已在 env 配置则直接隐藏 -->
     <UiInput
+      v-if="!configStore.hasEnvApiKey"
       id="apiKey"
       v-model="localApiKey"
       label="生图 API Key"

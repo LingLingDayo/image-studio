@@ -48,9 +48,21 @@ const effectiveOptimizerBaseUrl = computed(() =>
     : localOptimizerBaseUrl.value.trim()
 );
 
+// 计算生图服务有效 API Key
+const effectiveImageApiKey = computed(() =>
+  configStore.hasEnvApiKey ? configStore.effectiveApiKey : localApiKey.value.trim()
+);
+
+// 计算优化服务有效 API Key
+const effectiveOptimizerApiKey = computed(() =>
+  configStore.hasEnvOptimizerApiKey
+    ? configStore.effectiveOptimizerApiKey
+    : localOptimizerApiKey.value.trim()
+);
+
 // 生图配置校验
 const isImageFormValid = computed(() => {
-  return effectiveImageBaseUrl.value.length > 0 && localApiKey.value.trim().length > 0;
+  return effectiveImageBaseUrl.value.length > 0 && effectiveImageApiKey.value.length > 0;
 });
 
 // 同步 Store 到表单
@@ -71,7 +83,7 @@ watch(
       activeTab.value = props.initialTab || 'image';
       syncFromStore();
       // 如果优化模型配置了 key 与 url，自动预拉取一次模型列表
-      if (effectiveOptimizerBaseUrl.value && localOptimizerApiKey.value.trim()) {
+      if (effectiveOptimizerBaseUrl.value && effectiveOptimizerApiKey.value) {
         setTimeout(() => {
           optimizerTabRef.value?.handleFetchModels();
         }, 50);
@@ -89,13 +101,13 @@ function handleSave() {
   // 1. 保存生图配置
   configStore.updateConfig({
     ...(configStore.hasEnvBaseUrl ? {} : { baseUrl: localBaseUrl.value }),
-    apiKey: localApiKey.value
+    ...(configStore.hasEnvApiKey ? {} : { apiKey: localApiKey.value })
   });
 
   // 2. 保存提示词优化配置
   configStore.updateOptimizerConfig({
     ...(configStore.hasEnvOptimizerBaseUrl ? {} : { baseUrl: localOptimizerBaseUrl.value }),
-    apiKey: localOptimizerApiKey.value,
+    ...(configStore.hasEnvOptimizerApiKey ? {} : { apiKey: localOptimizerApiKey.value }),
     model: localOptimizerModel.value,
     endpoint: localOptimizerEndpoint.value
   });

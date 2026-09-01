@@ -6,8 +6,10 @@ import {
   DEFAULT_CONFIG,
   DEFAULT_OPTIMIZER_CONFIG,
   ENV_BASE_URL,
+  ENV_API_KEY,
   ENV_API_KEY_HINT,
   ENV_OPTIMIZER_BASE_URL,
+  ENV_OPTIMIZER_API_KEY,
   ENV_OPTIMIZER_API_KEY_HINT
 } from '@/types/config';
 import type { ProviderConfig } from '@/types/provider';
@@ -15,6 +17,7 @@ import type { ProviderConfig } from '@/types/provider';
 export const useConfigStore = defineStore('config', () => {
   // ---- 1. 生图服务配置 ----
   const hasEnvBaseUrl = computed(() => ENV_BASE_URL.length > 0);
+  const hasEnvApiKey = computed(() => ENV_API_KEY.length > 0);
   const apiKeyHint = computed(() => ENV_API_KEY_HINT);
 
   const baseUrl = ref<string>(localStorage.getItem('gpt_image_base_url') || DEFAULT_CONFIG.baseUrl);
@@ -23,14 +26,15 @@ export const useConfigStore = defineStore('config', () => {
   const model = ref<string>(localStorage.getItem('gpt_image_model') || DEFAULT_CONFIG.model);
 
   const effectiveBaseUrl = computed(() => (hasEnvBaseUrl.value ? ENV_BASE_URL : baseUrl.value.trim()));
+  const effectiveApiKey = computed(() => (hasEnvApiKey.value ? ENV_API_KEY : apiKey.value.trim()));
 
   const isConfigured = computed(
-    () => apiKey.value.trim().length > 0 && effectiveBaseUrl.value.length > 0
+    () => effectiveApiKey.value.length > 0 && effectiveBaseUrl.value.length > 0
   );
 
   const providerConfig = computed<ProviderConfig>(() => ({
     baseUrl: effectiveBaseUrl.value,
-    apiKey: apiKey.value.trim(),
+    apiKey: effectiveApiKey.value,
     model: model.value
   }));
 
@@ -51,6 +55,7 @@ export const useConfigStore = defineStore('config', () => {
 
   // ---- 2. 提示词优化模型配置 ----
   const hasEnvOptimizerBaseUrl = computed(() => ENV_OPTIMIZER_BASE_URL.length > 0);
+  const hasEnvOptimizerApiKey = computed(() => ENV_OPTIMIZER_API_KEY.length > 0);
   const optimizerApiKeyHint = computed(() => ENV_OPTIMIZER_API_KEY_HINT);
 
   const optimizerBaseUrl = ref<string>(
@@ -69,17 +74,20 @@ export const useConfigStore = defineStore('config', () => {
   const effectiveOptimizerBaseUrl = computed(() =>
     hasEnvOptimizerBaseUrl.value ? ENV_OPTIMIZER_BASE_URL : optimizerBaseUrl.value.trim()
   );
+  const effectiveOptimizerApiKey = computed(() =>
+    hasEnvOptimizerApiKey.value ? ENV_OPTIMIZER_API_KEY : optimizerApiKey.value.trim()
+  );
 
   const isOptimizerConfigured = computed(
     () =>
-      optimizerApiKey.value.trim().length > 0 &&
+      effectiveOptimizerApiKey.value.length > 0 &&
       effectiveOptimizerBaseUrl.value.length > 0 &&
       optimizerModel.value.trim().length > 0
   );
 
   const optimizerConfig = computed<OptimizerConfig>(() => ({
     baseUrl: effectiveOptimizerBaseUrl.value,
-    apiKey: optimizerApiKey.value.trim(),
+    apiKey: effectiveOptimizerApiKey.value,
     model: optimizerModel.value.trim() || 'gpt-5.6-terra',
     endpoint: optimizerEndpoint.value.trim() || '/v1/chat/completions'
   }));
@@ -109,6 +117,8 @@ export const useConfigStore = defineStore('config', () => {
     effectiveBaseUrl,
     hasEnvBaseUrl,
     apiKey,
+    effectiveApiKey,
+    hasEnvApiKey,
     apiKeyHint,
     model,
     isConfigured,
@@ -120,6 +130,8 @@ export const useConfigStore = defineStore('config', () => {
     effectiveOptimizerBaseUrl,
     hasEnvOptimizerBaseUrl,
     optimizerApiKey,
+    effectiveOptimizerApiKey,
+    hasEnvOptimizerApiKey,
     optimizerApiKeyHint,
     optimizerModel,
     optimizerEndpoint,
