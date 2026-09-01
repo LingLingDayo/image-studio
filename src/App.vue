@@ -5,13 +5,15 @@ import ConfigModal from '@/components/layout/ConfigModal.vue';
 import PromptBar from '@/components/studio/PromptBar.vue';
 import GalleryGrid from '@/components/gallery/GalleryGrid.vue';
 import LightboxModal from '@/components/gallery/LightboxModal.vue';
-import { Tooltip } from '@/components/ui';
+import { Tooltip, UiDialog } from '@/components/ui';
 import { useGalleryStore } from '@/stores/galleryStore';
+import { useConfigStore } from '@/stores/configStore';
 import { useImageStudio } from '@/composables/useImageStudio';
 import type { MediaAsset } from '@/types/asset';
 
 const isConfigOpen = ref(false);
 const configInitialTab = ref<'image' | 'optimizer'>('image');
+const isApiKeyMissingDialogOpen = ref(false);
 const activeLightboxItem = ref<MediaAsset | null>(null);
 const activeLightboxBatch = ref<MediaAsset[]>([]);
 const toasts = ref<Array<{ id: number; message: string; type: 'success' | 'error' | 'info' }>>([]);
@@ -21,6 +23,12 @@ function openConfig(tab: 'image' | 'optimizer' = 'image') {
   isConfigOpen.value = true;
 }
 
+function handleGoToConfig() {
+  isApiKeyMissingDialogOpen.value = false;
+  openConfig('image');
+}
+
+const configStore = useConfigStore();
 const galleryStore = useGalleryStore();
 const {
   prompt,
@@ -55,6 +63,10 @@ onMounted(async () => {
 });
 
 async function handleGenerate() {
+  if (!configStore.isConfigured) {
+    isApiKeyMissingDialogOpen.value = true;
+    return;
+  }
   try {
     await generate();
     showToast('已发起生成任务，正在实时绘制...', 'info');
@@ -64,6 +76,10 @@ async function handleGenerate() {
 }
 
 function handleRegenerate(item: MediaAsset | any) {
+  if (!configStore.isConfigured) {
+    isApiKeyMissingDialogOpen.value = true;
+    return;
+  }
   if ('params' in item) {
     retryTask(item);
   } else {
@@ -73,6 +89,10 @@ function handleRegenerate(item: MediaAsset | any) {
 }
 
 function handleRetryTask(task: any) {
+  if (!configStore.isConfigured) {
+    isApiKeyMissingDialogOpen.value = true;
+    return;
+  }
   retryTask(task);
   showToast('已重新发起生成任务', 'info');
 }
@@ -189,6 +209,18 @@ async function handleDeleteItem(id: number) {
       @toggle-favorite="id => galleryStore.toggleFavorite(id)"
       @delete="handleDeleteItem"
       @show-toast="showToast"
+    />
+
+    <!-- 未配置 API Key 提示弹窗 -->
+    <UiDialog
+      :is-open="isApiKeyMissingDialogOpen"
+      type="warning"
+      title="未配置生图 API Key"
+      description="检测到尚未配置生图接口地址或 API Key。请先前往系统设置完成配置后再发起生图任务。"
+      confirm-text="前往配置"
+      cancel-text="取消"
+      @confirm="handleGoToConfig"
+      @close="isApiKeyMissingDialogOpen = false"
     />
 
     <!-- 全局单例 Tooltip -->

@@ -7,6 +7,7 @@ import UiButton from './UiButton.vue';
 import UiPagination from './UiPagination.vue';
 import UiSizeInput from './UiSizeInput.vue';
 import Tooltip from './Tooltip.vue';
+import UiDialog from './UiDialog.vue';
 
 describe('UI Components (src/components/ui)', () => {
   it('should export all UI components properly', () => {
@@ -18,6 +19,7 @@ describe('UI Components (src/components/ui)', () => {
     expect(UiPagination).toBeDefined();
     expect(UiSizeInput).toBeDefined();
     expect(Tooltip).toBeDefined();
+    expect(UiDialog).toBeDefined();
   });
 });
 

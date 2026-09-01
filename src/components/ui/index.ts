@@ -7,4 +7,6 @@ export { default as UiButton } from './UiButton.vue';
 export { default as UiPagination } from './UiPagination.vue';
 export { default as UiSizeInput } from './UiSizeInput.vue';
 export { default as Tooltip } from './Tooltip.vue';
+export { default as UiDialog } from './UiDialog.vue';
+export type { DialogType } from './UiDialog.vue';
 
