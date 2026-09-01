@@ -135,8 +135,8 @@ defineExpose({
       </template>
     </UiInput>
 
-    <!-- 模型拉取与端点设置控制面板 -->
-    <div class="control-subcard">
+    <!-- 模型拉取与端点设置控制面板 (仅在填写 API Key 后展示) -->
+    <div v-if="localOptimizerApiKey.trim()" class="control-subcard">
       <div class="subcard-header">
         <div class="subcard-title">
           <Cpu :size="14" />
