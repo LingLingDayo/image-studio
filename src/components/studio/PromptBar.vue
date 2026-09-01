@@ -66,8 +66,22 @@ const canRestorePrompt = computed(() => {
   );
 });
 
+const optimizerTooltip = computed(() => {
+  if (!configStore.isOptimizerConfigured) {
+    return '请先在「设置 -> 提示词优化」中配置 API Key';
+  }
+  if (isOptimizing.value) {
+    return '优化中...';
+  }
+  if (!props.prompt.trim()) {
+    return '请先输入提示词后再进行 AI 优化';
+  }
+  return '使用大模型智能优化提示词 (AI 润色扩写细节)';
+});
+
 async function handleOptimizePrompt() {
   if (!configStore.isOptimizerConfigured) {
+    emit('showToast', '请先在「设置 -> 提示词优化」中配置 API Key', 'info');
     return;
   }
 
@@ -379,9 +393,9 @@ onUnmounted(() => {
 
         <!-- 右侧动作按钮 -->
         <div class="actions-group">
-          <!-- 撤销优化恢复原词 (仅在配置了优化器且可恢复时显示) -->
+          <!-- 撤销优化恢复原词 (仅在可恢复时显示) -->
           <button 
-            v-if="configStore.isOptimizerConfigured && canRestorePrompt"
+            v-if="canRestorePrompt"
             type="button" 
             class="btn-restore-prompt" 
             data-tip="撤销优化，恢复修改前的原始提示词"
@@ -391,14 +405,13 @@ onUnmounted(() => {
             <span>撤销优化</span>
           </button>
 
-          <!-- AI 提示词智能优化按钮 (未配置完整信息时不展示) -->
+          <!-- AI 提示词智能优化按钮 (默认展示，未配置或输入为空时禁用) -->
           <button 
-            v-if="configStore.isOptimizerConfigured"
             type="button" 
             class="btn-magic" 
             :class="{ 'is-optimizing': isOptimizing }"
-            :disabled="isOptimizing || !prompt.trim()"
-            data-tip="使用大模型智能优化提示词 (AI 润色扩写细节)"
+            :disabled="isOptimizing || !configStore.isOptimizerConfigured || !prompt.trim()"
+            :data-tip="optimizerTooltip"
             @click="handleOptimizePrompt"
           >
             <Sparkles :size="14" />
