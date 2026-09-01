@@ -18,6 +18,7 @@ import {
   materializeSize,
   parseRatio,
   parseSizeString,
+  formatDisplayRatio,
   type ImageSizeState
 } from './imageSize';
 
@@ -26,11 +27,28 @@ function state(partial: Partial<ImageSizeState> = {}): ImageSizeState {
 }
 
 describe('imageSize (imageSize.ts)', () => {
-  it('should parse common and decimal aspect ratios', () => {
+  it('should parse common and decimal aspect ratios and strip prefix symbols', () => {
     expect(parseRatio('16:9')).toEqual({ w: 16, h: 9 });
     expect(parseRatio('1.91:1')).toEqual({ w: 1.91, h: 1 });
+    expect(parseRatio('≈1.8:1')).toEqual({ w: 1.8, h: 1 });
+    expect(parseRatio('~1.8:1')).toEqual({ w: 1.8, h: 1 });
+    expect(parseRatio('#16:9')).toEqual({ w: 16, h: 9 });
     expect(parseRatio('auto')).toBeNull();
     expect(parseRatio('invalid')).toBeNull();
+  });
+
+  it('should format display ratio cleanly without approx symbol and with at most 1 decimal place', () => {
+    expect(formatDisplayRatio('16:9')).toBe('16:9');
+    expect(formatDisplayRatio('1:1')).toBe('1:1');
+    expect(formatDisplayRatio('1.91:1')).toBe('1.91:1');
+    expect(formatDisplayRatio('≈1.8:1')).toBe('1.8:1');
+    expect(formatDisplayRatio('~1.8:1')).toBe('1.8:1');
+    expect(formatDisplayRatio('#16:9')).toBe('16:9');
+    expect(formatDisplayRatio('≈1.833:1')).toBe('1.8:1');
+    expect(formatDisplayRatio('1.833:1')).toBe('1.8:1');
+    expect(formatDisplayRatio('0.5625:1')).toBe('0.6:1');
+    expect(formatDisplayRatio('auto')).toBe('1:1');
+    expect(formatDisplayRatio(undefined)).toBe('1:1');
   });
 
   it('should compute max size using the long-side resolution cap', () => {

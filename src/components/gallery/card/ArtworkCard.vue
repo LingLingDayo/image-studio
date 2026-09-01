@@ -14,7 +14,7 @@ import {
   Clock
 } from 'lucide-vue-next';
 import { downloadImage, generateAssetFilename } from '@/utils/download';
-import { formatQualityLabel, getResolutionDisplay } from '@/utils/imageSize';
+import { formatQualityLabel, getResolutionDisplay, formatDisplayRatio } from '@/utils/imageSize';
 
 const props = defineProps<{
   item?: MediaAsset;
@@ -112,10 +112,10 @@ const dimensionText = computed(() => {
 // 比例文字 (如 1:1, 16:9)
 const ratioText = computed(() => {
   if (currentAsset.value?.ratio) {
-    return currentAsset.value.ratio.replace(/^#/, '');
+    return formatDisplayRatio(currentAsset.value.ratio);
   }
   if (props.batch?.ratio) {
-    return props.batch.ratio.replace(/^#/, '');
+    return formatDisplayRatio(props.batch.ratio);
   }
   return '1:1';
 });
@@ -273,9 +273,6 @@ async function handleDownload() {
         <span class="tag-badge time-tag" :title="`生成时间：${fullTimeText}`">
           <Clock :size="11" />
           <span>{{ simpleTimeText }}</span>
-        </span>
-        <span v-if="currentAsset.duration" class="tag-badge duration-tag">
-          {{ currentAsset.duration }}
         </span>
       </div>
 
@@ -545,11 +542,6 @@ async function handleDownload() {
     border-color: #bbf7d0;
     color: #16a34a;
     font-weight: 600;
-  }
-
-  &.duration-tag {
-    font-family: $font-mono;
-    font-size: 0.68rem;
   }
 
   &.time-tag {

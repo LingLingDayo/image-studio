@@ -11,7 +11,7 @@ import {
   Clock,
   CornerUpLeft
 } from 'lucide-vue-next';
-import { formatQualityLabel, getResolutionDisplay } from '@/utils/imageSize';
+import { formatQualityLabel, getResolutionDisplay, formatDisplayRatio } from '@/utils/imageSize';
 
 const props = defineProps<{
   task: GenerationTask;
@@ -63,7 +63,7 @@ const dimensionText = computed(() => {
 // 比例文字 (如 1:1, 16:9)
 const ratioText = computed(() => {
   if (props.task.params.aspectRatio && props.task.params.aspectRatio !== 'auto') {
-    return props.task.params.aspectRatio.replace(/^#/, '');
+    return formatDisplayRatio(props.task.params.aspectRatio);
   }
   return '1:1';
 });

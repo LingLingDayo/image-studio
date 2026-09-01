@@ -71,7 +71,8 @@ export function hasConcreteSize(state: Pick<ImageSizeState, 'width' | 'height'>)
 
 export function parseRatio(ratio: string): RatioParts | null {
   if (!ratio || ratio === 'auto') return null;
-  const parts = ratio.split(':');
+  const cleanRatio = ratio.replace(/^[≈~#\s]+/, '').trim();
+  const parts = cleanRatio.split(':');
   if (parts.length !== 2) return null;
   const w = Number(parts[0]);
   const h = Number(parts[1]);
@@ -478,5 +479,32 @@ export function getResolutionDisplay(item?: {
     }
   }
   return '1K';
+}
+
+/**
+ * 格式化用于界面内外展示的宽高比字符串
+ * 去除前缀约等号 (≈/~) 与井号，最多保留一位小数，直接显示比例
+ */
+export function formatDisplayRatio(ratio?: string): string {
+  if (!ratio || ratio === 'auto') return '1:1';
+  const cleaned = ratio.replace(/^[≈~#\s]+/, '').trim();
+  if (!cleaned || cleaned === 'auto') return '1:1';
+
+  // 检查是否为标准比例 16:9, 4:3, 3:4, 1:1, 1.91:1 等预设
+  if (PRESET_RATIO_VALUES.includes(cleaned)) {
+    return cleaned;
+  }
+
+  const parts = cleaned.split(':');
+  if (parts.length === 2) {
+    const w = Number(parts[0]);
+    const h = Number(parts[1]);
+    if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+      const formatNum = (n: number) => (Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10));
+      return `${formatNum(w)}:${formatNum(h)}`;
+    }
+  }
+
+  return cleaned;
 }
 

@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import type { MediaAsset } from '@/types/asset';
 import { formatFullTime } from '@/utils/download';
-import { formatQualityLabel, getResolutionDisplay, inferResolutionTier } from '@/utils/imageSize';
+import { formatQualityLabel, getResolutionDisplay, inferResolutionTier, formatDisplayRatio } from '@/utils/imageSize';
 import { 
   Download, 
   CornerUpLeft, 
@@ -64,13 +64,13 @@ const actualResolution = computed(() => {
 // 2. 宽高比：设定比例 vs 实际比例
 const presetRatio = computed(() => {
   if (props.item.targetRatio) {
-    return props.item.targetRatio === 'auto' ? '自动' : props.item.targetRatio;
+    return props.item.targetRatio === 'auto' ? '自动' : formatDisplayRatio(props.item.targetRatio);
   }
-  return props.item.ratio && props.item.ratio !== 'auto' ? props.item.ratio : '自动';
+  return props.item.ratio && props.item.ratio !== 'auto' ? formatDisplayRatio(props.item.ratio) : '自动';
 });
 
 const actualRatio = computed(() => {
-  return props.item.ratio || '1:1';
+  return formatDisplayRatio(props.item.ratio || '1:1');
 });
 
 // 3. 物理尺寸：设定尺寸 vs 真实尺寸

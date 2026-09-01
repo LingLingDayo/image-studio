@@ -45,7 +45,7 @@ export async function calculateImageDimensions(
         else if (Math.abs(r - 0.5625) < 0.08) ratioStr = '9:16';
         else if (Math.abs(r - 1.777) < 0.08) ratioStr = '16:9';
         else if (Math.abs(r - 0.5) < 0.08) ratioStr = '1:2';
-        else ratioStr = `≈${Math.round(r * 10) / 10}:1`;
+        else ratioStr = `${Math.round(r * 10) / 10}:1`;
       }
       resolve({ width: w, height: h, ratioStr });
     };
