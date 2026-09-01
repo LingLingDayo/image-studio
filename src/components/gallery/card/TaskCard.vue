@@ -8,7 +8,8 @@ import {
   Square, 
   AlertCircle,
   Layers,
-  Clock
+  Clock,
+  CornerUpLeft
 } from 'lucide-vue-next';
 import { formatQualityLabel, getResolutionDisplay } from '@/utils/imageSize';
 
@@ -20,6 +21,7 @@ const emit = defineEmits<{
   (e: 'cancelTask', taskId: string): void;
   (e: 'retryTask', task: GenerationTask): void;
   (e: 'removeTask', taskId: string): void;
+  (e: 'reuse', task: GenerationTask): void;
 }>();
 
 // 生成时间计算与展示
@@ -166,7 +168,7 @@ const isI2I = computed(() => {
           </button>
         </template>
 
-        <!-- 失败/已取消: 左侧错误信息 + 右侧重试与移除按钮 -->
+        <!-- 失败/已取消: 左侧错误信息 + 右侧复用、重试与移除按钮 -->
         <template v-else>
           <span class="task-error-inline" :data-tip="task.errorMessage">
             {{ task.errorMessage || '任务已中止' }}
@@ -174,12 +176,19 @@ const isI2I = computed(() => {
 
           <div class="task-btn-group">
             <button 
+              class="task-action-btn btn-reuse-task"
+              data-tip="复用提示词与参数"
+              @click.stop="emit('reuse', task)"
+            >
+              <CornerUpLeft :size="13" />
+            </button>
+
+            <button 
               class="task-action-btn btn-retry-task"
               data-tip="重试生成"
               @click.stop="emit('retryTask', task)"
             >
-              <RotateCw :size="12" />
-              <span>重试</span>
+              <RotateCw :size="13" />
             </button>
 
             <button 
@@ -447,27 +456,52 @@ const isI2I = computed(() => {
 }
 
 .task-action-btn {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  max-width: 26px;
+  max-height: 26px;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  padding: 0;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.72rem;
-  font-weight: 500;
-  padding: 3px 8px;
-  height: 26px;
+  justify-content: center;
   border-radius: $radius-sm;
   border: 1px solid transparent;
   cursor: pointer;
   transition: all 0.15s ease;
 
   &.btn-cancel-task {
+    width: auto;
+    min-width: auto;
+    max-width: none;
+    padding: 3px 8px;
+    gap: 4px;
     background: $bg-surface-subtle;
     border-color: $border-color;
     color: $text-muted;
+    font-size: 0.72rem;
+    font-weight: 500;
 
     &:hover {
       background: $danger-subtle;
       border-color: #fca5a5;
       color: $danger;
+    }
+  }
+
+  &.btn-reuse-task {
+    background: $bg-surface-subtle;
+    border-color: $border-color;
+    color: $text-secondary;
+
+    &:hover {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+      color: $accent-primary;
     }
   }
 
@@ -478,27 +512,14 @@ const isI2I = computed(() => {
 
     &:hover {
       background: #dbeafe;
+      border-color: #93c5fd;
     }
   }
 
   &.btn-remove-task {
     background: transparent;
-    border: none;
+    border-color: transparent;
     color: $text-dim;
-    width: 26px;
-    height: 26px;
-    min-width: 26px;
-    min-height: 26px;
-    max-width: 26px;
-    max-height: 26px;
-    aspect-ratio: 1 / 1;
-    flex-shrink: 0;
-    padding: 0;
-    box-sizing: border-box;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: $radius-sm;
 
     &:hover {
       background: $danger-subtle;

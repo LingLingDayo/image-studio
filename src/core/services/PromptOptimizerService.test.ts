@@ -54,7 +54,7 @@ describe('PromptOptimizerService', () => {
 
       await expect(
         PromptOptimizerService.fetchModels('https://api.example.com', 'sk-bad')
-      ).rejects.toThrow('获取模型列表失败: Invalid token');
+      ).rejects.toThrow('Invalid token');
     });
   });
 

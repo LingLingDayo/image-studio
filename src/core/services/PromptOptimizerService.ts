@@ -1,5 +1,6 @@
 import type { OptimizerConfig } from '@/types/config';
 import { ENV_OPTIMIZER_PROMPT_TEMPLATE } from '@/types/config';
+import { extractResponseError, parseResponseSafeJson } from '@/utils/apiError';
 
 export function normalizeEndpointUrl(baseUrl: string, path: string): string {
   const base = baseUrl.trim().replace(/\/+$/, '');
@@ -46,22 +47,11 @@ export class PromptOptimizerService {
     });
 
     if (!response.ok) {
-      let detail = `HTTP ${response.status} ${response.statusText}`;
-      try {
-        const errorJson = await response.json();
-        if (errorJson.error?.message) {
-          detail = errorJson.error.message;
-        } else if (errorJson.message) {
-          detail = errorJson.message;
-        }
-      } catch {
-        const text = await response.text();
-        if (text) detail = text;
-      }
+      const detail = await extractResponseError(response, '获取模型列表');
       throw new Error(`获取模型列表失败: ${detail}`);
     }
 
-    const data = await response.json();
+    const data = await parseResponseSafeJson(response, '获取模型列表');
     let rawList: any[] = [];
 
     if (Array.isArray(data.data)) {
@@ -152,22 +142,11 @@ export class PromptOptimizerService {
     });
 
     if (!response.ok) {
-      let errorDetail = `HTTP ${response.status} ${response.statusText}`;
-      try {
-        const errorJson = await response.json();
-        if (errorJson.error?.message) {
-          errorDetail = errorJson.error.message;
-        } else if (errorJson.message) {
-          errorDetail = errorJson.message;
-        }
-      } catch {
-        const text = await response.text();
-        if (text) errorDetail = text;
-      }
+      const errorDetail = await extractResponseError(response, '提示词优化');
       throw new Error(`提示词优化请求失败: ${errorDetail}`);
     }
 
-    const json = await response.json();
+    const json = await parseResponseSafeJson(response, '提示词优化');
     let content = '';
 
     // 智能解析各厂商大模型返回格式 (Claude Messages / OpenAI Chat / Responses API 等)

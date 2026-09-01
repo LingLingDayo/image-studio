@@ -266,4 +266,52 @@ describe('OpenAICompatibleAdapter (OpenAICompatibleAdapter.ts)', () => {
     expect(formData.get('response_format')).toBe('b64_json');
     expect(formData.get('transparent_background')).toBeNull();
   });
+
+  it('should parse HTML 502 response and throw friendly error without syntax error', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response('<!DOCTYPE html><html><head><title>502 Bad Gateway</title></head></html>', {
+        status: 502,
+        statusText: 'Bad Gateway'
+      })
+    );
+
+    const params: TaskGenerationParams = {
+      model: 'gpt-image-2',
+      prompt: 'a cute anime cat',
+      type: 't2i',
+      size: '1024x1024',
+      quality: 'medium',
+      format: 'png',
+      transparent: false,
+      count: 1
+    };
+
+    await expect(
+      adapter.execute({ baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' }, params)
+    ).rejects.toThrow('502 Bad Gateway');
+  });
+
+  it('should identify content safety policy violations accurately', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: 'content_policy_violation: prompt was flagged' } }), {
+        status: 400,
+        statusText: 'Bad Request'
+      })
+    );
+
+    const params: TaskGenerationParams = {
+      model: 'gpt-image-2',
+      prompt: 'sensitive content prompt',
+      type: 't2i',
+      size: '1024x1024',
+      quality: 'medium',
+      format: 'png',
+      transparent: false,
+      count: 1
+    };
+
+    await expect(
+      adapter.execute({ baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' }, params)
+    ).rejects.toThrow('[内容安全审核拦截]');
+  });
 });

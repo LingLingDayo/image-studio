@@ -347,6 +347,45 @@ export function hydrateImageSizeFromAsset(input: {
   };
 }
 
+export function hydrateImageSizeFromParams(input: {
+  size?: string;
+  width?: number;
+  height?: number;
+  ratio?: string;
+  resolution?: ResolutionTier;
+  aspectRatio?: string;
+}): ImageSizeState {
+  const parsed =
+    input.width && input.height
+      ? { width: input.width, height: input.height }
+      : parseSizeString(input.size);
+
+  if (!parsed) {
+    return {
+      width: null,
+      height: null,
+      resolution: input.resolution || 'auto',
+      aspectRatio: input.aspectRatio || input.ratio || 'auto'
+    };
+  }
+
+  const presetFromItem = (input.aspectRatio && input.aspectRatio !== 'auto') 
+    ? input.aspectRatio 
+    : (input.ratio && parseRatio(input.ratio) ? input.ratio : null);
+
+  const matchedPreset = presetFromItem && PRESET_RATIO_VALUES.includes(presetFromItem)
+    ? presetFromItem
+    : nearestAspectRatio(parsed.width, parsed.height);
+
+  return {
+    width: parsed.width,
+    height: parsed.height,
+    resolution: input.resolution || inferResolutionTier(Math.max(parsed.width, parsed.height)),
+    aspectRatio: matchedPreset
+  };
+}
+
+
 export function buildSizePromptHint(state: Pick<ImageSizeState, 'resolution' | 'aspectRatio' | 'width' | 'height'>): string | null {
   if (hasConcreteSize(state)) return null;
 

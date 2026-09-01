@@ -10,6 +10,7 @@ import { useGalleryStore } from '@/stores/galleryStore';
 import { useConfigStore } from '@/stores/configStore';
 import { useImageStudio } from '@/composables/useImageStudio';
 import type { MediaAsset } from '@/types/asset';
+import type { GenerationTask } from '@/types/task';
 
 const isConfigOpen = ref(false);
 const configInitialTab = ref<'image' | 'optimizer'>('image');
@@ -106,13 +107,9 @@ function handleRemoveTask(taskId: string) {
   removeTask(taskId);
 }
 
-function handleReuse(item: MediaAsset | any) {
-  if ('params' in item) {
-    prompt.value = item.params.prompt;
-  } else {
-    reuseItem(item);
-  }
-  showToast('已复用提示词与参数设置', 'info');
+function handleReuse(item: MediaAsset | GenerationTask | any) {
+  reuseItem(item);
+  showToast('已复用提示词与全部参数设置', 'info');
 }
 
 async function handleEditAsReference(item: MediaAsset) {

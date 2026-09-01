@@ -21,6 +21,7 @@ import {
   applyWidthChange,
   formatSizeParam,
   hydrateImageSizeFromAsset,
+  hydrateImageSizeFromParams,
   materializeSize,
   type ImageSizeState
 } from '@/utils/imageSize';
@@ -200,16 +201,50 @@ export function useImageStudio() {
     Object.assign(sizeState, materializeSize(sizeState));
   }
 
-  function reuseItem(item: MediaAsset) {
-    prompt.value = item.prompt;
-    Object.assign(sizeState, hydrateImageSizeFromAsset(item));
-    if (item.quality) quality.value = item.quality as ModelQuality;
-    if (item.transparent !== undefined) transparent.value = item.transparent;
-    if (item.format) {
-      const reusedFormat = item.format as ModelFormat;
-      format.value = transparent.value ? resolveTransparentOutputFormat(reusedFormat) : reusedFormat;
-    } else if (transparent.value) {
-      format.value = resolveTransparentOutputFormat(format.value);
+  function reuseItem(item: MediaAsset | GenerationTask | TaskGenerationParams) {
+    if ('params' in item) {
+      const p = item.params;
+      prompt.value = p.prompt;
+      Object.assign(sizeState, hydrateImageSizeFromParams(p));
+      if (p.quality) quality.value = p.quality;
+      if (p.count) count.value = p.count;
+      if (p.transparent !== undefined) transparent.value = p.transparent;
+      if (p.format) {
+        const reusedFormat = p.format as ModelFormat;
+        format.value = transparent.value ? resolveTransparentOutputFormat(reusedFormat) : reusedFormat;
+      } else if (transparent.value) {
+        format.value = resolveTransparentOutputFormat(format.value);
+      }
+      if (p.referenceImages && p.referenceImages.length > 0) {
+        referenceImages.value = [...p.referenceImages];
+      }
+    } else if ('url' in item) {
+      prompt.value = item.prompt;
+      Object.assign(sizeState, hydrateImageSizeFromAsset(item));
+      if (item.quality) quality.value = item.quality as ModelQuality;
+      if (item.transparent !== undefined) transparent.value = item.transparent;
+      if (item.format) {
+        const reusedFormat = item.format as ModelFormat;
+        format.value = transparent.value ? resolveTransparentOutputFormat(reusedFormat) : reusedFormat;
+      } else if (transparent.value) {
+        format.value = resolveTransparentOutputFormat(format.value);
+      }
+    } else {
+      const p = item as TaskGenerationParams;
+      prompt.value = p.prompt;
+      Object.assign(sizeState, hydrateImageSizeFromParams(p));
+      if (p.quality) quality.value = p.quality;
+      if (p.count) count.value = p.count;
+      if (p.transparent !== undefined) transparent.value = p.transparent;
+      if (p.format) {
+        const reusedFormat = p.format as ModelFormat;
+        format.value = transparent.value ? resolveTransparentOutputFormat(reusedFormat) : reusedFormat;
+      } else if (transparent.value) {
+        format.value = resolveTransparentOutputFormat(format.value);
+      }
+      if (p.referenceImages && p.referenceImages.length > 0) {
+        referenceImages.value = [...p.referenceImages];
+      }
     }
   }
 

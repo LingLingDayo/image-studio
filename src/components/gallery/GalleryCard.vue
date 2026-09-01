@@ -37,6 +37,7 @@ const isTaskMode = computed(() => Boolean(props.task));
     @cancel-task="emit('cancelTask', $event)"
     @retry-task="emit('retryTask', $event)"
     @remove-task="emit('removeTask', $event)"
+    @reuse="emit('reuse', $event)"
   />
 
   <!-- 作品结果展示卡片 (支持多图聚合与切换) -->

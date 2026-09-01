@@ -13,6 +13,7 @@ import {
   formatSizeParam,
   getResolutionDisplay,
   hydrateImageSizeFromAsset,
+  hydrateImageSizeFromParams,
   inferResolutionTier,
   materializeSize,
   parseRatio,
@@ -205,6 +206,32 @@ describe('imageSize (imageSize.ts)', () => {
       aspectRatio: '16:9',
       width: 1024,
       height: 576
+    });
+  });
+
+  it('should restore size state from generation task params', () => {
+    const fromAuto = hydrateImageSizeFromParams({
+      size: 'auto',
+      resolution: '2k',
+      aspectRatio: '16:9'
+    });
+    expect(fromAuto).toEqual({
+      resolution: '2k',
+      aspectRatio: '16:9',
+      width: null,
+      height: null
+    });
+
+    const fromExplicit = hydrateImageSizeFromParams({
+      size: '1024x1024',
+      resolution: '1k',
+      aspectRatio: '1:1'
+    });
+    expect(fromExplicit).toEqual({
+      resolution: '1k',
+      aspectRatio: '1:1',
+      width: 1024,
+      height: 1024
     });
   });
 

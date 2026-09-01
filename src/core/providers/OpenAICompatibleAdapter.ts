@@ -2,6 +2,7 @@ import type { IImageProviderAdapter, ProviderConfig, ProviderExecutionResult, Pr
 import type { TaskGenerationParams } from '@/types/task';
 import { resolveTransparentOutputFormat } from '@/types/model';
 import { applySizePromptHint, buildSizePromptHint, parseSizeString } from '@/utils/imageSize';
+import { extractResponseError, parseResponseSafeJson } from '@/utils/apiError';
 
 function resolveOutputFormat(params: TaskGenerationParams): string | undefined {
   if (params.transparent) {
@@ -72,24 +73,6 @@ function parseResponseBody(data: any): ProviderExecutionResult {
   };
 }
 
-async function extractErrorDetail(response: Response): Promise<string> {
-  let errorDetail = `HTTP ${response.status} ${response.statusText}`;
-  try {
-    const errorJson = await response.json();
-    if (errorJson.error?.message) {
-      errorDetail = errorJson.error.message;
-    } else if (errorJson.message) {
-      errorDetail = errorJson.message;
-    } else if (errorJson.detail) {
-      errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
-    }
-  } catch {
-    const text = await response.text();
-    if (text) errorDetail = text;
-  }
-  return errorDetail;
-}
-
 /**
  * OpenAI 与 Sub2API 兼容的标准图像提供商适配器
  */
@@ -153,11 +136,11 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
     });
 
     if (!response.ok) {
-      const errorDetail = await extractErrorDetail(response);
+      const errorDetail = await extractResponseError(response, '生图');
       throw new Error(`生图失败: ${errorDetail}`);
     }
 
-    const data = await response.json();
+    const data = await parseResponseSafeJson(response, '生图');
     return parseResponseBody(data);
   }
 
@@ -206,11 +189,11 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
     });
 
     if (!response.ok) {
-      const errorDetail = await extractErrorDetail(response);
+      const errorDetail = await extractResponseError(response, '图生图/编辑');
       throw new Error(`图生图/编辑失败: ${errorDetail}`);
     }
 
-    const data = await response.json();
+    const data = await parseResponseSafeJson(response, '图生图/编辑');
     return parseResponseBody(data);
   }
 }
