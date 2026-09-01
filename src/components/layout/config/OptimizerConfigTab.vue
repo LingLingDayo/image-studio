@@ -107,7 +107,7 @@ defineExpose({
     <div v-else class="env-info-box">
       <div class="env-info-header">
         <Globe :size="14" />
-        <span>优化 API Base URL（环境变量锁定）</span>
+        <span>优化 API Base URL</span>
       </div>
       <div class="env-info-value mono">{{ configStore.effectiveOptimizerBaseUrl }}</div>
     </div>
@@ -115,7 +115,7 @@ defineExpose({
     <UiInput
       id="optimizerApiKey"
       v-model="localOptimizerApiKey"
-      label="优化 API Key (令牌)"
+      label="优化 API Key"
       placeholder="sk-..."
       type="password"
       mono
@@ -178,7 +178,7 @@ defineExpose({
           <UiInput
             id="optimizerModel"
             v-model="localOptimizerModel"
-            label="模型名称 (可点击右上角获取)"
+            label="模型名称"
             placeholder="gpt-4o-mini"
             mono
           >
@@ -194,7 +194,7 @@ defineExpose({
         <div class="control-field flex-1">
           <label class="control-label">
             <Route :size="13" />
-            <span>调用端点 (Endpoint)</span>
+            <span>调用端点</span>
           </label>
           <UiSelect
             v-model="localOptimizerEndpoint"

@@ -146,7 +146,7 @@ onUnmounted(() => {
           @click="activeTab = 'image'"
         >
           <ImageIcon :size="14" />
-          <span>生图服务 (Image)</span>
+          <span>生图服务</span>
         </button>
         <button
           class="tab-btn"
@@ -154,7 +154,7 @@ onUnmounted(() => {
           @click="activeTab = 'optimizer'"
         >
           <Sparkles :size="14" />
-          <span>提示词优化 (Optimizer)</span>
+          <span>提示词优化</span>
           <span
             v-if="configStore.isOptimizerConfigured"
             class="badge-configured"

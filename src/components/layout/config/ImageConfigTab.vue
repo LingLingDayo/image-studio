@@ -27,7 +27,7 @@ const localApiKey = defineModel<string>('apiKey', { required: true });
     <div v-else class="env-info-box">
       <div class="env-info-header">
         <Globe :size="14" />
-        <span>生图 API Base URL（环境变量锁定）</span>
+        <span>生图 API Base URL</span>
       </div>
       <div class="env-info-value mono">{{ configStore.effectiveBaseUrl }}</div>
     </div>
@@ -35,7 +35,7 @@ const localApiKey = defineModel<string>('apiKey', { required: true });
     <UiInput
       id="apiKey"
       v-model="localApiKey"
-      label="生图 API Key (令牌)"
+      label="生图 API Key"
       placeholder="sk-..."
       type="password"
       required

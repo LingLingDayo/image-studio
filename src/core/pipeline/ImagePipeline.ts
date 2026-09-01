@@ -14,7 +14,7 @@ export class ValidationStage implements IPipelineStage {
 
   async process(ctx: PipelineContext): Promise<void> {
     if (!ctx.config.apiKey || ctx.config.apiKey.trim() === '') {
-      throw new Error('未配置 API Key，请在顶部设置 (⚙️) 中填写有效令牌');
+      throw new Error('未配置 API Key，请在顶部设置中填写');
     }
 
     if (!ctx.config.baseUrl || ctx.config.baseUrl.trim() === '') {

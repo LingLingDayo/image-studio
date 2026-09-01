@@ -43,7 +43,7 @@ export const ENV_OPTIMIZER_PROMPT_TEMPLATE: string =
   (import.meta.env.VITE_OPTIMIZER_PROMPT_TEMPLATE || '').trim() || DEFAULT_OPTIMIZER_PROMPT_TEMPLATE;
 
 export const COMMON_OPTIMIZER_ENDPOINTS = [
-  { label: '/v1/chat/completions (Chat 对话补全 - 推荐)', value: '/v1/chat/completions' },
-  { label: '/v1/responses (Responses API)', value: '/v1/responses' },
-  { label: '/v1/completions (Legacy Completions)', value: '/v1/completions' }
+  { label: '/v1/chat/completions (推荐)', value: '/v1/chat/completions' },
+  { label: '/v1/responses', value: '/v1/responses' },
+  { label: '/v1/completions', value: '/v1/completions' }
 ];
