@@ -31,8 +31,9 @@ const effectiveOptimizerBaseUrl = computed(() =>
 // 下拉模型选项
 const modelSelectOptions = computed(() => {
   if (fetchedModels.value.length === 0) {
+    if (!localOptimizerModel.value) return [];
     return [
-      { label: localOptimizerModel.value || 'gpt-4o-mini', value: localOptimizerModel.value || 'gpt-4o-mini' }
+      { label: localOptimizerModel.value, value: localOptimizerModel.value }
     ];
   }
   return fetchedModels.value.map((m) => ({ label: m, value: m }));
@@ -43,6 +44,7 @@ async function handleFetchModels() {
   const url = effectiveOptimizerBaseUrl.value;
   const key = localOptimizerApiKey.value.trim();
 
+  // 如果用户填写的信息不全，不自动填入默认模型
   if (!url) {
     fetchStatus.value = { type: 'error', message: '请先填写优化 API Base URL' };
     return;
@@ -63,8 +65,12 @@ async function handleFetchModels() {
         type: 'success',
         message: `已成功获取 ${list.length} 个支持的模型`
       };
-      if (!list.includes(localOptimizerModel.value)) {
-        localOptimizerModel.value = list[0];
+
+      // 默认选中 gpt-5.6-terra（如果模型列表中存在该模型）
+      // 如果没有 gpt-5.6-terra 且当前选择为空或不在列表中，自动切换成模型列表第一个
+      const hasTerra = list.includes('gpt-5.6-terra');
+      if (!localOptimizerModel.value || !list.includes(localOptimizerModel.value)) {
+        localOptimizerModel.value = hasTerra ? 'gpt-5.6-terra' : list[0];
       }
     } else {
       fetchStatus.value = {
@@ -179,7 +185,7 @@ defineExpose({
             id="optimizerModel"
             v-model="localOptimizerModel"
             label="模型名称"
-            placeholder="gpt-4o-mini"
+            placeholder="gpt-5.6-terra"
             mono
           >
             <template #label-prefix>

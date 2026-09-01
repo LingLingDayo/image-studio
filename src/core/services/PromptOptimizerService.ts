@@ -78,7 +78,7 @@ export class PromptOptimizerService {
     // 去重并对模型做智能排序（常用大模型优先排前）
     const uniqueIds = Array.from(new Set(modelIds));
     return uniqueIds.sort((a, b) => {
-      const priorityKeywords = ['gpt-5', 'gpt-4o', 'gpt-4', 'claude-3', 'deepseek', 'gemini', 'qwen'];
+      const priorityKeywords = ['gpt-5.6-terra', 'gpt-5.6', 'gpt-5', 'gpt-4o', 'gpt-4', 'claude-3', 'deepseek', 'gemini', 'qwen'];
       const aScore = priorityKeywords.findIndex((k) => a.toLowerCase().includes(k));
       const bScore = priorityKeywords.findIndex((k) => b.toLowerCase().includes(k));
 
@@ -117,7 +117,7 @@ export class PromptOptimizerService {
       : `${rawTemplate}\n\nUser input: ${userPrompt.trim()}`;
 
     const payload: Record<string, any> = {
-      model: config.model || 'gpt-4o-mini',
+      model: config.model || 'gpt-5.6-terra',
       messages: [
         {
           role: 'user',

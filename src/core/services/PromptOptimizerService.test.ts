@@ -20,13 +20,14 @@ describe('PromptOptimizerService', () => {
   });
 
   describe('fetchModels', () => {
-    it('should fetch and sort models correctly', async () => {
+    it('should fetch and sort models correctly with gpt-5.6-terra prioritized', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           data: [
             { id: 'b-model' },
             { id: 'gpt-4o' },
+            { id: 'gpt-5.6-terra' },
             { id: 'a-model' },
             { id: 'claude-3-5-sonnet' }
           ]
@@ -34,11 +35,13 @@ describe('PromptOptimizerService', () => {
       });
 
       const models = await PromptOptimizerService.fetchModels('https://api.example.com', 'sk-test');
+      expect(models).toContain('gpt-5.6-terra');
       expect(models).toContain('gpt-4o');
       expect(models).toContain('claude-3-5-sonnet');
       // Priority models come first
-      expect(models[0]).toBe('gpt-4o');
-      expect(models[1]).toBe('claude-3-5-sonnet');
+      expect(models[0]).toBe('gpt-5.6-terra');
+      expect(models[1]).toBe('gpt-4o');
+      expect(models[2]).toBe('claude-3-5-sonnet');
     });
 
     it('should throw error when request fails', async () => {

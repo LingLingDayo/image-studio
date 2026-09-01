@@ -24,7 +24,7 @@ export const DEFAULT_CONFIG: ApiConfig = {
 
 export const ENV_OPTIMIZER_BASE_URL: string = (import.meta.env.VITE_OPTIMIZER_API_BASE_URL || '').trim();
 export const ENV_OPTIMIZER_API_KEY: string = (import.meta.env.VITE_OPTIMIZER_API_KEY || '').trim();
-export const ENV_OPTIMIZER_MODEL: string = (import.meta.env.VITE_OPTIMIZER_MODEL || '').trim() || 'gpt-4o-mini';
+export const ENV_OPTIMIZER_MODEL: string = (import.meta.env.VITE_OPTIMIZER_MODEL || '').trim();
 export const ENV_OPTIMIZER_ENDPOINT: string = (import.meta.env.VITE_OPTIMIZER_ENDPOINT || '').trim() || '/v1/chat/completions';
 export const ENV_OPTIMIZER_API_KEY_HINT: string = (import.meta.env.VITE_OPTIMIZER_API_KEY_HINT || '').trim() || DEFAULT_API_KEY_HINT;
 

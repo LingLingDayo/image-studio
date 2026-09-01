@@ -80,7 +80,7 @@ export const useConfigStore = defineStore('config', () => {
   const optimizerConfig = computed<OptimizerConfig>(() => ({
     baseUrl: effectiveOptimizerBaseUrl.value,
     apiKey: optimizerApiKey.value.trim(),
-    model: optimizerModel.value.trim() || 'gpt-4o-mini',
+    model: optimizerModel.value.trim() || 'gpt-5.6-terra',
     endpoint: optimizerEndpoint.value.trim() || '/v1/chat/completions'
   }));
 
