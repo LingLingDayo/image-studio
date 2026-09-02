@@ -112,7 +112,7 @@ describe('download utils', () => {
   it('formats timestamp correctly', () => {
     const ts = new Date('2026-08-31T10:20:00').getTime();
     expect(formatTime(ts)).toBe('08-31 10:20');
-    expect(formatFullTime(ts)).toContain('2026');
+    expect(formatFullTime(ts)).toBe('2026.08.31 10:20:00');
   });
 });
 

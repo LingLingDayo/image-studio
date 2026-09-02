@@ -252,13 +252,13 @@ async function handleDownload() {
         {{ promptText }}
       </p>
 
-      <!-- 参数标签 (展示比例、分辨率、中文质量、生成时间) -->
+      <!-- 参数标签 (展示分辨率、比例、中文质量、生成时间) -->
       <div class="card-tags">
         <span class="tag-badge">
-          {{ ratioText }}
+          {{ resolutionText }}
         </span>
         <span class="tag-badge">
-          {{ resolutionText }}
+          {{ ratioText }}
         </span>
         <span class="tag-badge">
           质量 {{ qualityChineseText }}
