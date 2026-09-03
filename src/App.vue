@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import AppHeader from '@/components/layout/AppHeader.vue';
-import ConfigModal from '@/components/layout/ConfigModal.vue';
+import { SettingsModal } from '@/components/settings';
 import PromptBar from '@/components/studio/PromptBar.vue';
 import GalleryGrid from '@/components/gallery/GalleryGrid.vue';
 import LightboxModal from '@/components/gallery/LightboxModal.vue';
@@ -189,7 +189,7 @@ async function handleDeleteItem(id: number) {
     </div>
 
     <!-- 设置弹窗 -->
-    <ConfigModal 
+    <SettingsModal 
       :is-open="isConfigOpen"
       :initial-tab="configInitialTab"
       @close="isConfigOpen = false" 
