@@ -66,6 +66,36 @@ describe('UI Components (src/components/ui)', () => {
 
     app.unmount();
   });
+
+  it('should render and toggle UiSwitch correctly', async () => {
+    const checked = ref(false);
+    const app = createApp({
+      render() {
+        return h(UiSwitch, {
+          modelValue: checked.value,
+          label: '测试开关',
+          'onUpdate:modelValue': (val: boolean) => {
+            checked.value = val;
+          }
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const switchEl = container.querySelector('.ui-switch-wrapper') as HTMLElement;
+    expect(switchEl).not.toBeNull();
+    expect(switchEl.getAttribute('role')).toBe('switch');
+    expect(switchEl.getAttribute('aria-checked')).toBe('false');
+    expect(container.textContent).toContain('测试开关');
+
+    switchEl.click();
+    await nextTick();
+    expect(checked.value).toBe(true);
+
+    app.unmount();
+  });
 });
 
 

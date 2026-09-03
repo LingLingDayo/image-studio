@@ -140,4 +140,24 @@ describe('Settings components', () => {
     expect(saveBtn?.disabled).toBe(false);
     app.unmount();
   });
+
+  it('renders general category and general settings with switch and download controls', async () => {
+    const app = await mountModal('general');
+
+    const navCategories = [...container.querySelectorAll('.nav-category')].map((el) => el.textContent?.trim());
+    expect(navCategories).toContain('通用');
+
+    const navLabels = [...container.querySelectorAll('.nav-label')].map((el) => el.textContent?.trim());
+    expect(navLabels).toContain('通用设置');
+
+    expect(container.textContent).toContain('开始生成后清空输入框');
+    expect(container.textContent).toContain('自定义下载文件名格式');
+    expect(container.textContent).toContain('自定义下载文件格式');
+
+    const switchEl = container.querySelector('.ui-switch-wrapper');
+    expect(switchEl).not.toBeNull();
+    expect(switchEl?.getAttribute('role')).toBe('switch');
+
+    app.unmount();
+  });
 });

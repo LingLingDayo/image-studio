@@ -114,5 +114,37 @@ describe('download utils', () => {
     expect(formatTime(ts)).toBe('08-31 10:20');
     expect(formatFullTime(ts)).toBe('2026.08.31 10:20:00');
   });
+
+  it('supports custom filename pattern and custom target format', () => {
+    const fixedTime = new Date('2026-08-31T02:57:33.456').getTime();
+    const lastFour = String(fixedTime).slice(-4);
+
+    // 自定义 pattern: {type}_{date}_{id}
+    const fn1 = generateAssetFilename(
+      { type: 't2i', timestamp: fixedTime, format: 'png' },
+      undefined,
+      0,
+      { pattern: '{type}_{date}_{id}' }
+    );
+    expect(fn1).toBe(`t2i_2026.08.31_${lastFour}.png`);
+
+    // 自定义目标格式: webp
+    const fn2 = generateAssetFilename(
+      { type: 't2i', timestamp: fixedTime, format: 'png' },
+      undefined,
+      0,
+      { targetFormat: 'webp' }
+    );
+    expect(fn2).toBe(`t2i_2026.08.31_02.57.33_${lastFour}.webp`);
+
+    // 组合自定义 pattern 与自定义格式
+    const fn3 = generateAssetFilename(
+      { type: 'i2i', timestamp: fixedTime, format: 'png', prompt: 'cute cyber cat' },
+      undefined,
+      0,
+      { pattern: 'myart_{prefix}_{prompt}_{time}', targetFormat: 'jpeg' }
+    );
+    expect(fn3).toBe('myart_i2i_cute cyber cat_02.57.33.jpeg');
+  });
 });
 

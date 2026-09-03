@@ -1,8 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useImageStudio } from './useImageStudio';
+import { defaultTaskScheduler } from '@/core/scheduler/TaskScheduler';
 import type { MediaAsset, ArtworkBatch } from '@/types/asset';
 import type { GenerationTask, TaskGenerationParams } from '@/types/task';
+
+vi.spyOn(defaultTaskScheduler, 'execute').mockResolvedValue(undefined as any);
 
 describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
   beforeEach(() => {
@@ -179,3 +182,36 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
     expect(studio.prompt.value).toBe('纯文生图');
   });
 });
+
+describe('useImageStudio - clearPromptOnGenerate', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    localStorage.clear();
+  });
+
+  it('默认不清空输入框，当开启设置项后生成时清空输入框', async () => {
+    const { useConfigStore } = await import('@/stores/configStore');
+    const configStore = useConfigStore();
+    configStore.updateConfig({
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-test'
+    });
+
+    const studio = useImageStudio();
+
+    // 1. 默认情况下：clearPromptOnGenerate 为 false，生成后提示词应当保留
+    expect(configStore.clearPromptOnGenerate).toBe(false);
+    studio.prompt.value = '赛博朋克霓虹猫咪';
+    await studio.generate();
+    expect(studio.prompt.value).toBe('赛博朋克霓虹猫咪');
+
+    // 2. 开启 clearPromptOnGenerate 开关：生成后应当自动清空提示词
+    configStore.updateGeneralConfig({ clearPromptOnGenerate: true });
+    expect(configStore.clearPromptOnGenerate).toBe(true);
+
+    studio.prompt.value = '下一只赛博猫咪';
+    await studio.generate();
+    expect(studio.prompt.value).toBe('');
+  });
+});
+

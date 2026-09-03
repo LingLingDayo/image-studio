@@ -121,8 +121,10 @@ export function useImageStudio() {
     const task = defaultTaskScheduler.createTask(params);
     taskStore.addTask(task);
 
-    // 提交后清空输入框，支持用户立即输入下一个提示词并发绘图
-    prompt.value = '';
+    // 提交后根据设置项决定是否清空输入框（默认保持内容以便微调）
+    if (configStore.clearPromptOnGenerate) {
+      prompt.value = '';
+    }
 
     // 异步执行生成流水线，非阻塞返回
     runTaskExecution(task);

@@ -49,10 +49,15 @@ export async function downloadRotatedImage(
   url: string,
   filename: string,
   rotationDeg: number = 0,
-  format: string = 'png'
+  format: string = 'png',
+  originalFormat?: string
 ): Promise<void> {
   const normDeg = ((rotationDeg % 360) + 360) % 360;
-  if (normDeg === 0) {
+  const cleanTargetFormat = format.toLowerCase().replace(/^\./, '');
+  const cleanOriginalFormat = (originalFormat || '').toLowerCase().replace(/^\./, '');
+  const needsConversion = cleanOriginalFormat ? cleanTargetFormat !== cleanOriginalFormat : false;
+
+  if (normDeg === 0 && !needsConversion) {
     return downloadImage(url, filename);
   }
 
@@ -104,7 +109,7 @@ export async function downloadRotatedImage(
     ctx.rotate((normDeg * Math.PI) / 180);
     ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
 
-    const cleanFormat = format.toLowerCase().replace(/^\./, '');
+    const cleanFormat = cleanTargetFormat;
     const mime = (cleanFormat === 'jpg' || cleanFormat === 'jpeg')
       ? 'image/jpeg'
       : cleanFormat === 'webp'
@@ -122,7 +127,7 @@ export async function downloadRotatedImage(
     const objectUrl = URL.createObjectURL(blob);
     triggerBrowserDownload(objectUrl, filename, true);
   } catch (err) {
-    console.warn('旋转图像导出失败，降级使用原图下载:', err);
+    console.warn('图像导出失败，降级使用原图下载:', err);
     return downloadImage(url, filename);
   }
 }
@@ -156,6 +161,11 @@ export function formatFullTime(timestamp: number): string {
   return `${year}.${month}.${day} ${hours}:${minutes}:${seconds}`;
 }
 
+export interface AssetFilenameOptions {
+  pattern?: string;
+  targetFormat?: string;
+}
+
 /**
  * 格式化生成图像下载文件名
  * 规范: 对应的前缀标识_xxxx.xx.xx_xx.xx.xx_时间戳后四位.扩展名
@@ -169,9 +179,11 @@ export function generateAssetFilename(
     referenceImages?: string[];
     timestamp?: number;
     format?: string;
+    prompt?: string;
   },
   batchIndex?: number,
-  rotationDeg: number = 0
+  rotationDeg: number = 0,
+  options?: AssetFilenameOptions
 ): string {
   // 1. 判断前缀标识 (文生图: t2i, 图生图: i2i)
   const isI2I = asset.type === 'i2i' || (Boolean(asset.referenceImages && asset.referenceImages.length > 0));
@@ -199,11 +211,46 @@ export function generateAssetFilename(
   const normRot = ((rotationDeg % 360) + 360) % 360;
   const rotSuffix = normRot !== 0 ? `_r${normRot}` : '';
 
-  // 文件扩展名
-  const ext = (asset.format || 'png').toLowerCase().replace(/^\./, '');
+  // 目标扩展名
+  const rawTargetFormat = options?.targetFormat && options.targetFormat !== 'auto'
+    ? options.targetFormat
+    : (asset.format || 'png');
+  const ext = rawTargetFormat.toLowerCase().replace(/^\./, '');
   const cleanExt = ext === 'jpeg' ? 'jpeg' : (ext === 'jpg' ? 'jpg' : (ext === 'webp' ? 'webp' : 'png'));
 
-  return `${prefix}_${year}.${month}.${day}_${hours}.${minutes}.${seconds}_${lastFour}${rotSuffix}.${cleanExt}`;
+  const pattern = (options?.pattern || '').trim();
+
+  // 若无自定义模式，采用默认规范
+  if (!pattern || pattern === '{prefix}_{date}_{time}_{id}') {
+    return `${prefix}_${year}.${month}.${day}_${hours}.${minutes}.${seconds}_${lastFour}${rotSuffix}.${cleanExt}`;
+  }
+
+  // 提示词安全化
+  const sanitizedPrompt = (asset.prompt || '')
+    .replace(/[\\/:*?"<>|\r\n\t]+/g, '_')
+    .replace(/_{2,}/g, '_')
+    .trim()
+    .slice(0, 30);
+
+  let filename = pattern
+    .replace(/\{prefix\}/gi, prefix)
+    .replace(/\{type\}/gi, prefix)
+    .replace(/\{date\}/gi, `${year}.${month}.${day}`)
+    .replace(/\{time\}/gi, `${hours}.${minutes}.${seconds}`)
+    .replace(/\{YYYY\}/gi, String(year))
+    .replace(/\{MM\}/gi, month)
+    .replace(/\{DD\}/gi, day)
+    .replace(/\{HH\}/gi, hours)
+    .replace(/\{mm\}/gi, minutes)
+    .replace(/\{ss\}/gi, seconds)
+    .replace(/\{id\}/gi, lastFour)
+    .replace(/\{timestamp\}/gi, String(ts))
+    .replace(/\{prompt\}/gi, sanitizedPrompt || 'image')
+    .replace(/\{index\}/gi, typeof batchIndex === 'number' ? String(batchIndex + 1) : '1');
+
+  filename = filename.replace(/\.(png|jpg|jpeg|webp)$/i, '');
+
+  return `${filename}${rotSuffix}.${cleanExt}`;
 }
 
 

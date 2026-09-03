@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import type { MediaAsset } from '@/types/asset';
 import { downloadRotatedImage, generateAssetFilename } from '@/utils/download';
 import { useViewportCanvas } from '@/composables/useViewportCanvas';
+import { useConfigStore } from '@/stores/configStore';
 import { X } from 'lucide-vue-next';
 import LightboxViewport from './lightbox/LightboxViewport.vue';
 import LightboxDetailPanel from './lightbox/LightboxDetailPanel.vue';
@@ -70,15 +71,20 @@ function handleNext() {
   resetTransform();
 }
 
+const configStore = useConfigStore();
+
 async function handleDownload() {
   const item = currentActiveItem.value;
   if (item) {
-    const ext = (item.format || 'png').replace(/^\./, '');
-    const filename = generateAssetFilename(item, undefined, rotation.value);
+    const pattern = configStore.downloadFilenamePattern;
+    const targetFormat = configStore.downloadImageFormat;
+    const origExt = (item.format || 'png').replace(/^\./, '');
+    const finalExt = targetFormat && targetFormat !== 'auto' ? targetFormat : origExt;
+    const filename = generateAssetFilename(item, undefined, rotation.value, { pattern, targetFormat });
     const normRot = ((rotation.value % 360) + 360) % 360;
     
-    await downloadRotatedImage(item.url, filename, rotation.value, ext);
-    emit('showToast', normRot !== 0 ? `已下载旋转 (${normRot}°) 后的原图！` : '已开始下载原图！', 'success');
+    await downloadRotatedImage(item.url, filename, rotation.value, finalExt, origExt);
+    emit('showToast', normRot !== 0 ? `已下载旋转 (${normRot}°) 后的图片！` : '已开始下载图片！', 'success');
   }
 }
 
