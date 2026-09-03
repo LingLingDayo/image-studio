@@ -27,7 +27,7 @@ const visibleGroups = computed(() => {
     />
 
     <div v-if="visibleGroups.length === 0" class="pane-empty">
-      当前分区已由环境变量锁定，无需在此配置
+      当前配置已完成，无需填写
     </div>
   </div>
 </template>
