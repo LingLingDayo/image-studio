@@ -3,8 +3,10 @@ import { ref, computed } from 'vue';
 import {
   type ApiConfig,
   type OptimizerConfig,
+  type GeneralConfig,
   DEFAULT_CONFIG,
   DEFAULT_OPTIMIZER_CONFIG,
+  DEFAULT_GENERAL_CONFIG,
   ENV_BASE_URL,
   ENV_API_KEY,
   ENV_API_KEY_HINT,
@@ -111,6 +113,34 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
+  // ---- 3. 通用设置配置 ----
+  const clearPromptOnGenerate = ref<boolean>(
+    localStorage.getItem('gpt_image_clear_prompt_on_generate') === 'true'
+      ? true
+      : DEFAULT_GENERAL_CONFIG.clearPromptOnGenerate
+  );
+  const downloadFilenamePattern = ref<string>(
+    localStorage.getItem('gpt_image_download_filename_pattern') || DEFAULT_GENERAL_CONFIG.downloadFilenamePattern
+  );
+  const downloadImageFormat = ref<string>(
+    localStorage.getItem('gpt_image_download_format') || DEFAULT_GENERAL_CONFIG.downloadImageFormat
+  );
+
+  function updateGeneralConfig(newConfig: Partial<GeneralConfig>) {
+    if (newConfig.clearPromptOnGenerate !== undefined) {
+      clearPromptOnGenerate.value = Boolean(newConfig.clearPromptOnGenerate);
+      localStorage.setItem('gpt_image_clear_prompt_on_generate', String(clearPromptOnGenerate.value));
+    }
+    if (newConfig.downloadFilenamePattern !== undefined) {
+      downloadFilenamePattern.value = newConfig.downloadFilenamePattern.trim();
+      localStorage.setItem('gpt_image_download_filename_pattern', downloadFilenamePattern.value);
+    }
+    if (newConfig.downloadImageFormat !== undefined) {
+      downloadImageFormat.value = newConfig.downloadImageFormat.trim();
+      localStorage.setItem('gpt_image_download_format', downloadImageFormat.value);
+    }
+  }
+
   return {
     // 生图配置
     baseUrl,
@@ -137,6 +167,12 @@ export const useConfigStore = defineStore('config', () => {
     optimizerEndpoint,
     isOptimizerConfigured,
     optimizerConfig,
-    updateOptimizerConfig
+    updateOptimizerConfig,
+
+    // 通用配置
+    clearPromptOnGenerate,
+    downloadFilenamePattern,
+    downloadImageFormat,
+    updateGeneralConfig
   };
 });

@@ -1,6 +1,7 @@
 import { settingsRegistry } from '@/core/settings';
 import { imageSection } from './image.section';
 import { optimizerSection } from './optimizer.section';
+import { generalSection } from './general.section';
 
 let installed = false;
 
@@ -12,9 +13,11 @@ export function ensureSettingsCatalog() {
   if (!installed) {
     settingsRegistry.register(imageSection);
     settingsRegistry.register(optimizerSection);
+    settingsRegistry.register(generalSection);
     installed = true;
   }
   return settingsRegistry;
 }
 
-export { imageSection, optimizerSection };
+export { imageSection, optimizerSection, generalSection };
+

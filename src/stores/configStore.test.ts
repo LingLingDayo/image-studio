@@ -29,6 +29,11 @@ describe('useConfigStore without ENV_BASE_URL', () => {
         apiKey: '',
         model: 'gpt-4o-mini',
         endpoint: '/v1/chat/completions'
+      },
+      DEFAULT_GENERAL_CONFIG: {
+        clearPromptOnGenerate: false,
+        downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
+        downloadImageFormat: 'auto'
       }
     }));
 
@@ -38,6 +43,9 @@ describe('useConfigStore without ENV_BASE_URL', () => {
     expect(store.model).toBe('gpt-image-2');
     expect(store.hasEnvBaseUrl).toBe(false);
     expect(store.apiKeyHint).toBe('令牌只保存在本机浏览器，不会上传到工作台服务器');
+    expect(store.clearPromptOnGenerate).toBe(false);
+    expect(store.downloadFilenamePattern).toBe('{prefix}_{date}_{time}_{id}');
+    expect(store.downloadImageFormat).toBe('auto');
   });
 
   it('should support custom apiKeyHint from environment', async () => {
@@ -61,6 +69,11 @@ describe('useConfigStore without ENV_BASE_URL', () => {
         apiKey: '',
         model: 'gpt-4o-mini',
         endpoint: '/v1/chat/completions'
+      },
+      DEFAULT_GENERAL_CONFIG: {
+        clearPromptOnGenerate: false,
+        downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
+        downloadImageFormat: 'auto'
       }
     }));
 
@@ -92,6 +105,11 @@ describe('useConfigStore without ENV_BASE_URL', () => {
         apiKey: '',
         model: 'gpt-4o-mini',
         endpoint: '/v1/chat/completions'
+      },
+      DEFAULT_GENERAL_CONFIG: {
+        clearPromptOnGenerate: false,
+        downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
+        downloadImageFormat: 'auto'
       }
     }));
 
@@ -123,6 +141,11 @@ describe('useConfigStore without ENV_BASE_URL', () => {
         apiKey: '',
         model: 'gpt-4o-mini',
         endpoint: '/v1/chat/completions'
+      },
+      DEFAULT_GENERAL_CONFIG: {
+        clearPromptOnGenerate: false,
+        downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
+        downloadImageFormat: 'auto'
       }
     }));
 
@@ -165,6 +188,11 @@ describe('useConfigStore without ENV_BASE_URL', () => {
         apiKey: '',
         model: 'gpt-4o-mini',
         endpoint: '/v1/chat/completions'
+      },
+      DEFAULT_GENERAL_CONFIG: {
+        clearPromptOnGenerate: false,
+        downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
+        downloadImageFormat: 'auto'
       }
     }));
 
@@ -198,6 +226,11 @@ describe('useConfigStore without ENV_BASE_URL', () => {
         apiKey: '',
         model: 'gpt-4o-mini',
         endpoint: '/v1/chat/completions'
+      },
+      DEFAULT_GENERAL_CONFIG: {
+        clearPromptOnGenerate: false,
+        downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
+        downloadImageFormat: 'auto'
       }
     }));
 
@@ -223,6 +256,54 @@ describe('useConfigStore without ENV_BASE_URL', () => {
     expect(localStorage.getItem('gpt_optimizer_base_url')).toBe('https://optimizer.example.com');
     expect(localStorage.getItem('gpt_optimizer_api_key')).toBe('sk-opt-123');
     expect(localStorage.getItem('gpt_optimizer_model')).toBe('claude-3-5-sonnet');
+  });
+
+  it('should manage general config state and persistence correctly', async () => {
+    vi.doMock('@/types/config', () => ({
+      ENV_BASE_URL: '',
+      ENV_API_KEY: '',
+      DEFAULT_CONFIG: {
+        baseUrl: '',
+        apiKey: '',
+        model: 'gpt-image-2'
+      },
+      ENV_OPTIMIZER_BASE_URL: '',
+      ENV_OPTIMIZER_API_KEY: '',
+      ENV_OPTIMIZER_MODEL: 'gpt-4o-mini',
+      ENV_OPTIMIZER_ENDPOINT: '/v1/chat/completions',
+      ENV_OPTIMIZER_API_KEY_HINT: '令牌只保存在本机浏览器，不会上传到工作台服务器',
+      DEFAULT_OPTIMIZER_CONFIG: {
+        baseUrl: '',
+        apiKey: '',
+        model: 'gpt-4o-mini',
+        endpoint: '/v1/chat/completions'
+      },
+      DEFAULT_GENERAL_CONFIG: {
+        clearPromptOnGenerate: false,
+        downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
+        downloadImageFormat: 'auto'
+      }
+    }));
+
+    const { useConfigStore } = await import('./configStore');
+    const store = useConfigStore();
+
+    expect(store.clearPromptOnGenerate).toBe(false);
+    expect(store.downloadFilenamePattern).toBe('{prefix}_{date}_{time}_{id}');
+    expect(store.downloadImageFormat).toBe('auto');
+
+    store.updateGeneralConfig({
+      clearPromptOnGenerate: true,
+      downloadFilenamePattern: '{prefix}_{prompt}_{time}',
+      downloadImageFormat: 'png'
+    });
+
+    expect(store.clearPromptOnGenerate).toBe(true);
+    expect(store.downloadFilenamePattern).toBe('{prefix}_{prompt}_{time}');
+    expect(store.downloadImageFormat).toBe('png');
+    expect(localStorage.getItem('gpt_image_clear_prompt_on_generate')).toBe('true');
+    expect(localStorage.getItem('gpt_image_download_filename_pattern')).toBe('{prefix}_{prompt}_{time}');
+    expect(localStorage.getItem('gpt_image_download_format')).toBe('png');
   });
 });
 
@@ -252,6 +333,11 @@ describe('useConfigStore with ENV_BASE_URL', () => {
         apiKey: '',
         model: 'gpt-4o-mini',
         endpoint: '/v1/chat/completions'
+      },
+      DEFAULT_GENERAL_CONFIG: {
+        clearPromptOnGenerate: false,
+        downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
+        downloadImageFormat: 'auto'
       }
     }));
 

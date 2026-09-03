@@ -11,6 +11,19 @@ export interface OptimizerConfig {
   endpoint: string;
 }
 
+export interface GeneralConfig {
+  clearPromptOnGenerate: boolean;
+  downloadFilenamePattern: string;
+  downloadImageFormat: string;
+}
+
+export const DEFAULT_GENERAL_CONFIG: GeneralConfig = {
+  clearPromptOnGenerate: false,
+  downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
+  downloadImageFormat: 'auto'
+};
+
+
 export const ENV_BASE_URL: string = (import.meta.env.VITE_IMAGE_API_BASE_URL || '').trim();
 export const ENV_API_KEY: string = (import.meta.env.VITE_IMAGE_API_KEY || '').trim();
 export const DEFAULT_API_KEY_HINT = '令牌只保存在本机浏览器，不会上传到工作台服务器';
