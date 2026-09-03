@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
-import { createSettingsMutator, listVisibleFields, SETTING_WIDGET } from '@/core/settings';
+import { createSettingsMutator, SETTING_WIDGET } from '@/core/settings';
 import { useConfigStore } from '@/stores/configStore';
 import { generalSection } from './general.section';
 import { SETTING_CATEGORY, SETTING_KEYS, SETTING_SECTION } from './keys';
@@ -45,11 +45,14 @@ describe('general section schema', () => {
     expect(slice.values[SETTING_KEYS.downloadFilenamePattern]).toBe('{prefix}_{date}_{time}_{id}');
     expect(slice.values[SETTING_KEYS.downloadImageFormat]).toBe('auto');
 
-    const ctx = createSettingsMutator({
-      [SETTING_KEYS.clearPromptOnGenerate]: true,
-      [SETTING_KEYS.downloadFilenamePattern]: '{type}_{prompt}_{time}',
-      [SETTING_KEYS.downloadImageFormat]: 'webp'
-    });
+    const ctx = createSettingsMutator(
+      {
+        [SETTING_KEYS.clearPromptOnGenerate]: true,
+        [SETTING_KEYS.downloadFilenamePattern]: '{type}_{prompt}_{time}',
+        [SETTING_KEYS.downloadImageFormat]: 'webp'
+      },
+      {}
+    );
 
     generalSection.commit!(ctx);
 

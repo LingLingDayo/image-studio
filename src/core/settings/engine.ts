@@ -15,8 +15,8 @@ export function fieldId(field: SettingField): string {
 }
 
 export function createSettingsMutator(
-  values: Record<string, SettingValue>,
-  runtime: Record<string, unknown>,
+  values: Record<string, SettingValue> = {},
+  runtime: Record<string, unknown> = {},
   locks: Record<string, boolean> = {}
 ): SettingsMutator {
   return {
