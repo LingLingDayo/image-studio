@@ -84,6 +84,17 @@ const qualityChineseText = computed(() => {
 const isI2I = computed(() => {
   return props.task.type === 'i2i' || (props.task.params.referenceImages && props.task.params.referenceImages.length > 0);
 });
+
+const totalCount = computed(() => Math.max(1, props.task.params.count || 1));
+const currentIndex = computed(() => props.task.currentIndex || 1);
+const isBatchTask = computed(() => totalCount.value > 1);
+const isTaskRunning = computed(() => props.task.status === 'processing' || props.task.status === 'queued');
+const countPillText = computed(() => {
+  if (isTaskRunning.value) {
+    return `${currentIndex.value}/${totalCount.value}`;
+  }
+  return `共 ${totalCount.value} 张`;
+});
 </script>
 
 <template>
@@ -111,7 +122,7 @@ const isI2I = computed(() => {
       <!-- 尺寸与数量角标 (左上角仅显示尺寸与多图数量) -->
       <div class="image-badge-overlay">
         <span class="size-pill">{{ dimensionText }}</span>
-        <span v-if="task.params.count > 1" class="count-pill">共 {{ task.params.count }} 张</span>
+        <span v-if="isBatchTask" class="count-pill">{{ countPillText }}</span>
       </div>
     </div>
 
@@ -149,8 +160,9 @@ const isI2I = computed(() => {
       <!-- 底部工具与状态栏 (高度与作品卡片 actions 保持严格一致 28px，避免高度抖动) -->
       <div class="card-actions task-card-actions">
         <!-- 正在生成中: 左侧极简进度条 + 右侧取消按钮 -->
-        <template v-if="task.status === 'processing' || task.status === 'queued'">
+        <template v-if="isTaskRunning">
           <div class="task-progress-inline">
+            <span v-if="isBatchTask" class="progress-index">{{ currentIndex }}/{{ totalCount }}</span>
             <div class="progress-track">
               <div class="progress-fill" :style="{ width: `${task.progress}%` }"></div>
             </div>
@@ -413,6 +425,15 @@ const isI2I = computed(() => {
   align-items: center;
   gap: 6px;
 
+  .progress-index {
+    font-family: $font-mono;
+    font-size: 0.68rem;
+    color: $text-muted;
+    font-weight: 600;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
   .progress-track {
     flex: 1;
     height: 4px;
@@ -435,6 +456,7 @@ const isI2I = computed(() => {
     font-weight: 600;
     min-width: 28px;
     text-align: right;
+    white-space: nowrap;
   }
 }
 

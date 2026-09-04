@@ -144,12 +144,15 @@ export function useImageStudio() {
         onProgress: (t) => {
           taskStore.updateTask(t.id, {
             progress: t.progress,
+            currentIndex: t.currentIndex,
             elapsedSeconds: t.elapsedSeconds,
             durationFormatted: t.durationFormatted
           });
         },
-        onSuccess: (_t, resultAssets) => {
+        onImageComplete: (_t, resultAssets) => {
           galleryStore.addAssets(resultAssets);
+        },
+        onSuccess: () => {
           setTimeout(() => {
             taskStore.removeTask(task.id);
           }, 500);
@@ -171,6 +174,7 @@ export function useImageStudio() {
       ...task,
       status: 'idle',
       progress: 0,
+      currentIndex: 1,
       elapsedSeconds: 0,
       durationFormatted: '0.0s',
       errorMessage: undefined,

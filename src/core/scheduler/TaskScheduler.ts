@@ -7,6 +7,7 @@ import { defaultImagePipeline, type ImagePipeline } from '@/core/pipeline/ImageP
 export interface TaskExecuteCallbacks {
   onStatusChange?: (task: GenerationTask) => void;
   onProgress?: (task: GenerationTask) => void;
+  onImageComplete?: (task: GenerationTask, assets: MediaAsset[]) => void;
   onSuccess?: (task: GenerationTask, assets: MediaAsset[]) => void;
   onError?: (task: GenerationTask, error: Error) => void;
 }
@@ -97,6 +98,7 @@ export class TaskScheduler {
       params: { ...params },
       status: 'idle',
       progress: 0,
+      currentIndex: 1,
       elapsedSeconds: 0,
       durationFormatted: '0.0s',
       resultAssetIds: [],
@@ -114,14 +116,76 @@ export class TaskScheduler {
     const controller = new AbortController();
     this.activeAbortControllers.set(task.id, controller);
 
-    const tracker = new TaskProgressTracker(task.params.resolution);
+    const total = Math.max(1, task.params.count || 1);
+    const allAssets: MediaAsset[] = [];
 
     task.status = 'processing';
     task.progress = 0;
+    task.currentIndex = 1;
     task.elapsedSeconds = 0;
     task.durationFormatted = '0.0s';
     task.updatedAt = Date.now();
     callbacks?.onStatusChange?.(task);
+    callbacks?.onProgress?.(task);
+
+    try {
+      for (let i = 0; i < total; i++) {
+        if (controller.signal.aborted) {
+          throw new Error('任务已被用户取消');
+        }
+
+        task.currentIndex = i + 1;
+        const assets = await this.executeSingleImage(
+          task,
+          config,
+          modelProfile,
+          controller.signal,
+          callbacks
+        );
+        allAssets.push(...assets);
+        callbacks?.onImageComplete?.(task, assets);
+      }
+
+      task.status = 'succeeded';
+      task.progress = 100;
+      task.updatedAt = Date.now();
+      callbacks?.onProgress?.(task);
+      callbacks?.onStatusChange?.(task);
+      callbacks?.onSuccess?.(task, allAssets);
+      return allAssets;
+    } catch (err: any) {
+      if (controller.signal.aborted) {
+        task.status = 'cancelled';
+        task.errorMessage = '已取消生成';
+      } else {
+        task.status = 'failed';
+        task.errorMessage = err.message || '未知生成错误';
+      }
+
+      task.updatedAt = Date.now();
+      callbacks?.onStatusChange?.(task);
+      callbacks?.onError?.(task, err);
+      throw err;
+    } finally {
+      this.activeAbortControllers.delete(task.id);
+    }
+  }
+
+  /**
+   * 生成单张图片：进度从 0 平滑增长，完成后由外层循环归零进入下一张
+   */
+  private async executeSingleImage(
+    task: GenerationTask,
+    config: ProviderConfig,
+    modelProfile: ModelProfile,
+    signal: AbortSignal,
+    callbacks?: TaskExecuteCallbacks
+  ): Promise<MediaAsset[]> {
+    const tracker = new TaskProgressTracker(task.params.resolution);
+    task.progress = 0;
+    task.elapsedSeconds = 0;
+    task.durationFormatted = '0.0s';
+    task.updatedAt = Date.now();
     callbacks?.onProgress?.(task);
 
     const startTime = Date.now();
@@ -137,41 +201,18 @@ export class TaskScheduler {
         task,
         config,
         modelProfile,
-        signal: controller.signal,
+        signal,
         generatedAssets: []
       });
 
-      clearInterval(timer);
       task.elapsedSeconds = (Date.now() - startTime) / 1000;
       task.durationFormatted = `${task.elapsedSeconds.toFixed(1)}s`;
-      task.status = 'succeeded';
       task.progress = 100;
       task.updatedAt = Date.now();
-
       callbacks?.onProgress?.(task);
-      callbacks?.onStatusChange?.(task);
-      callbacks?.onSuccess?.(task, assets);
       return assets;
-    } catch (err: any) {
-      clearInterval(timer);
-      task.elapsedSeconds = (Date.now() - startTime) / 1000;
-      task.durationFormatted = `${task.elapsedSeconds.toFixed(1)}s`;
-
-      if (controller.signal.aborted) {
-        task.status = 'cancelled';
-        task.errorMessage = '已取消生成';
-      } else {
-        task.status = 'failed';
-        task.errorMessage = err.message || '未知生成错误';
-      }
-
-      task.updatedAt = Date.now();
-      callbacks?.onStatusChange?.(task);
-      callbacks?.onError?.(task, err);
-      throw err;
     } finally {
       clearInterval(timer);
-      this.activeAbortControllers.delete(task.id);
     }
   }
 

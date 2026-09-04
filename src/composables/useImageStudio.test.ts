@@ -65,6 +65,7 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
       type: 't2i',
       status: 'failed',
       progress: 0,
+      currentIndex: 1,
       elapsedSeconds: 0,
       durationFormatted: '0.0s',
       resultAssetIds: [],

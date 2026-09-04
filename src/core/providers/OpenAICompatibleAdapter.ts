@@ -107,7 +107,7 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
     const payload: Record<string, any> = {
       model: params.model || config.model || 'gpt-image-2',
       prompt: resolveRequestPrompt(params),
-      n: params.count || 1,
+      n: 1,
       response_format: 'b64_json'
     };
 
@@ -158,7 +158,7 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
     const formData = new FormData();
     formData.append('model', params.model || config.model || 'gpt-image-2');
     formData.append('prompt', resolveRequestPrompt(params));
-    formData.append('n', String(params.count || 1));
+    formData.append('n', '1');
     formData.append('response_format', 'b64_json');
 
     if (params.size && params.size !== 'auto') {

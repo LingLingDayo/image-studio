@@ -67,6 +67,33 @@ describe('OpenAICompatibleAdapter (OpenAICompatibleAdapter.ts)', () => {
     expect(body.size).toBe('1024x1024');
     expect(body.prompt).toBe('a cute anime cat');
     expect(body.response_format).toBe('b64_json');
+    expect(body.n).toBe(1);
+  });
+
+  it('should always request a single image even when task count is greater than 1', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ created: 1720000000, data: [{ url: 'https://example.com/img1.png' }] })
+    } as any);
+
+    const params: TaskGenerationParams = {
+      model: 'gpt-image-2',
+      prompt: 'four cats',
+      type: 't2i',
+      size: '1024x1024',
+      quality: 'medium',
+      format: 'png',
+      transparent: false,
+      count: 4
+    };
+
+    await adapter.execute(
+      { baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' },
+      params
+    );
+
+    const body = JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string);
+    expect(body.n).toBe(1);
   });
 
   it('should append ratio constraint to prompt when size is auto', async () => {
@@ -264,6 +291,7 @@ describe('OpenAICompatibleAdapter (OpenAICompatibleAdapter.ts)', () => {
     expect(formData.get('background')).toBe('transparent');
     expect(formData.get('output_format')).toBe('png');
     expect(formData.get('response_format')).toBe('b64_json');
+    expect(formData.get('n')).toBe('1');
     expect(formData.get('transparent_background')).toBeNull();
   });
 

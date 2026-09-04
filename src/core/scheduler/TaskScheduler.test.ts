@@ -85,6 +85,7 @@ describe('TaskScheduler & TaskProgressTracker', () => {
       expect(task.id).toBeDefined();
       expect(task.status).toBe('idle');
       expect(task.progress).toBe(0);
+      expect(task.currentIndex).toBe(1);
       expect(task.params.prompt).toBe('cyberpunk city at dusk');
       expect(task.params.resolution).toBe('1k');
     });
@@ -180,6 +181,72 @@ describe('TaskScheduler & TaskProgressTracker', () => {
       await expect(execPromise).rejects.toThrow();
       expect(task.status).toBe('cancelled');
       expect(task.errorMessage).toBe('已取消生成');
+    });
+
+    it('should generate images one by one and reset progress between each', async () => {
+      const scheduler = new TaskScheduler();
+      const params: TaskGenerationParams = {
+        model: 'gpt-image-2',
+        prompt: 'batch of three cats',
+        type: 't2i',
+        size: '1024x1024',
+        resolution: '1k',
+        quality: 'medium',
+        format: 'png',
+        transparent: false,
+        count: 3
+      };
+
+      let postCount = 0;
+      globalThis.fetch = vi.fn().mockImplementation(async (_input: any, init?: RequestInit) => {
+        if (init?.method === 'POST') {
+          postCount += 1;
+          return {
+            ok: true,
+            json: async () => ({
+              created: 1720000000,
+              data: [{ b64_json: 'iVBORw0KGgo=' }]
+            })
+          };
+        }
+        return {
+          ok: true,
+          blob: async () => new Blob(['png'], { type: 'image/png' })
+        };
+      });
+
+      const task = scheduler.createTask(params);
+      const snapshots: Array<{ index: number; progress: number }> = [];
+      const completedIndexes: number[] = [];
+
+      const assets = await scheduler.execute(
+        task,
+        { baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' },
+        GPT_IMAGE_2_PROFILE,
+        {
+          onProgress: (t) => {
+            snapshots.push({ index: t.currentIndex, progress: t.progress });
+          },
+          onImageComplete: (t) => {
+            completedIndexes.push(t.currentIndex);
+          }
+        }
+      );
+
+      expect(postCount).toBe(3);
+      expect(assets).toHaveLength(3);
+      expect(task.status).toBe('succeeded');
+      expect(task.currentIndex).toBe(3);
+      expect(task.progress).toBe(100);
+      expect(completedIndexes).toEqual([1, 2, 3]);
+
+      const zeroSnapshots = snapshots.filter((s) => s.progress === 0);
+      expect(zeroSnapshots.map((s) => s.index)).toEqual(expect.arrayContaining([1, 2, 3]));
+
+      const firstDoneAt = snapshots.findIndex((s) => s.index === 1 && s.progress === 100);
+      const secondStartAt = snapshots.findIndex((s) => s.index === 2 && s.progress === 0);
+      expect(firstDoneAt).toBeGreaterThanOrEqual(0);
+      expect(secondStartAt).toBeGreaterThan(firstDoneAt);
     });
   });
 });

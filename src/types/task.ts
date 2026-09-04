@@ -28,7 +28,8 @@ export interface GenerationTask {
   type: TaskType;
   params: TaskGenerationParams;
   status: TaskStatus;
-  progress: number; // 0 ~ 100
+  progress: number; // 当前这张图的进度 0 ~ 100，完成一张后归零
+  currentIndex: number; // 正在生成的第几张（从 1 开始）
   elapsedSeconds: number;
   durationFormatted: string;
   errorMessage?: string;
