@@ -3,8 +3,9 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import type { MediaAsset } from '@/types/asset';
 import { downloadRotatedImage, generateAssetFilename } from '@/utils/download';
 import { useViewportCanvas } from '@/composables/useViewportCanvas';
+import { useArtworkSwitcher } from '@/composables/useArtworkSwitcher';
 import { useConfigStore } from '@/stores/configStore';
-import { X } from 'lucide-vue-next';
+import { X, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import LightboxViewport from './lightbox/LightboxViewport.vue';
 import LightboxDetailPanel from './lightbox/LightboxDetailPanel.vue';
 
@@ -25,6 +26,14 @@ const emit = defineEmits<{
 const currentActiveItem = ref<MediaAsset | null>(props.item);
 const viewportRef = ref<InstanceType<typeof LightboxViewport> | null>(null);
 const panelRef = computed<HTMLElement | null>(() => viewportRef.value?.containerRef || null);
+
+const {
+  canSwitchWork,
+  currentWorkIndex,
+  currentBatchAssets: storeBatchAssets,
+  prevWork,
+  nextWork
+} = useArtworkSwitcher(currentActiveItem);
 
 const {
   scale,
@@ -48,7 +57,12 @@ watch(() => props.item, (newItem) => {
   resetTransform();
 });
 
-const currentBatchAssets = computed(() => props.allAssets || (currentActiveItem.value ? [currentActiveItem.value] : []));
+const currentBatchAssets = computed(() => {
+  if (currentWorkIndex.value >= 0) {
+    return storeBatchAssets.value;
+  }
+  return props.allAssets || (currentActiveItem.value ? [currentActiveItem.value] : []);
+});
 const currentAssetIndex = computed(() => {
   if (!currentActiveItem.value || currentBatchAssets.value.length === 0) return 0;
   const idx = currentBatchAssets.value.findIndex(a => a.id === currentActiveItem.value?.id || a.url === currentActiveItem.value?.url);
@@ -69,6 +83,18 @@ function handleNext() {
   const nextIdx = (currentAssetIndex.value + 1) % list.length;
   currentActiveItem.value = list[nextIdx];
   resetTransform();
+}
+
+function handlePrevWork() {
+  if (prevWork()) {
+    resetTransform();
+  }
+}
+
+function handleNextWork() {
+  if (nextWork()) {
+    resetTransform();
+  }
 }
 
 const configStore = useConfigStore();
@@ -106,9 +132,19 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     emit('close');
   } else if (e.key === 'ArrowLeft') {
-    handlePrev();
+    e.preventDefault();
+    if (currentBatchAssets.value.length > 1) {
+      handlePrev();
+    } else {
+      handlePrevWork();
+    }
   } else if (e.key === 'ArrowRight') {
-    handleNext();
+    e.preventDefault();
+    if (currentBatchAssets.value.length > 1) {
+      handleNext();
+    } else {
+      handleNextWork();
+    }
   }
 }
 
@@ -123,6 +159,28 @@ onUnmounted(() => {
 
 <template>
   <div v-if="currentActiveItem" class="modal-backdrop" @click.self="emit('close')">
+    <button
+      v-if="canSwitchWork"
+      type="button"
+      class="lightbox-side-nav is-prev"
+      data-tip="上一件作品"
+      aria-label="上一件作品"
+      @click.stop="handlePrevWork"
+    >
+      <ChevronLeft :size="28" />
+    </button>
+
+    <button
+      v-if="canSwitchWork"
+      type="button"
+      class="lightbox-side-nav is-next"
+      data-tip="下一件作品"
+      aria-label="下一件作品"
+      @click.stop="handleNextWork"
+    >
+      <ChevronRight :size="28" />
+    </button>
+
     <div class="modal-card">
       <button class="modal-close-btn" data-tip="关闭 (Esc)" @click="emit('close')">
         <X :size="18" />
@@ -202,6 +260,59 @@ onUnmounted(() => {
   @media (max-width: 860px) {
     height: auto;
     min-height: 0;
+  }
+}
+
+.lightbox-side-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.12), 0 2px 6px -1px rgba(15, 23, 42, 0.06);
+  color: $text-secondary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:hover {
+    background: #ffffff;
+    color: $text-main;
+    border-color: #93c5fd;
+    transform: translateY(-50%) scale(1.06);
+  }
+
+  &:active {
+    transform: translateY(-50%) scale(0.96);
+  }
+
+  &.is-prev {
+    left: 16px;
+  }
+
+  &.is-next {
+    right: 16px;
+  }
+
+  @media (max-width: 860px) {
+    width: 36px;
+    height: 36px;
+
+    &.is-prev {
+      left: 8px;
+    }
+
+    &.is-next {
+      right: 8px;
+    }
   }
 }
 
