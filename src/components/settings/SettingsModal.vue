@@ -152,7 +152,8 @@ onUnmounted(() => {
 }
 
 .config-dialog {
-  max-width: 780px;
+  max-width: 750px;
+  height: 540px;
   width: 100%;
   max-height: 90vh;
   background: #ffffff;
