@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import AppHeader from '@/components/layout/AppHeader.vue';
 import { SettingsModal } from '@/components/settings';
 import PromptBar from '@/components/studio/PromptBar.vue';
@@ -9,7 +9,7 @@ import { Tooltip, UiDialog } from '@/components/ui';
 import { useGalleryStore } from '@/stores/galleryStore';
 import { useConfigStore } from '@/stores/configStore';
 import { useImageStudio } from '@/composables/useImageStudio';
-import type { MediaAsset } from '@/types/asset';
+import type { ArtworkBatch, MediaAsset } from '@/types/asset';
 import type { GenerationTask } from '@/types/task';
 
 const isConfigOpen = ref(false);
@@ -18,6 +18,20 @@ const isApiKeyMissingDialogOpen = ref(false);
 const activeLightboxItem = ref<MediaAsset | null>(null);
 const activeLightboxBatch = ref<MediaAsset[]>([]);
 const toasts = ref<Array<{ id: number; message: string; type: 'success' | 'error' | 'info' }>>([]);
+const pendingDelete = ref<
+  | { kind: 'item'; id: number; closeLightbox: boolean }
+  | { kind: 'batch'; batch: ArtworkBatch }
+  | null
+>(null);
+
+const isDeleteDialogOpen = computed(() => pendingDelete.value !== null);
+const deleteDialogDescription = computed(() => {
+  if (pendingDelete.value?.kind === 'batch') {
+    const n = pendingDelete.value.batch.assets.length;
+    return `删除后无法恢复，确定要删除这批 ${n} 张图片吗？`;
+  }
+  return '删除后无法恢复，确定要删除这张图片吗？';
+});
 
 function openConfig(tab: 'image' | 'optimizer' = 'image') {
   configInitialTab.value = tab;
@@ -136,8 +150,34 @@ function handleCloseLightbox() {
   activeLightboxBatch.value = [];
 }
 
-async function handleDeleteItem(id: number) {
-  await galleryStore.removeItem(id);
+function requestDeleteItem(id: number, closeLightbox = false) {
+  pendingDelete.value = { kind: 'item', id, closeLightbox };
+}
+
+function requestDeleteBatch(batch: ArtworkBatch) {
+  pendingDelete.value = { kind: 'batch', batch };
+}
+
+function closeDeleteDialog() {
+  pendingDelete.value = null;
+}
+
+async function confirmPendingDelete() {
+  const pending = pendingDelete.value;
+  if (!pending) return;
+  pendingDelete.value = null;
+
+  if (pending.kind === 'batch') {
+    await galleryStore.removeBatch(pending.batch);
+    showToast('整批图片已删除', 'info');
+    return;
+  }
+
+  await galleryStore.removeItem(pending.id);
+  showToast('图片已删除', 'info');
+  if (pending.closeLightbox) {
+    handleCloseLightbox();
+  }
 }
 </script>
 
@@ -157,6 +197,8 @@ async function handleDeleteItem(id: number) {
           @retry-task="handleRetryTask"
           @cancel-task="handleCancelTask"
           @remove-task="handleRemoveTask"
+          @delete="requestDeleteItem"
+          @delete-batch="requestDeleteBatch"
           @show-toast="showToast"
         />
       </main>
@@ -204,8 +246,20 @@ async function handleDeleteItem(id: number) {
       @reuse="handleReuse"
       @edit-as-reference="handleEditAsReference"
       @toggle-favorite="id => galleryStore.toggleFavorite(id)"
-      @delete="handleDeleteItem"
+      @delete="(id) => requestDeleteItem(id, true)"
       @show-toast="showToast"
+    />
+
+    <!-- 删除确认弹窗（回车确认） -->
+    <UiDialog
+      :is-open="isDeleteDialogOpen"
+      type="danger"
+      title="确认删除"
+      :description="deleteDialogDescription"
+      confirm-text="删除"
+      cancel-text="取消"
+      @confirm="confirmPendingDelete"
+      @close="closeDeleteDialog"
     />
 
     <!-- 未配置 API Key 提示弹窗 -->

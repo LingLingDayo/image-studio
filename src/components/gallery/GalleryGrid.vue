@@ -16,6 +16,8 @@ const emit = defineEmits<{
   (e: 'retryTask', task: GenerationTask): void;
   (e: 'cancelTask', taskId: string): void;
   (e: 'removeTask', taskId: string): void;
+  (e: 'delete', id: number): void;
+  (e: 'deleteBatch', batch: ArtworkBatch): void;
   (e: 'showToast', message: string, type: 'success' | 'error' | 'info'): void;
 }>();
 
@@ -35,14 +37,12 @@ async function handleToggleFavorite(id: number) {
   await galleryStore.toggleFavorite(id);
 }
 
-async function handleDelete(id: number) {
-  await galleryStore.removeItem(id);
-  emit('showToast', '图片已删除', 'info');
+function handleDelete(id: number) {
+  emit('delete', id);
 }
 
-async function handleDeleteBatch(batch: ArtworkBatch) {
-  await galleryStore.removeBatch(batch);
-  emit('showToast', '整批图片已删除', 'info');
+function handleDeleteBatch(batch: ArtworkBatch) {
+  emit('deleteBatch', batch);
 }
 
 function handlePageChange(page: number) {

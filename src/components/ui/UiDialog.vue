@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import {
   AlertTriangle,
   Info,
@@ -26,6 +26,7 @@ const props = withDefaults(
     loading?: boolean;
     closeOnClickBackdrop?: boolean;
     closeOnEsc?: boolean;
+    confirmOnEnter?: boolean;
     showCloseButton?: boolean;
     maxWidth?: string;
   }>(),
@@ -41,6 +42,7 @@ const props = withDefaults(
     loading: false,
     closeOnClickBackdrop: true,
     closeOnEsc: true,
+    confirmOnEnter: true,
     showCloseButton: true,
     maxWidth: '440px'
   }
@@ -51,6 +53,8 @@ const emit = defineEmits<{
   (e: 'cancel'): void;
   (e: 'close'): void;
 }>();
+
+const dialogEl = ref<HTMLElement | null>(null);
 
 // 根据类型解析默认按钮变体
 const computedConfirmVariant = computed(() => {
@@ -95,24 +99,59 @@ function handleConfirm() {
   emit('confirm');
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT' || target.isContentEditable;
+}
+
 function handleKeyDown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && props.isOpen && props.closeOnEsc && !props.loading) {
+  if (!props.isOpen || props.loading || e.isComposing) return;
+
+  if (e.key === 'Escape' && props.closeOnEsc) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
     emit('close');
+    return;
+  }
+
+  if (e.key === 'Enter' && props.confirmOnEnter) {
+    // 焦点已在操作按钮上时走原生点击，避免确认被触发两次
+    if (e.target instanceof HTMLElement && e.target.closest('.dialog-actions button')) return;
+    if (isEditableTarget(e.target)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    handleConfirm();
   }
 }
 
+async function focusConfirmButton() {
+  await nextTick();
+  const btn = dialogEl.value?.querySelector('.dialog-actions button:last-child') as HTMLButtonElement | null;
+  btn?.focus();
+}
+
+watch(
+  () => props.isOpen,
+  (open) => {
+    if (open) void focusConfirmButton();
+  }
+);
+
 onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keydown', handleKeyDown, true);
+  if (props.isOpen) void focusConfirmButton();
 });
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('keydown', handleKeyDown, true);
 });
 </script>
 
 <template>
   <div v-if="isOpen" class="dialog-backdrop" @click.self="handleBackdropClick">
     <div
+      ref="dialogEl"
       class="dialog-container"
       :class="[`type-${type}`]"
       :style="{ maxWidth }"

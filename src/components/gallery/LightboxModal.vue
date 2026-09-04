@@ -100,8 +100,6 @@ function handleEditAsReference(item: MediaAsset) {
 
 function handleDelete(id: number) {
   emit('delete', id);
-  emit('close');
-  emit('showToast', '图片已删除', 'info');
 }
 
 function handleKeyDown(e: KeyboardEvent) {

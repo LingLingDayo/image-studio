@@ -141,6 +141,50 @@ describe('UiDialog (src/components/ui/UiDialog.vue)', () => {
     app.unmount();
   });
 
+  it('should emit confirm when pressing Enter while dialog is open', async () => {
+    let confirmCalled = false;
+    const app = createApp({
+      render() {
+        return h(UiDialog, {
+          isOpen: true,
+          type: 'danger',
+          confirmText: '删除',
+          onConfirm: () => {
+            confirmCalled = true;
+          }
+        });
+      }
+    });
+    app.mount(container);
+    await nextTick();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(confirmCalled).toBe(true);
+
+    app.unmount();
+  });
+
+  it('should emit close when pressing Escape while dialog is open', async () => {
+    let closeCalled = false;
+    const app = createApp({
+      render() {
+        return h(UiDialog, {
+          isOpen: true,
+          onClose: () => {
+            closeCalled = true;
+          }
+        });
+      }
+    });
+    app.mount(container);
+    await nextTick();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(closeCalled).toBe(true);
+
+    app.unmount();
+  });
+
   it('should emit close when clicking backdrop if closeOnClickBackdrop is true', async () => {
     let closeCalled = false;
     const app = createApp({
