@@ -20,6 +20,9 @@ import {
   parseSizeString,
   formatDisplayRatio,
   formatActualRatio,
+  formatResolutionSetting,
+  formatRatioSetting,
+  formatSizeSetting,
   type ImageSizeState
 } from './imageSize';
 
@@ -353,6 +356,24 @@ describe('imageSize (imageSize.ts)', () => {
     expect(getResolutionDisplay({ size: '1254×1254' })).toBe('2K');
     expect(getResolutionDisplay({ size: '1024x1024' })).toBe('1K');
     expect(getResolutionDisplay({})).toBe('1K');
+  });
+
+  it('should keep auto user settings as 自动 until real output exists', () => {
+    expect(formatResolutionSetting('auto')).toBe('自动');
+    expect(formatResolutionSetting(undefined)).toBe('自动');
+    expect(formatResolutionSetting('1k')).toBe('1K');
+    expect(formatResolutionSetting('2k')).toBe('2K');
+    expect(formatResolutionSetting('4k')).toBe('4K');
+
+    expect(formatRatioSetting('auto')).toBe('自动');
+    expect(formatRatioSetting(undefined)).toBe('自动');
+    expect(formatRatioSetting('16:9')).toBe('16:9');
+    expect(formatRatioSetting('≈1:1')).toBe('1:1');
+
+    expect(formatSizeSetting('auto')).toBe('自动');
+    expect(formatSizeSetting(undefined)).toBe('自动');
+    expect(formatSizeSetting('1024x1024')).toBe('1024×1024');
+    expect(formatSizeSetting('2048×1152')).toBe('2048×1152');
   });
 });
 

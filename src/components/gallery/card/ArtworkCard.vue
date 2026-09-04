@@ -262,8 +262,11 @@ async function handleDownload() {
         {{ promptText }}
       </p>
 
-      <!-- 参数标签 (展示分辨率、比例、中文质量、生成时间) -->
+      <!-- 参数标签 (图生图等特殊标签置顶，其后为真实生成参数) -->
       <div class="card-tags">
+        <span v-if="isI2I" class="tag-badge ref-tag">
+          图生图
+        </span>
         <span class="tag-badge">
           {{ resolutionText }}
         </span>
@@ -272,9 +275,6 @@ async function handleDownload() {
         </span>
         <span class="tag-badge">
           质量 {{ qualityChineseText }}
-        </span>
-        <span v-if="isI2I" class="tag-badge ref-tag">
-          图生图
         </span>
         <span v-if="assetsList.length > 1" class="tag-badge batch-tag">
           <Layers :size="11" />

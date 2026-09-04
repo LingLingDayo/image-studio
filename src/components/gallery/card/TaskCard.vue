@@ -10,7 +10,7 @@ import {
   Clock,
   CornerUpLeft
 } from 'lucide-vue-next';
-import { formatQualityLabel, getResolutionDisplay, formatDisplayRatio } from '@/utils/imageSize';
+import { formatQualityLabel, formatResolutionSetting, formatRatioSetting, formatSizeSetting } from '@/utils/imageSize';
 
 const props = defineProps<{
   task: GenerationTask;
@@ -54,26 +54,12 @@ const fullTimeText = computed(() => {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 });
 
-// 图片尺寸文字
-const dimensionText = computed(() => {
-  return props.task.params.size || '自动尺寸';
-});
+// 生成前按用户设定展示，不得把「自动」推断成 1K / 1:1
+const dimensionText = computed(() => formatSizeSetting(props.task.params.size));
 
-// 比例文字 (如 1:1, 16:9)
-const ratioText = computed(() => {
-  if (props.task.params.aspectRatio && props.task.params.aspectRatio !== 'auto') {
-    return formatDisplayRatio(props.task.params.aspectRatio);
-  }
-  return '1:1';
-});
+const ratioText = computed(() => formatRatioSetting(props.task.params.aspectRatio));
 
-// 分辨率文字 (1K/2K/4K)
-const resolutionText = computed(() => {
-  return getResolutionDisplay({
-    size: props.task.params.size,
-    resolution: props.task.params.resolution
-  });
-});
+const resolutionText = computed(() => formatResolutionSetting(props.task.params.resolution));
 
 // 质量中文标签
 const qualityChineseText = computed(() => {
@@ -133,8 +119,11 @@ const countPillText = computed(() => {
         {{ task.params.prompt }}
       </p>
 
-      <!-- 参数标签 (展示分辨率、比例、中文质量、生成时间) -->
+      <!-- 参数标签 (图生图等特殊标签置顶，其后为用户设定) -->
       <div class="card-tags">
+        <span v-if="isI2I" class="tag-badge ref-tag">
+          图生图
+        </span>
         <span class="tag-badge">
           {{ resolutionText }}
         </span>
@@ -143,9 +132,6 @@ const countPillText = computed(() => {
         </span>
         <span class="tag-badge">
           质量 {{ qualityChineseText }}
-        </span>
-        <span v-if="isI2I" class="tag-badge ref-tag">
-          图生图
         </span>
         <span v-if="task.params.count > 1" class="tag-badge batch-tag">
           <Layers :size="11" />

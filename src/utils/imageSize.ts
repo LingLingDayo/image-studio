@@ -508,6 +508,24 @@ export function formatDisplayRatio(ratio?: string): string {
   return cleaned;
 }
 
+/** 展示用户设定的分辨率：自动保持「自动」，生成前不得推断为 1K */
+export function formatResolutionSetting(resolution?: ResolutionTier | string | null): string {
+  if (!resolution || resolution === 'auto') return '自动';
+  return String(resolution).toUpperCase();
+}
+
+/** 展示用户设定的宽高比：自动保持「自动」，生成前不得回退为 1:1 */
+export function formatRatioSetting(ratio?: string | null): string {
+  if (!ratio || ratio === 'auto') return '自动';
+  return formatDisplayRatio(ratio);
+}
+
+/** 展示用户设定的尺寸：自动保持「自动」 */
+export function formatSizeSetting(size?: string | null): string {
+  if (!size || size === 'auto') return '自动';
+  return size.replace(/x/i, '×');
+}
+
 /**
  * 格式化作品详情页中的“实际比例”
  * 如果不是确定的比例（如带有约等号前缀、或非预设的小数近似比例），前面加上约等号 ≈
