@@ -24,13 +24,17 @@ const emit = defineEmits<{
 const galleryStore = useGalleryStore();
 const taskStore = useTaskStore();
 
-// 是否在第一页展示进行中的任务卡片
+// 进行中/失败的任务卡片只在「全部作品」第一页展示，收藏筛选中不出现
 const showActiveTasks = computed(() => {
-  return galleryStore.currentPage === 1 && taskStore.activeTasks.length > 0;
+  return (
+    !galleryStore.filterFavoriteOnly &&
+    galleryStore.currentPage === 1 &&
+    taskStore.activeTasks.length > 0
+  );
 });
 
 const isGalleryEmpty = computed(() => {
-  return taskStore.activeTasks.length === 0 && galleryStore.filteredBatches.length === 0;
+  return !showActiveTasks.value && galleryStore.filteredBatches.length === 0;
 });
 
 async function handleToggleFavorite(id: number) {
@@ -67,8 +71,24 @@ function handlePageSizeChange(size: number) {
       <div class="empty-icon-wrap">
         <ImageOff :size="36" />
       </div>
-      <h3>{{ galleryStore.searchQuery ? '没有找到匹配的作品' : '暂无生成作品' }}</h3>
-      <p>{{ galleryStore.searchQuery ? '请尝试更换搜索关键词或清除筛选' : '在下方输入提示词并点击生成，你的作品将呈现于此' }}</p>
+      <h3>
+        {{
+          galleryStore.searchQuery
+            ? '没有找到匹配的作品'
+            : galleryStore.filterFavoriteOnly
+              ? '暂无收藏作品'
+              : '暂无生成作品'
+        }}
+      </h3>
+      <p>
+        {{
+          galleryStore.searchQuery
+            ? '请尝试更换搜索关键词或清除筛选'
+            : galleryStore.filterFavoriteOnly
+              ? '给喜欢的作品点亮星标后，将显示在这里'
+              : '在下方输入提示词并点击生成，你的作品将呈现于此'
+        }}
+      </p>
     </div>
 
     <div v-else class="gallery-content-wrap">
