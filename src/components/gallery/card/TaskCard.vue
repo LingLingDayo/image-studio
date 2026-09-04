@@ -476,6 +476,8 @@ const isI2I = computed(() => {
     width: auto;
     min-width: auto;
     max-width: none;
+    aspect-ratio: auto;
+    white-space: nowrap;
     padding: 3px 8px;
     gap: 4px;
     background: $bg-surface-subtle;
