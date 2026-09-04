@@ -7,7 +7,7 @@ import {
   AlertCircle,
   HelpCircle,
   X
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { UiButton } from '@/components/ui';
 
 export type DialogType = 'info' | 'warning' | 'success' | 'danger' | 'error' | 'confirm';

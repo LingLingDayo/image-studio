@@ -6,7 +6,7 @@ import type { MediaAsset, ArtworkBatch } from '@/types/asset';
 import type { GenerationTask } from '@/types/task';
 import GalleryCard from './GalleryCard.vue';
 import { UiPagination } from '@/components/ui';
-import { ImageOff, Loader2 } from 'lucide-vue-next';
+import { ImageOff, Loader2 } from '@lucide/vue';
 
 const emit = defineEmits<{
   (e: 'view', item: MediaAsset, allAssets: MediaAsset[]): void;

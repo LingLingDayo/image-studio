@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Minus, Plus } from 'lucide-vue-next';
+import { Minus, Plus } from '@lucide/vue';
 import { applyWheelStep, WHEEL_ADJUST_TIP } from '@/utils/wheelStep';
 
 const props = withDefaults(

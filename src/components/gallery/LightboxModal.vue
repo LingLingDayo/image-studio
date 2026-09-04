@@ -5,7 +5,7 @@ import { downloadRotatedImage, generateAssetFilename } from '@/utils/download';
 import { useViewportCanvas } from '@/composables/useViewportCanvas';
 import { useArtworkSwitcher } from '@/composables/useArtworkSwitcher';
 import { useConfigStore } from '@/stores/configStore';
-import { X, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { X, ChevronLeft, ChevronRight } from '@lucide/vue';
 import LightboxViewport from './lightbox/LightboxViewport.vue';
 import LightboxDetailPanel from './lightbox/LightboxDetailPanel.vue';
 

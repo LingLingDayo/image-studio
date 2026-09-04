@@ -1,4 +1,4 @@
-import { Globe, Key, Cpu, Route, RefreshCw } from 'lucide-vue-next';
+import { Globe, Key, Cpu, Route, RefreshCw } from '@lucide/vue';
 import { useConfigStore } from '@/stores/configStore';
 import { PromptOptimizerService } from '@/core/services/PromptOptimizerService';
 import { COMMON_OPTIMIZER_ENDPOINTS, ENV_OPTIMIZER_API_KEY_HINT } from '@/types/config';

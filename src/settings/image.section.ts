@@ -1,4 +1,4 @@
-import { Globe, Key } from 'lucide-vue-next';
+import { Globe, Key } from '@lucide/vue';
 import { useConfigStore } from '@/stores/configStore';
 import { ENV_API_KEY_HINT } from '@/types/config';
 import { SETTING_WIDGET, type SettingSection } from '@/core/settings';

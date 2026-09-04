@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { Key, Save, X } from 'lucide-vue-next';
+import { Key, Save, X } from '@lucide/vue';
 import { UiButton } from '@/components/ui';
 import { useSettingsSession } from '@/composables/useSettingsSession';
 import { firstInvalidSection } from '@/core/settings';

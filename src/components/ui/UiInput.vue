@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { Eye, EyeOff, X } from 'lucide-vue-next';
+import { Eye, EyeOff, X } from '@lucide/vue';
 
 const props = withDefaults(
   defineProps<{

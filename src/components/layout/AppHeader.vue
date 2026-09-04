@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useConfigStore } from '@/stores/configStore';
 import { useGalleryStore } from '@/stores/galleryStore';
-import { Star, Search, Settings, Layers } from 'lucide-vue-next';
+import { Star, Search, Settings, Layers } from '@lucide/vue';
 import { UiSelect, UiInput } from '@/components/ui';
 
 defineEmits<{

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { AlertCircle, CheckCircle2, Info } from 'lucide-vue-next';
+import { AlertCircle, CheckCircle2, Info } from '@lucide/vue';
 import { getPath, type SettingWidgetProps } from '@/core/settings';
 
 const props = defineProps<SettingWidgetProps>();

@@ -1,4 +1,4 @@
-import { Sliders, Download, Sparkles } from 'lucide-vue-next';
+import { Sliders, Download, Sparkles } from '@lucide/vue';
 import { useConfigStore } from '@/stores/configStore';
 import { SETTING_WIDGET, type SettingSection } from '@/core/settings';
 import { SETTING_CATEGORY, SETTING_KEYS, SETTING_SECTION } from './keys';

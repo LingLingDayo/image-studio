@@ -5,7 +5,7 @@ import {
   ChevronRight, 
   ChevronsLeft, 
   ChevronsRight 
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import UiSelect, { type SelectOption } from './UiSelect.vue';
 
 interface Props {

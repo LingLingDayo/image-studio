@@ -9,7 +9,7 @@ import {
   Layers,
   Clock,
   CornerUpLeft
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { formatQualityLabel, formatResolutionSetting, formatRatioSetting, formatSizeSetting } from '@/utils/imageSize';
 
 const props = defineProps<{

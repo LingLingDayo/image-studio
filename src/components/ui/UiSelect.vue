@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { ChevronDown, Check } from 'lucide-vue-next';
+import { ChevronDown, Check } from '@lucide/vue';
 import { useClickOutside } from '@/composables/useClickOutside';
 
 export interface SelectOption {
