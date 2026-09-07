@@ -13,7 +13,7 @@ import {
   Layers,
   Clock
 } from '@lucide/vue';
-import { downloadImage, downloadRotatedImage, generateAssetFilename } from '@/utils/download';
+import { downloadRotatedImage, generateAssetFilename } from '@/utils/download';
 import { formatQualityLabel, getResolutionDisplay, formatDisplayRatio } from '@/utils/imageSize';
 import { useConfigStore } from '@/stores/configStore';
 
