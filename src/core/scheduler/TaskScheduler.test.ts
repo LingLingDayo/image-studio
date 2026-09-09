@@ -248,5 +248,39 @@ describe('TaskScheduler & TaskProgressTracker', () => {
       expect(firstDoneAt).toBeGreaterThanOrEqual(0);
       expect(secondStartAt).toBeGreaterThan(firstDoneAt);
     });
+
+    it('should keep the provider error message on failed tasks', async () => {
+      const scheduler = new TaskScheduler();
+      const params: TaskGenerationParams = {
+        model: 'gpt-image-2',
+        prompt: 'blocked prompt',
+        type: 't2i',
+        size: '1024x1024',
+        quality: 'medium',
+        format: 'png',
+        transparent: false,
+        count: 1
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ error: { message: 'content_policy_violation: prompt was flagged' } }),
+          { status: 400, statusText: 'Bad Request' }
+        )
+      );
+
+      const task = scheduler.createTask(params);
+      await expect(
+        scheduler.execute(
+          task,
+          { baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' },
+          GPT_IMAGE_2_PROFILE
+        )
+      ).rejects.toThrow('[内容安全审核拦截]');
+
+      expect(task.status).toBe('failed');
+      expect(task.errorMessage).toContain('[内容安全审核拦截]');
+      expect(task.errorMessage).toContain('content_policy_violation');
+    });
   });
 });

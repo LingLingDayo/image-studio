@@ -139,7 +139,10 @@ export function useImageStudio() {
       modelStore.activeModel,
       {
         onStatusChange: (t) => {
-          taskStore.updateTask(t.id, { status: t.status });
+          taskStore.updateTask(t.id, {
+            status: t.status,
+            errorMessage: t.errorMessage
+          });
         },
         onProgress: (t) => {
           taskStore.updateTask(t.id, {
@@ -157,10 +160,10 @@ export function useImageStudio() {
             taskStore.removeTask(task.id);
           }, 500);
         },
-        onError: (_t, err) => {
+        onError: (t, err) => {
           taskStore.updateTask(task.id, {
-            status: 'failed',
-            errorMessage: err.message || '生成失败'
+            status: t.status || 'failed',
+            errorMessage: t.errorMessage || err.message || '生成失败'
           });
         }
       }

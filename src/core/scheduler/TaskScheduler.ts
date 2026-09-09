@@ -3,6 +3,7 @@ import type { ModelProfile } from '@/types/model';
 import type { ProviderConfig } from '@/types/provider';
 import type { MediaAsset } from '@/types/asset';
 import { defaultImagePipeline, type ImagePipeline } from '@/core/pipeline/ImagePipeline';
+import { formatThrownError } from '@/utils/apiError';
 
 export interface TaskExecuteCallbacks {
   onStatusChange?: (task: GenerationTask) => void;
@@ -159,7 +160,7 @@ export class TaskScheduler {
         task.errorMessage = '已取消生成';
       } else {
         task.status = 'failed';
-        task.errorMessage = err.message || '未知生成错误';
+        task.errorMessage = formatThrownError(err, '生图');
       }
 
       task.updatedAt = Date.now();

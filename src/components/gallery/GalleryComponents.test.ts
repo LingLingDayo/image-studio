@@ -10,6 +10,7 @@ import LightboxViewport from './lightbox/LightboxViewport.vue';
 import LightboxDetailPanel from './lightbox/LightboxDetailPanel.vue';
 import { useGalleryStore } from '@/stores/galleryStore';
 import type { MediaAsset } from '@/types/asset';
+import type { GenerationTask } from '@/types/task';
 
 function createMockAsset(id: number, prompt: string): MediaAsset {
   return {
@@ -42,6 +43,63 @@ describe('Gallery Components (src/components/gallery)', () => {
   it('should export lightbox subcomponents properly', () => {
     expect(LightboxViewport).toBeDefined();
     expect(LightboxDetailPanel).toBeDefined();
+  });
+});
+
+describe('TaskCard 失败原因展示', () => {
+  let container: HTMLDivElement;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    if (container && container.parentNode) {
+      container.parentNode.removeChild(container);
+    }
+  });
+
+  it('失败任务应展示分类短标题和接口返回的具体原因', async () => {
+    const task: GenerationTask = {
+      id: 'task_fail_1',
+      type: 't2i',
+      params: {
+        model: 'gpt-image-2',
+        prompt: '测试提示词',
+        type: 't2i',
+        size: '1024x1024',
+        resolution: '1k',
+        aspectRatio: '1:1',
+        quality: 'medium',
+        format: 'png',
+        transparent: false,
+        count: 1
+      },
+      status: 'failed',
+      progress: 40,
+      currentIndex: 1,
+      elapsedSeconds: 3,
+      durationFormatted: '3.0s',
+      errorMessage: '生图失败: [内容安全审核拦截] content_policy_violation: prompt was flagged',
+      resultAssetIds: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    const app = createApp({
+      render() {
+        return h(TaskCard, { task });
+      }
+    });
+    app.mount(container);
+    await nextTick();
+
+    expect(container.querySelector('.fail-status-text')?.textContent).toBe('安全拦截');
+    expect(container.querySelector('.task-error-inline')?.textContent).toContain('content_policy_violation');
+    expect(container.querySelector('.task-error-inline')?.textContent).not.toContain('<html');
+
+    app.unmount();
   });
 });
 

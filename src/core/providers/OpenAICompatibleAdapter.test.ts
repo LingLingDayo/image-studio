@@ -342,4 +342,111 @@ describe('OpenAICompatibleAdapter (OpenAICompatibleAdapter.ts)', () => {
       adapter.execute({ baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' }, params)
     ).rejects.toThrow('[内容安全审核拦截]');
   });
+
+  it('should surface 503 HTML errors without leaking markup', async () => {
+    globalThis.fetch = vi.fn().mockImplementation(
+      async () =>
+        new Response(
+          '<html><head><title>503 Service Temporarily Unavailable</title></head><body><center><h1>503 Service Temporarily Unavailable</h1></center></html>',
+          { status: 503, statusText: 'Service Unavailable' }
+        )
+    );
+
+    const params: TaskGenerationParams = {
+      model: 'gpt-image-2',
+      prompt: 'a cute anime cat',
+      type: 't2i',
+      size: '1024x1024',
+      quality: 'medium',
+      format: 'png',
+      transparent: false,
+      count: 1
+    };
+
+    try {
+      await adapter.execute({ baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' }, params);
+      throw new Error('expected execute to reject');
+    } catch (err: any) {
+      expect(err.message).toContain('[服务不可用 503]');
+      expect(err.message).toContain('503 Service Temporarily Unavailable');
+      expect(err.message).not.toContain('<html');
+      expect(err.message).not.toContain('<center>');
+    }
+  });
+
+  it('should map network failures and timeouts to readable errors', async () => {
+    const params: TaskGenerationParams = {
+      model: 'gpt-image-2',
+      prompt: 'a cute anime cat',
+      type: 't2i',
+      size: '1024x1024',
+      quality: 'medium',
+      format: 'png',
+      transparent: false,
+      count: 1
+    };
+
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    await expect(
+      adapter.execute({ baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' }, params)
+    ).rejects.toThrow('[网络连接失败]');
+
+    globalThis.fetch = vi.fn().mockRejectedValue(Object.assign(new Error('signal timed out'), { name: 'TimeoutError' }));
+    await expect(
+      adapter.execute({ baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' }, params)
+    ).rejects.toThrow('[请求超时');
+  });
+
+  it('should extract error payload from HTTP 200 responses without image data', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: { message: 'Your request was rejected as a result of our safety system' }
+        }),
+        { status: 200, statusText: 'OK' }
+      )
+    );
+
+    const params: TaskGenerationParams = {
+      model: 'gpt-image-2',
+      prompt: 'sensitive content prompt',
+      type: 't2i',
+      size: '1024x1024',
+      quality: 'medium',
+      format: 'png',
+      transparent: false,
+      count: 1
+    };
+
+    await expect(
+      adapter.execute({ baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' }, params)
+    ).rejects.toThrow('[内容安全审核拦截]');
+  });
+
+  it('should extract per-item moderation errors from data array', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          created: 1720000000,
+          data: [{ error: { code: 'moderation_blocked', message: 'The generated image was blocked by the safety system' } }]
+        }),
+        { status: 200 }
+      )
+    );
+
+    const params: TaskGenerationParams = {
+      model: 'gpt-image-2',
+      prompt: 'a cute anime cat',
+      type: 't2i',
+      size: '1024x1024',
+      quality: 'medium',
+      format: 'png',
+      transparent: false,
+      count: 1
+    };
+
+    await expect(
+      adapter.execute({ baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' }, params)
+    ).rejects.toThrow('[内容安全审核拦截]');
+  });
 });

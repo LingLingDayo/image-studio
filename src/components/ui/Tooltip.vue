@@ -106,6 +106,7 @@ const showTooltip = (target: HTMLElement, text: string) => {
     const tooltip = tooltipRef.value;
     if (tooltip) {
       tooltip.textContent = text;
+      tooltip.style.maxWidth = text.length > 80 ? '360px' : '';
       try {
         if (!tooltip.matches(':popover-open')) {
           tooltip.showPopover();

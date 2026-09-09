@@ -11,6 +11,7 @@ import {
   CornerUpLeft
 } from '@lucide/vue';
 import { formatQualityLabel, formatResolutionSetting, formatRatioSetting, formatSizeSetting } from '@/utils/imageSize';
+import { getErrorHeadline } from '@/utils/apiError';
 
 const props = defineProps<{
   task: GenerationTask;
@@ -81,6 +82,18 @@ const countPillText = computed(() => {
   }
   return `共 ${totalCount.value} 张`;
 });
+
+const failHeadline = computed(() => {
+  if (props.task.status === 'cancelled') return '已取消';
+  return getErrorHeadline(props.task.errorMessage);
+});
+
+const failDetail = computed(() => {
+  if (props.task.status === 'cancelled') {
+    return props.task.errorMessage || '任务已取消';
+  }
+  return props.task.errorMessage || '生成失败，未返回具体原因';
+});
 </script>
 
 <template>
@@ -100,9 +113,9 @@ const countPillText = computed(() => {
       </div>
 
       <!-- 失败/已取消状态 -->
-      <div v-else class="task-failed-stage">
+      <div v-else class="task-failed-stage" :data-tip="failDetail">
         <AlertCircle :size="22" class="fail-icon" />
-        <span class="fail-status-text">{{ task.status === 'cancelled' ? '已取消' : '生成失败' }}</span>
+        <span class="fail-status-text">{{ failHeadline }}</span>
       </div>
 
       <!-- 尺寸与数量角标 (左上角仅显示尺寸与多图数量) -->
@@ -166,8 +179,8 @@ const countPillText = computed(() => {
 
         <!-- 失败/已取消: 左侧错误信息 + 右侧复用、重试与移除按钮 -->
         <template v-else>
-          <span class="task-error-inline" :data-tip="task.errorMessage">
-            {{ task.errorMessage || '任务已中止' }}
+          <span class="task-error-inline" :data-tip="failDetail" data-tip-delay="200">
+            {{ failDetail }}
           </span>
 
           <div class="task-btn-group">
@@ -300,6 +313,9 @@ const countPillText = computed(() => {
   .fail-status-text {
     font-size: 0.72rem;
     font-weight: 600;
+    text-align: center;
+    padding: 0 8px;
+    line-height: 1.3;
   }
 }
 
@@ -448,11 +464,18 @@ const countPillText = computed(() => {
 
 .task-error-inline {
   flex: 1;
+  min-width: 0;
   font-size: 0.72rem;
   color: $danger;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  line-height: 1.25;
+  max-height: 28px;
+  word-break: break-word;
 }
 
 .task-btn-group {

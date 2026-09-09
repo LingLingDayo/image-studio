@@ -2,7 +2,14 @@ import type { IImageProviderAdapter, ProviderConfig, ProviderExecutionResult, Pr
 import type { TaskGenerationParams } from '@/types/task';
 import { resolveTransparentOutputFormat } from '@/types/model';
 import { applySizePromptHint, buildSizePromptHint, parseSizeString } from '@/utils/imageSize';
-import { extractResponseError, parseResponseSafeJson } from '@/utils/apiError';
+import {
+  categorizeErrorDetail,
+  extractJsonErrorMessage,
+  extractResponseError,
+  formatThrownError,
+  parseResponseSafeJson,
+  sanitizeErrorText
+} from '@/utils/apiError';
 
 function resolveOutputFormat(params: TaskGenerationParams): string | undefined {
   if (params.transparent) {
@@ -30,11 +37,13 @@ function normalizeEndpoint(baseUrl: string, path: string): string {
   return `${base}/v1${path}`;
 }
 
-function parseResponseBody(data: any): ProviderExecutionResult {
+function parseResponseBody(data: any, actionName = '生图'): ProviderExecutionResult {
   if (!data) {
-    throw new Error('提供商返回了空响应');
+    throw new Error(`${actionName}失败: 提供商返回了空响应`);
   }
 
+  const payloadError = extractJsonErrorMessage(data);
+  const itemErrors: string[] = [];
   let items: ProviderItemResult[] = [];
 
   if (Array.isArray(data.data)) {
@@ -42,16 +51,20 @@ function parseResponseBody(data: any): ProviderExecutionResult {
       if (typeof item === 'string') {
         return { url: item };
       }
-      let url = item.url;
-      if (!url && item.b64_json) {
+      if (item?.error) {
+        const nested = extractJsonErrorMessage(item.error);
+        if (nested) itemErrors.push(nested);
+      }
+      let url = item?.url;
+      if (!url && item?.b64_json) {
         url = item.b64_json.startsWith('data:image/')
           ? item.b64_json
           : `data:image/png;base64,${item.b64_json}`;
       }
       return {
         url,
-        b64_json: item.b64_json,
-        revised_prompt: item.revised_prompt
+        b64_json: item?.b64_json,
+        revised_prompt: item?.revised_prompt
       };
     });
   } else if (data.url) {
@@ -63,13 +76,18 @@ function parseResponseBody(data: any): ProviderExecutionResult {
     items = [{ url, b64_json: data.b64_json }];
   }
 
-  if (items.length === 0 || !items[0].url) {
-    throw new Error('提供商未返回有效的图片链接或 Base64 图像数据');
+  const validItems = items.filter((item) => Boolean(item.url));
+  if (validItems.length === 0) {
+    const detail = itemErrors[0] || payloadError;
+    if (detail) {
+      throw new Error(`${actionName}失败: ${categorizeErrorDetail(sanitizeErrorText(detail))}`);
+    }
+    throw new Error(`${actionName}失败: 提供商未返回有效的图片链接或 Base64 图像数据`);
   }
 
   return {
     created: data.created || Math.floor(Date.now() / 1000),
-    items
+    items: validItems
   };
 }
 
@@ -125,23 +143,19 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
       payload.background = 'transparent';
     }
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey.trim()}`
+    return this.sendRequest(
+      endpoint,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.apiKey.trim()}`
+        },
+        body: JSON.stringify(payload),
+        signal
       },
-      body: JSON.stringify(payload),
-      signal
-    });
-
-    if (!response.ok) {
-      const errorDetail = await extractResponseError(response, '生图');
-      throw new Error(`生图失败: ${errorDetail}`);
-    }
-
-    const data = await parseResponseSafeJson(response, '生图');
-    return parseResponseBody(data);
+      '生图'
+    );
   }
 
   private async executeEdit(
@@ -179,21 +193,41 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
       formData.append('image[]', img.file, img.file.name);
     });
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.apiKey.trim()}`
+    return this.sendRequest(
+      endpoint,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.apiKey.trim()}`
+        },
+        body: formData,
+        signal
       },
-      body: formData,
-      signal
-    });
+      '图生图/编辑'
+    );
+  }
 
-    if (!response.ok) {
-      const errorDetail = await extractResponseError(response, '图生图/编辑');
-      throw new Error(`图生图/编辑失败: ${errorDetail}`);
+  private async sendRequest(
+    endpoint: string,
+    init: RequestInit,
+    actionName: string
+  ): Promise<ProviderExecutionResult> {
+    let response: Response;
+    try {
+      response = await fetch(endpoint, init);
+    } catch (err) {
+      if (init.signal?.aborted) {
+        throw err;
+      }
+      throw new Error(formatThrownError(err, actionName));
     }
 
-    const data = await parseResponseSafeJson(response, '图生图/编辑');
-    return parseResponseBody(data);
+    if (!response.ok) {
+      const errorDetail = await extractResponseError(response, actionName);
+      throw new Error(`${actionName}失败: ${errorDetail}`);
+    }
+
+    const data = await parseResponseSafeJson(response, actionName);
+    return parseResponseBody(data, actionName);
   }
 }
