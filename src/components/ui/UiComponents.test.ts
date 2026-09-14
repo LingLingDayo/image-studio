@@ -67,6 +67,37 @@ describe('UI Components (src/components/ui)', () => {
     app.unmount();
   });
 
+  it('should emit open when UiSelect dropdown is opened', async () => {
+    let opened = 0;
+    const app = createApp({
+      render() {
+        return h(UiSelect, {
+          modelValue: 'gpt-image-2',
+          label: '模型',
+          options: [
+            { label: 'GPT-Image-2', value: 'gpt-image-2' },
+            { label: 'GPT-Image-2.5 Flare', value: 'gpt-image-2.5-flare' }
+          ],
+          onOpen: () => {
+            opened += 1;
+          }
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const trigger = container.querySelector('.select-trigger') as HTMLButtonElement;
+    trigger.click();
+    await nextTick();
+
+    expect(opened).toBe(1);
+    expect(container.querySelector('.select-dropdown')).not.toBeNull();
+
+    app.unmount();
+  });
+
   it('should render and toggle UiSwitch correctly', async () => {
     const checked = ref(false);
     const app = createApp({

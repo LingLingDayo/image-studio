@@ -4,6 +4,8 @@ import { Paperclip, ArrowRight, X, Trash2, UploadCloud, Sparkles, RotateCcw } fr
 import {
   TRANSPARENT_DEFAULT_FORMAT,
   supportsAlphaChannel,
+  formatImageModelName,
+  DEFAULT_IMAGE_MODEL_ID,
   type ModelFormat,
   type ModelQuality,
   type ResolutionTier
@@ -54,6 +56,39 @@ const emit = defineEmits<{
 const modelStore = useModelStore();
 const configStore = useConfigStore();
 const activeModel = computed(() => modelStore.activeModel);
+
+const modelSelectOptions = computed(() => {
+  const ids = [...modelStore.availableModels];
+  const current = modelStore.activeModelId || DEFAULT_IMAGE_MODEL_ID;
+  if (!ids.includes(current)) {
+    ids.unshift(current);
+  }
+  if (ids.length === 0) {
+    ids.push(DEFAULT_IMAGE_MODEL_ID);
+  }
+
+  const options = ids.map((id) => ({
+    label: formatImageModelName(id),
+    value: id
+  }));
+
+  if (modelStore.isFetchingModels && modelStore.availableModels.length <= 1) {
+    options.push({ label: '正在获取模型...', value: '__loading', disabled: true });
+  }
+
+  return options;
+});
+
+function handleModelChange(val: unknown) {
+  const id = String(val ?? '').trim();
+  if (!id || id === '__loading') return;
+  modelStore.setActiveModel(id);
+}
+
+function handleModelSelectOpen() {
+  if (!configStore.isConfigured) return;
+  void modelStore.refreshAvailableModels({ adjustSelection: false });
+}
 
 const isOptimizing = ref(false);
 const previousPrompt = ref<string | null>(null);
@@ -248,6 +283,16 @@ watch(
   }
 );
 
+watch(
+  () => [configStore.effectiveBaseUrl, configStore.effectiveApiKey] as const,
+  ([url, key]) => {
+    if (url && key) {
+      void modelStore.refreshAvailableModels({ adjustSelection: true });
+    }
+  },
+  { immediate: true }
+);
+
 onMounted(() => {
   window.addEventListener('paste', handlePaste);
   window.addEventListener('resize', syncTextareaHeight);
@@ -319,6 +364,17 @@ onUnmounted(() => {
       <!-- 底部参数与操作栏 -->
       <div class="toolbar">
         <div class="params-group">
+          <!-- 生图模型 -->
+          <UiSelect
+            :model-value="modelStore.activeModelId"
+            label="模型"
+            :options="modelSelectOptions"
+            placement="top"
+            variant="pill"
+            @update:model-value="handleModelChange"
+            @open="handleModelSelectOpen"
+          />
+
           <!-- 分辨率 -->
           <UiSelect
             :model-value="resolution"

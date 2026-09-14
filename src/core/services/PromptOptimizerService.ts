@@ -1,19 +1,10 @@
 import type { OptimizerConfig } from '@/types/config';
 import { ENV_OPTIMIZER_PROMPT_TEMPLATE } from '@/types/config';
 import { extractResponseError, parseResponseSafeJson } from '@/utils/apiError';
+import { normalizeEndpointUrl } from '@/utils/apiUrl';
+import { fetchRemoteModels } from '@/utils/fetchRemoteModels';
 
-export function normalizeEndpointUrl(baseUrl: string, path: string): string {
-  const base = baseUrl.trim().replace(/\/+$/, '');
-  const cleanPath = path.trim().startsWith('/') ? path.trim() : `/${path.trim()}`;
-
-  if (base.endsWith('/v1') && cleanPath.startsWith('/v1/')) {
-    return `${base}${cleanPath.slice(3)}`;
-  }
-  if (!base.endsWith('/v1') && !cleanPath.startsWith('/v1/')) {
-    return `${base}/v1${cleanPath}`;
-  }
-  return `${base}${cleanPath}`;
-}
+export { normalizeEndpointUrl };
 
 export class PromptOptimizerService {
   /**
@@ -24,53 +15,7 @@ export class PromptOptimizerService {
     apiKey: string,
     signal?: AbortSignal
   ): Promise<string[]> {
-    if (!baseUrl || !baseUrl.trim()) {
-      throw new Error('未配置模型 API Base URL');
-    }
-    if (!apiKey || !apiKey.trim()) {
-      throw new Error('未配置 API Key');
-    }
-
-    const endpoint = normalizeEndpointUrl(baseUrl, '/models');
-
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${apiKey.trim()}`,
-      'x-api-key': apiKey.trim(),
-      'anthropic-version': '2023-06-01',
-      'Content-Type': 'application/json'
-    };
-
-    const response = await fetch(endpoint, {
-      method: 'GET',
-      headers,
-      signal
-    });
-
-    if (!response.ok) {
-      const detail = await extractResponseError(response, '获取模型列表');
-      throw new Error(`获取模型列表失败: ${detail}`);
-    }
-
-    const data = await parseResponseSafeJson(response, '获取模型列表');
-    let rawList: any[] = [];
-
-    if (Array.isArray(data.data)) {
-      rawList = data.data;
-    } else if (Array.isArray(data.models)) {
-      rawList = data.models;
-    } else if (Array.isArray(data)) {
-      rawList = data;
-    }
-
-    const modelIds = rawList
-      .map((item: any) => {
-        if (typeof item === 'string') return item;
-        return item?.id || item?.name || '';
-      })
-      .filter((id: string) => id && id.trim().length > 0);
-
-    // 去重并对模型做智能排序（常用大模型优先排前）
-    const uniqueIds = Array.from(new Set(modelIds));
+    const uniqueIds = await fetchRemoteModels(baseUrl, apiKey, signal);
     return uniqueIds.sort((a, b) => {
       const priorityKeywords = ['gpt-5.6-terra', 'gpt-5.6', 'gpt-5', 'gpt-4o', 'gpt-4', 'claude-3', 'claude', 'deepseek', 'gemini', 'qwen'];
       const aScore = priorityKeywords.findIndex((k) => a.toLowerCase().includes(k));

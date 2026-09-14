@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createApp, h, nextTick } from 'vue';
 import { setActivePinia, createPinia } from 'pinia';
 import PromptBar from './PromptBar.vue';
 import { useConfigStore } from '@/stores/configStore';
+import { useModelStore } from '@/stores/modelStore';
 
 describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
   let container: HTMLDivElement;
@@ -112,6 +113,71 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     expect(magicBtn).not.toBeNull();
     expect(magicBtn.disabled).toBe(false);
     expect(magicBtn.getAttribute('data-tip')).toBe('使用大模型智能优化提示词 (AI 润色扩写细节)');
+
+    app.unmount();
+  });
+
+  it('应在参数栏展示模型切换且默认选中 gpt-image-2', async () => {
+    const app = createApp({
+      render() {
+        return h(PromptBar as any, {
+          ...defaultProps,
+          prompt: '一只猫'
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const labels = Array.from(container.querySelectorAll('.select-label')).map((el) => el.textContent);
+    expect(labels[0]).toBe('模型');
+    const modelValue = container.querySelector('.select-value')?.textContent;
+    expect(modelValue).toBe('GPT-Image-2');
+
+    app.unmount();
+  });
+
+  it('点击模型下拉时应请求当前 Key 的模型列表', async () => {
+    const configStore = useConfigStore();
+    configStore.updateConfig({
+      baseUrl: 'https://api.example.com',
+      apiKey: 'sk-test'
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          data: [{ id: 'gpt-image-2' }, { id: 'gpt-image-2.5-flare' }]
+        })
+    });
+    globalThis.fetch = fetchMock;
+
+    const app = createApp({
+      render() {
+        return h(PromptBar as any, {
+          ...defaultProps,
+          prompt: '一只猫'
+        });
+      }
+    });
+
+    app.mount(container);
+    await vi.waitFor(() => {
+      expect(useModelStore().isFetchingModels).toBe(false);
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    fetchMock.mockClear();
+
+    const trigger = container.querySelector('.select-trigger') as HTMLButtonElement;
+    trigger.click();
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    expect(useModelStore().availableModels).toEqual(['gpt-image-2', 'gpt-image-2.5-flare']);
 
     app.unmount();
   });

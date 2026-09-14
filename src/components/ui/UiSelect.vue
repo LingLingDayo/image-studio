@@ -36,6 +36,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: 'update:modelValue', value: any): void;
   (e: 'change', value: any): void;
+  (e: 'open'): void;
 }>();
 
 const isOpen = ref(false);
@@ -114,6 +115,7 @@ function openDropdown() {
   highlightedIndex.value = normalizedOptions.value.findIndex(
     (opt) => opt.value === props.modelValue
   );
+  emit('open');
 }
 
 function closeDropdown() {

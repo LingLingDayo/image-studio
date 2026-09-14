@@ -98,6 +98,38 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
     expect(studio.count.value).toBe(2);
   });
 
+  it('复用未注册的生图模型时应切换到该模型', async () => {
+    const studio = useImageStudio();
+    const { useModelStore } = await import('@/stores/modelStore');
+    const modelStore = useModelStore();
+
+    const mockAsset: MediaAsset = {
+      id: 1,
+      batchId: 'batch-1',
+      url: 'blob:http://localhost/test',
+      blob: new Blob(['test'], { type: 'image/png' }),
+      prompt: 'flare 模型作品',
+      model: 'gpt-image-2.5-flare',
+      targetResolution: '1k',
+      targetRatio: '1:1',
+      targetSize: 'auto',
+      size: '1024×1024',
+      ratio: '1:1',
+      width: 1024,
+      height: 1024,
+      quality: 'high',
+      format: 'png',
+      transparent: false,
+      duration: '2.0s',
+      timestamp: Date.now(),
+      type: 't2i'
+    };
+
+    await studio.reuseItem(mockAsset);
+
+    expect(modelStore.activeModelId).toBe('gpt-image-2.5-flare');
+  });
+
   it('应该正确从 ArtworkBatch 恢复参数并还原张数', async () => {
     const studio = useImageStudio();
 

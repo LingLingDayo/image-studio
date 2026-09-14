@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   GPT_IMAGE_2_PROFILE,
+  DEFAULT_IMAGE_MODEL_ID,
+  formatImageModelName,
+  isImageGenerationModel,
+  pickAvailableImageModel,
+  resolveImageModelList,
   resolveTransparentOutputFormat,
   supportsAlphaChannel
 } from './model';
@@ -53,5 +58,32 @@ describe('Model Profile Specification (model.ts)', () => {
     expect(resolveTransparentOutputFormat('webp')).toBe('webp');
     expect(resolveTransparentOutputFormat('png')).toBe('png');
     expect(resolveTransparentOutputFormat()).toBe('png');
+  });
+
+  it('should format known image model names and detect image models', () => {
+    expect(formatImageModelName('gpt-image-2')).toBe('GPT-Image-2');
+    expect(formatImageModelName('gpt-image-2.5-flare')).toBe('GPT-Image-2.5 Flare');
+    expect(formatImageModelName('gpt-image-2.5-sunburst')).toBe('GPT-Image-2.5 Sunburst');
+    expect(formatImageModelName('gpt-image-2.5-flare-2026-09-08')).toBe('GPT-Image-2.5 Flare');
+    expect(formatImageModelName('custom-flux')).toBe('custom-flux');
+    expect(isImageGenerationModel('gpt-image-2.5-flare')).toBe(true);
+    expect(isImageGenerationModel('dall-e-3')).toBe(true);
+    expect(isImageGenerationModel('gpt-4o')).toBe(false);
+  });
+
+  it('should keep gpt-image-2 when supported and otherwise use the first image model', () => {
+    expect(
+      resolveImageModelList(['gpt-4o', 'gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst'])
+    ).toEqual(['gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst']);
+
+    expect(pickAvailableImageModel(['gpt-image-2', 'gpt-image-2.5-flare'], DEFAULT_IMAGE_MODEL_ID)).toBe(
+      'gpt-image-2'
+    );
+    expect(pickAvailableImageModel(['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst'], 'gpt-image-2')).toBe(
+      'gpt-image-2.5-flare'
+    );
+    expect(
+      pickAvailableImageModel(['gpt-image-2', 'gpt-image-2.5-flare'], 'gpt-image-2.5-flare')
+    ).toBe('gpt-image-2.5-flare');
   });
 });

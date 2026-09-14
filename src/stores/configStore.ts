@@ -24,7 +24,7 @@ export const useConfigStore = defineStore('config', () => {
 
   const baseUrl = ref<string>(localStorage.getItem('gpt_image_base_url') || DEFAULT_CONFIG.baseUrl);
   const apiKey = ref<string>(localStorage.getItem('gpt_image_api_key') || DEFAULT_CONFIG.apiKey);
-  // 请求仍携带 model；当前默认 gpt-image-2，配置弹窗不暴露以免误配其他模型
+  // 请求携带 model；默认 gpt-image-2，可在输入栏切换
   const model = ref<string>(localStorage.getItem('gpt_image_model') || DEFAULT_CONFIG.model);
 
   const effectiveBaseUrl = computed(() => (hasEnvBaseUrl.value ? ENV_BASE_URL : baseUrl.value.trim()));
