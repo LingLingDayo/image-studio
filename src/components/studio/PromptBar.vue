@@ -31,6 +31,7 @@ import { useModelStore } from '@/stores/modelStore';
 import { useConfigStore } from '@/stores/configStore';
 import { PromptOptimizerService } from '@/core/services/PromptOptimizerService';
 import { UiSelect, UiSizeInput, UiStepper } from '@/components/ui';
+import type { SelectOption } from '@/components/ui';
 
 const props = defineProps<{
   prompt: string;
@@ -73,7 +74,7 @@ const modelStore = useModelStore();
 const configStore = useConfigStore();
 const activeModel = computed(() => modelStore.activeModel);
 
-const modelSelectOptions = computed(() => {
+const modelSelectOptions = computed<SelectOption[]>(() => {
   const ids = [...modelStore.availableModels];
   const current = modelStore.activeModelId || DEFAULT_IMAGE_MODEL_ID;
   if (!ids.includes(current)) {
@@ -83,7 +84,7 @@ const modelSelectOptions = computed(() => {
     ids.push(DEFAULT_IMAGE_MODEL_ID);
   }
 
-  const options = ids.map((id) => ({
+  const options: SelectOption[] = ids.map((id) => ({
     label: formatImageModelName(id),
     value: id
   }));
