@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import type { MediaAsset } from '@/types/asset';
 import { downloadRotatedImage, generateAssetFilename } from '@/utils/download';
 import { useViewportCanvas } from '@/composables/useViewportCanvas';
@@ -128,7 +128,15 @@ function handleDelete(id: number) {
   emit('delete', id);
 }
 
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+}
+
 function handleKeyDown(e: KeyboardEvent) {
+  if (!currentActiveItem.value || isTypingTarget(e.target)) return;
+
   if (e.key === 'Escape') {
     emit('close');
   } else if (e.key === 'ArrowLeft') {
@@ -148,9 +156,15 @@ function handleKeyDown(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown);
-});
+const isLightboxOpen = computed(() => currentActiveItem.value !== null);
+
+watch(isLightboxOpen, (open) => {
+  if (open) {
+    window.addEventListener('keydown', handleKeyDown);
+  } else {
+    window.removeEventListener('keydown', handleKeyDown);
+  }
+}, { immediate: true });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);

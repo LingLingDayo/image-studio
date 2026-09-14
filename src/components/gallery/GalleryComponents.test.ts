@@ -178,4 +178,66 @@ describe('LightboxModal 作品切换箭头', () => {
     expect(container.querySelector('.lightbox-side-nav')).toBeNull();
     app.unmount();
   });
+
+  it('灯箱关闭时不拦截左右方向键，避免挡住输入框光标移动', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGalleryStore();
+    store.items = [createMockAsset(1, '作品')];
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: null,
+          allAssets: []
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const leftEvent = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true });
+    const rightEvent = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+    window.dispatchEvent(leftEvent);
+    window.dispatchEvent(rightEvent);
+
+    expect(leftEvent.defaultPrevented).toBe(false);
+    expect(rightEvent.defaultPrevented).toBe(false);
+
+    app.unmount();
+  });
+
+  it('灯箱打开时左右方向键仍用于切换作品', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGalleryStore();
+    store.items = [
+      createMockAsset(1, '第一件作品'),
+      createMockAsset(2, '第二件作品')
+    ];
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: store.items[0],
+          allAssets: [store.items[0]]
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    expect(container.querySelector('.prompt-box')?.textContent).toContain('第一件作品');
+
+    const rightEvent = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+    window.dispatchEvent(rightEvent);
+    await nextTick();
+
+    expect(rightEvent.defaultPrevented).toBe(true);
+    expect(container.querySelector('.prompt-box')?.textContent).toContain('第二件作品');
+
+    app.unmount();
+  });
 });
