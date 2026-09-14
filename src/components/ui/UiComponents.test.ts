@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createApp, h, nextTick, ref } from 'vue';
+import { Cpu } from '@lucide/vue';
 import UiSelect from './UiSelect.vue';
 import UiStepper from './UiStepper.vue';
 import UiInput from './UiInput.vue';
@@ -94,6 +95,27 @@ describe('UI Components (src/components/ui)', () => {
 
     expect(opened).toBe(1);
     expect(container.querySelector('.select-dropdown')).not.toBeNull();
+
+    app.unmount();
+  });
+
+  it('should render compact icon on UiSelect when icon is provided', async () => {
+    const app = createApp({
+      render() {
+        return h(UiSelect, {
+          modelValue: 'gpt-image-2',
+          label: '模型',
+          icon: Cpu,
+          options: [{ label: 'GPT-Image-2', value: 'gpt-image-2' }]
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    expect(container.querySelector('.ui-select')?.classList.contains('has-icon')).toBe(true);
+    expect(container.querySelector('.select-icon')).not.toBeNull();
 
     app.unmount();
   });

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, type Component } from 'vue';
 import { ChevronDown, Check } from '@lucide/vue';
 import { useClickOutside } from '@/composables/useClickOutside';
 
@@ -21,6 +21,7 @@ const props = withDefaults(
     size?: 'sm' | 'md' | 'lg';
     disabled?: boolean;
     block?: boolean;
+    icon?: Component;
   }>(),
   {
     label: '',
@@ -174,7 +175,7 @@ function handleKeyDown(e: KeyboardEvent) {
     :class="[
       `variant-${variant}`, 
       `size-${size}`, 
-      { 'is-open': isOpen, 'is-disabled': disabled, 'is-block': block }
+      { 'is-open': isOpen, 'is-disabled': disabled, 'is-block': block, 'has-icon': Boolean(icon) }
     ]"
     tabindex="0"
     role="combobox"
@@ -189,6 +190,13 @@ function handleKeyDown(e: KeyboardEvent) {
       :aria-label="triggerTitle"
       @click="toggleDropdown"
     >
+      <component
+        v-if="icon"
+        :is="icon"
+        class="select-icon"
+        :size="14"
+        aria-hidden="true"
+      />
       <span v-if="label" class="select-label">{{ label }}</span>
       <span class="select-value" :class="{ 'is-placeholder': !currentOption }">
         {{ currentDisplayLabel }}
@@ -406,6 +414,12 @@ function handleKeyDown(e: KeyboardEvent) {
   }
 }
 
+.select-icon {
+  display: none;
+  flex-shrink: 0;
+  color: $text-secondary;
+}
+
 .select-arrow {
   color: $text-dim;
   margin-left: auto;
@@ -416,6 +430,10 @@ function handleKeyDown(e: KeyboardEvent) {
     transform: rotate(180deg);
     color: $accent-primary;
   }
+}
+
+.ui-select.is-open .select-icon {
+  color: $accent-primary;
 }
 
 .select-value.is-placeholder {
@@ -531,7 +549,7 @@ function handleKeyDown(e: KeyboardEvent) {
   transform: scale(0.96);
 }
 
-/* 响应式断点：当屏幕宽度不够时，select-trigger 变为只显示箭头的正方形按钮 */
+/* 响应式断点：窄屏下隐藏文字，优先显示语义图标，无图标时回退箭头 */
 @media (max-width: 640px) {
   .ui-select:not(.is-block) {
     flex-shrink: 0;
@@ -550,6 +568,16 @@ function handleKeyDown(e: KeyboardEvent) {
       .select-arrow {
         margin-left: 0 !important;
         margin: 0 !important;
+      }
+    }
+
+    &.has-icon {
+      .select-icon {
+        display: block;
+      }
+
+      .select-arrow {
+        display: none !important;
       }
     }
 

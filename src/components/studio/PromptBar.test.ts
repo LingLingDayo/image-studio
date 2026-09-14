@@ -134,6 +134,10 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     expect(labels[0]).toBe('模型');
     const modelValue = container.querySelector('.select-value')?.textContent;
     expect(modelValue).toBe('GPT-Image-2');
+    const iconSelects = container.querySelectorAll('.params-group .ui-select.has-icon');
+    expect(iconSelects.length).toBeGreaterThanOrEqual(6);
+    expect(container.querySelector('.ui-size-input.has-icon')).not.toBeNull();
+    expect(container.querySelector('.ui-stepper.has-icon')).not.toBeNull();
 
     app.unmount();
   });

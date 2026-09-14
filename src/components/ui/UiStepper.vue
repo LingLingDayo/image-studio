@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, type Component } from 'vue';
 import { Minus, Plus } from '@lucide/vue';
 import { applyWheelStep, WHEEL_ADJUST_TIP } from '@/utils/wheelStep';
 
@@ -12,6 +12,7 @@ const props = withDefaults(
     label?: string;
     disabled?: boolean;
     variant?: 'pill' | 'default';
+    icon?: Component;
   }>(),
   {
     min: 1,
@@ -70,9 +71,16 @@ function handleWheel(e: WheelEvent) {
 <template>
   <div 
     class="ui-stepper" 
-    :class="[`variant-${variant}`, { 'is-disabled': disabled }]"
+    :class="[`variant-${variant}`, { 'is-disabled': disabled, 'has-icon': Boolean(icon) }]"
   >
     <div class="stepper-controls" @wheel.prevent="handleWheel">
+      <component
+        v-if="icon"
+        :is="icon"
+        class="stepper-icon"
+        :size="13"
+        aria-hidden="true"
+      />
       <span v-if="label" class="stepper-label">{{ label }}</span>
 
       <button 
@@ -148,11 +156,29 @@ function handleWheel(e: WheelEvent) {
   }
 }
 
+.stepper-icon {
+  display: none;
+  flex-shrink: 0;
+  color: $text-muted;
+}
+
 .stepper-label {
   font-size: 0.72rem;
   color: $text-muted;
   font-weight: 500;
   margin-right: 2px;
+}
+
+@media (max-width: 640px) {
+  .ui-stepper.has-icon {
+    .stepper-icon {
+      display: block;
+    }
+
+    .stepper-label {
+      display: none;
+    }
+  }
 }
 
 .step-btn {

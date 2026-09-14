@@ -1,6 +1,22 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted, onUnmounted, computed } from 'vue';
-import { Paperclip, ArrowRight, X, Trash2, UploadCloud, Sparkles, RotateCcw } from '@lucide/vue';
+import {
+  Paperclip,
+  ArrowRight,
+  X,
+  Trash2,
+  UploadCloud,
+  Sparkles,
+  RotateCcw,
+  Cpu,
+  Scan,
+  Ratio,
+  Gem,
+  FileImage,
+  Blend,
+  Scaling,
+  Images
+} from '@lucide/vue';
 import {
   TRANSPARENT_DEFAULT_FORMAT,
   supportsAlphaChannel,
@@ -368,6 +384,7 @@ onUnmounted(() => {
           <UiSelect
             :model-value="modelStore.activeModelId"
             label="模型"
+            :icon="Cpu"
             :options="modelSelectOptions"
             placement="top"
             variant="pill"
@@ -379,6 +396,7 @@ onUnmounted(() => {
           <UiSelect
             :model-value="resolution"
             label="分辨率"
+            :icon="Scan"
             :options="activeModel.resolutionOptions"
             placement="top"
             variant="pill"
@@ -389,6 +407,7 @@ onUnmounted(() => {
           <UiSelect
             :model-value="aspectRatio"
             label="比例"
+            :icon="Ratio"
             :options="activeModel.aspectRatioOptions"
             placement="top"
             variant="pill"
@@ -399,6 +418,7 @@ onUnmounted(() => {
           <UiSizeInput
             :width="sizeWidth"
             :height="sizeHeight"
+            :icon="Scaling"
             @update:width="emit('update:sizeWidth', $event)"
             @update:height="emit('update:sizeHeight', $event)"
             @clear="emit('sizeAuto')"
@@ -409,6 +429,7 @@ onUnmounted(() => {
           <UiSelect
             :model-value="quality"
             label="质量"
+            :icon="Gem"
             :options="activeModel.qualityOptions"
             placement="top"
             variant="pill"
@@ -419,6 +440,7 @@ onUnmounted(() => {
           <UiSelect
             :model-value="format"
             label="格式"
+            :icon="FileImage"
             :options="formatOptions"
             placement="top"
             variant="pill"
@@ -430,6 +452,7 @@ onUnmounted(() => {
             v-if="activeModel.supportsTransparent"
             :model-value="transparent"
             label="透明背景"
+            :icon="Blend"
             :options="transparentOptions"
             placement="top"
             variant="pill"
@@ -440,6 +463,7 @@ onUnmounted(() => {
           <UiStepper
             :model-value="count"
             label="数量"
+            :icon="Images"
             :min="1"
             :max="activeModel.maxBatchCount || 4"
             variant="pill"

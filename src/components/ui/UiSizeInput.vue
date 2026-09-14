@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch, type Component } from 'vue';
 import { X } from '@lucide/vue';
 import { applyWheelStep, WHEEL_ADJUST_TIP } from '@/utils/wheelStep';
 
@@ -11,6 +11,7 @@ const props = withDefaults(
     disabled?: boolean;
     min?: number;
     max?: number;
+    icon?: Component;
   }>(),
   {
     label: '尺寸',
@@ -95,9 +96,16 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
 <template>
   <div
     class="ui-size-input"
-    :class="{ 'is-disabled': disabled, 'is-auto': isAuto }"
+    :class="{ 'is-disabled': disabled, 'is-auto': isAuto, 'has-icon': Boolean(icon) }"
   >
     <div class="size-controls">
+      <component
+        v-if="icon"
+        :is="icon"
+        class="size-icon"
+        :size="13"
+        aria-hidden="true"
+      />
       <span v-if="label" class="size-label">{{ label }}</span>
 
       <button
@@ -188,11 +196,29 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
   }
 }
 
+.size-icon {
+  display: none;
+  flex-shrink: 0;
+  color: $text-muted;
+}
+
 .size-label {
   font-size: 0.72rem;
   color: $text-muted;
   font-weight: 500;
   margin-right: 2px;
+}
+
+@media (max-width: 640px) {
+  .ui-size-input.has-icon {
+    .size-icon {
+      display: block;
+    }
+
+    .size-label {
+      display: none;
+    }
+  }
 }
 
 .auto-value {
