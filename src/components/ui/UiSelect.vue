@@ -287,6 +287,8 @@ function handleKeyDown(e: KeyboardEvent) {
     }
 
     .select-value {
+      // inline-flex 会使 text-overflow: ellipsis 失效，截断时必须回到 block
+      display: block;
       flex: 1 1 auto;
       min-width: 0;
       overflow: hidden;
