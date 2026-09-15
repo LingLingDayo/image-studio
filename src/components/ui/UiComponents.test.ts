@@ -174,6 +174,33 @@ describe('UI Components (src/components/ui)', () => {
 
     app.unmount();
   });
+
+  it('should render UiStepper label and optional tip', async () => {
+    const app = createApp({
+      render() {
+        return h(UiStepper, {
+          modelValue: 2,
+          label: '批量',
+          tip: '当前 2 个批次，每批生成 2 张，共 4 张',
+          min: 1,
+          max: 4
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    expect(container.querySelector('.stepper-label')?.textContent).toBe('批量');
+    expect(container.querySelector('.stepper-controls')?.getAttribute('data-tip')).toBe(
+      '当前 2 个批次，每批生成 2 张，共 4 张'
+    );
+    expect(container.querySelector('.step-input')?.getAttribute('data-tip')).toBe(
+      '当前 2 个批次，每批生成 2 张，共 4 张'
+    );
+
+    app.unmount();
+  });
 });
 
 

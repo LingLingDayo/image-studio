@@ -10,6 +10,7 @@ const props = withDefaults(
     max?: number;
     step?: number;
     label?: string;
+    tip?: string;
     disabled?: boolean;
     variant?: 'pill' | 'default';
     icon?: Component;
@@ -19,10 +20,14 @@ const props = withDefaults(
     max: 4,
     step: 1,
     label: '',
+    tip: '',
     disabled: false,
     variant: 'pill'
   }
 );
+
+const controlTip = computed(() => props.tip || undefined);
+const valueTip = computed(() => props.tip || WHEEL_ADJUST_TIP);
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: number): void;
@@ -73,7 +78,7 @@ function handleWheel(e: WheelEvent) {
     class="ui-stepper" 
     :class="[`variant-${variant}`, { 'is-disabled': disabled, 'has-icon': Boolean(icon) }]"
   >
-    <div class="stepper-controls" @wheel.prevent="handleWheel">
+    <div class="stepper-controls" :data-tip="controlTip" @wheel.prevent="handleWheel">
       <component
         v-if="icon"
         :is="icon"
@@ -100,7 +105,7 @@ function handleWheel(e: WheelEvent) {
         :value="modelValue" 
         :disabled="disabled"
         class="step-input"
-        :data-tip="WHEEL_ADJUST_TIP"
+        :data-tip="valueTip"
         @change="handleInputChange"
       />
 

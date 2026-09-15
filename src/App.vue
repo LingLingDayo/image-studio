@@ -83,8 +83,13 @@ async function handleGenerate() {
     return;
   }
   try {
-    await generate();
-    showToast('已发起生成任务，正在实时绘制...', 'info');
+    const tasks = await generate();
+    showToast(
+      tasks.length > 1
+        ? `已发起 ${tasks.length} 个批次的生成任务，正在实时绘制...`
+        : '已发起生成任务，正在实时绘制...',
+      'info'
+    );
   } catch (err: any) {
     showToast(err.message || '发起生图失败', 'error');
   }

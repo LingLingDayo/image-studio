@@ -24,6 +24,7 @@ import {
   materializeSize,
   type ImageSizeState
 } from '@/utils/imageSize';
+import { splitPromptBatches } from '@/utils/promptBatches';
 
 export function useImageStudio() {
   const configStore = useConfigStore();
@@ -92,9 +93,9 @@ export function useImageStudio() {
     referenceImages.value = [];
   }
 
-  async function generate(): Promise<GenerationTask> {
-    const trimmedPrompt = prompt.value.trim();
-    if (!trimmedPrompt) {
+  async function generate(): Promise<GenerationTask[]> {
+    const batches = splitPromptBatches(prompt.value);
+    if (batches.length === 0) {
       throw new Error('请输入提示词');
     }
 
@@ -103,23 +104,30 @@ export function useImageStudio() {
     }
 
     const isEditMode = referenceImages.value.length > 0;
+    const sharedRefs = isEditMode ? [...referenceImages.value] : [];
+    const outputFormat = transparent.value ? resolveTransparentOutputFormat(format.value) : format.value;
+    const size = formatSizeParam(sizeState);
 
-    const params: TaskGenerationParams = {
-      model: modelStore.activeModel.id,
-      prompt: trimmedPrompt,
-      type: isEditMode ? 'i2i' : 't2i',
-      size: formatSizeParam(sizeState),
-      resolution: sizeState.resolution,
-      aspectRatio: sizeState.aspectRatio,
-      quality: quality.value,
-      format: transparent.value ? resolveTransparentOutputFormat(format.value) : format.value,
-      transparent: transparent.value,
-      count: count.value,
-      referenceImages: isEditMode ? [...referenceImages.value] : []
-    };
+    const tasks: GenerationTask[] = [];
+    for (const batchPrompt of batches) {
+      const params: TaskGenerationParams = {
+        model: modelStore.activeModel.id,
+        prompt: batchPrompt,
+        type: isEditMode ? 'i2i' : 't2i',
+        size,
+        resolution: sizeState.resolution,
+        aspectRatio: sizeState.aspectRatio,
+        quality: quality.value,
+        format: outputFormat,
+        transparent: transparent.value,
+        count: count.value,
+        referenceImages: sharedRefs
+      };
 
-    const task = defaultTaskScheduler.createTask(params);
-    taskStore.addTask(task);
+      const task = defaultTaskScheduler.createTask(params);
+      taskStore.addTask(task);
+      tasks.push(task);
+    }
 
     // 提交后根据设置项决定是否清空输入框（默认保持内容以便微调）
     if (configStore.clearPromptOnGenerate) {
@@ -127,9 +135,11 @@ export function useImageStudio() {
     }
 
     // 异步执行生成流水线，非阻塞返回
-    runTaskExecution(task);
+    for (const task of tasks) {
+      runTaskExecution(task);
+    }
 
-    return task;
+    return tasks;
   }
 
   function runTaskExecution(task: GenerationTask) {

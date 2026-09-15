@@ -216,6 +216,64 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
   });
 });
 
+describe('useImageStudio - prompt batches', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    localStorage.clear();
+    vi.mocked(defaultTaskScheduler.execute).mockClear();
+  });
+
+  async function configuredStudio() {
+    const { useConfigStore } = await import('@/stores/configStore');
+    const configStore = useConfigStore();
+    configStore.updateConfig({
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-test'
+    });
+    return useImageStudio();
+  }
+
+  it('空行分隔的多段提示词应分别创建任务，数量作为每批张数', async () => {
+    const studio = await configuredStudio();
+    studio.prompt.value = '一只猫\n\n一只狗';
+    studio.count.value = 2;
+
+    const tasks = await studio.generate();
+
+    expect(tasks).toHaveLength(2);
+    expect(tasks.map((t) => t.params.prompt)).toEqual(['一只猫', '一只狗']);
+    expect(tasks.every((t) => t.params.count === 2)).toBe(true);
+    expect(defaultTaskScheduler.execute).toHaveBeenCalledTimes(2);
+  });
+
+  it('单换行的提示词仍作为单个任务', async () => {
+    const studio = await configuredStudio();
+    studio.prompt.value = '一只猫\n站在屋顶';
+    studio.count.value = 3;
+
+    const tasks = await studio.generate();
+
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].params.prompt).toBe('一只猫\n站在屋顶');
+    expect(tasks[0].params.count).toBe(3);
+    expect(defaultTaskScheduler.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('三段提示词应创建三个独立任务并共享其余参数', async () => {
+    const studio = await configuredStudio();
+    studio.prompt.value = '日出\n\n海边\n\n城市夜景';
+    studio.count.value = 1;
+    studio.quality.value = 'high';
+
+    const tasks = await studio.generate();
+
+    expect(tasks).toHaveLength(3);
+    expect(tasks.map((t) => t.params.prompt)).toEqual(['日出', '海边', '城市夜景']);
+    expect(tasks.every((t) => t.params.quality === 'high')).toBe(true);
+    expect(tasks.every((t) => t.params.count === 1)).toBe(true);
+  });
+});
+
 describe('useImageStudio - clearPromptOnGenerate', () => {
   beforeEach(() => {
     setActivePinia(createPinia());

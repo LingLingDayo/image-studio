@@ -32,6 +32,10 @@ import { useConfigStore } from '@/stores/configStore';
 import { PromptOptimizerService } from '@/core/services/PromptOptimizerService';
 import { UiSelect, UiSizeInput, UiStepper } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
+import {
+  formatPromptBatchCountTip,
+  splitPromptBatches
+} from '@/utils/promptBatches';
 
 const props = defineProps<{
   prompt: string;
@@ -116,6 +120,14 @@ const canRestorePrompt = computed(() => {
     props.prompt.trim().length > 0 &&
     previousPrompt.value.trim() !== props.prompt.trim()
   );
+});
+
+const promptBatches = computed(() => splitPromptBatches(props.prompt));
+const isBatchPromptMode = computed(() => promptBatches.value.length > 1);
+const countLabel = computed(() => (isBatchPromptMode.value ? '批量' : '数量'));
+const countTip = computed(() => {
+  if (!isBatchPromptMode.value) return '';
+  return formatPromptBatchCountTip(promptBatches.value.length, props.count);
 });
 
 const optimizerTooltip = computed(() => {
@@ -461,10 +473,11 @@ onUnmounted(() => {
             @update:model-value="handleTransparentChange"
           />
 
-          <!-- 数量步进器 -->
+          <!-- 数量步进器：多段空行提示词时切换为每批张数 -->
           <UiStepper
             :model-value="count"
-            label="数量"
+            :label="countLabel"
+            :tip="countTip"
             :icon="Images"
             :min="1"
             :max="activeModel.maxBatchCount || 4"
