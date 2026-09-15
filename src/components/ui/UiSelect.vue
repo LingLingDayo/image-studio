@@ -22,6 +22,7 @@ const props = withDefaults(
     disabled?: boolean;
     block?: boolean;
     icon?: Component;
+    maxWidth?: number | string;
   }>(),
   {
     label: '',
@@ -30,7 +31,8 @@ const props = withDefaults(
     variant: 'pill',
     size: 'sm',
     disabled: false,
-    block: false
+    block: false,
+    maxWidth: undefined
   }
 );
 
@@ -69,6 +71,14 @@ const triggerTitle = computed(() => {
     return `${props.label}: ${currentDisplayLabel.value}`;
   }
   return currentDisplayLabel.value || props.placeholder;
+});
+
+const rootStyle = computed(() => {
+  if (props.maxWidth === undefined || props.maxWidth === null || props.maxWidth === '') {
+    return undefined;
+  }
+  const value = typeof props.maxWidth === 'number' ? `${props.maxWidth}px` : props.maxWidth;
+  return { maxWidth: value };
 });
 
 // 点击外部关闭
@@ -175,8 +185,9 @@ function handleKeyDown(e: KeyboardEvent) {
     :class="[
       `variant-${variant}`, 
       `size-${size}`, 
-      { 'is-open': isOpen, 'is-disabled': disabled, 'is-block': block, 'has-icon': Boolean(icon) }
+      { 'is-open': isOpen, 'is-disabled': disabled, 'is-block': block, 'has-icon': Boolean(icon), 'is-truncated': maxWidth != null && maxWidth !== '' }
     ]"
+    :style="rootStyle"
     tabindex="0"
     role="combobox"
     :aria-expanded="isOpen"
@@ -259,6 +270,29 @@ function handleKeyDown(e: KeyboardEvent) {
 
     .select-trigger {
       cursor: not-allowed;
+    }
+  }
+
+  &.is-truncated {
+    min-width: 0;
+
+    .select-trigger {
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .select-label,
+    .select-icon,
+    .select-arrow {
+      flex-shrink: 0;
+    }
+
+    .select-value {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 }

@@ -387,6 +387,7 @@ onUnmounted(() => {
             label="模型"
             :icon="Cpu"
             :options="modelSelectOptions"
+            :max-width="150"
             placement="top"
             variant="pill"
             @update:model-value="handleModelChange"

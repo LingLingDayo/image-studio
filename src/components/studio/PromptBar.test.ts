@@ -132,6 +132,9 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
 
     const labels = Array.from(container.querySelectorAll('.select-label')).map((el) => el.textContent);
     expect(labels[0]).toBe('模型');
+    const modelSelect = container.querySelector('.params-group .ui-select') as HTMLElement;
+    expect(modelSelect.classList.contains('is-truncated')).toBe(true);
+    expect(modelSelect.style.maxWidth).toBe('150px');
     const modelValue = container.querySelector('.select-value')?.textContent;
     expect(modelValue).toBe('GPT-Image-2');
     const iconSelects = container.querySelectorAll('.params-group .ui-select.has-icon');

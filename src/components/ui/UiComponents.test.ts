@@ -120,6 +120,31 @@ describe('UI Components (src/components/ui)', () => {
     app.unmount();
   });
 
+  it('should truncate long labels when maxWidth is set and expose full name via tooltip', async () => {
+    const app = createApp({
+      render() {
+        return h(UiSelect, {
+          modelValue: 'gpt-image-2.5-flare',
+          label: '模型',
+          maxWidth: 150,
+          options: [{ label: 'GPT-Image-2.5 Flare Extra Long', value: 'gpt-image-2.5-flare' }]
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const root = container.querySelector('.ui-select') as HTMLElement;
+    const trigger = container.querySelector('.select-trigger') as HTMLButtonElement;
+    expect(root.classList.contains('is-truncated')).toBe(true);
+    expect(root.style.maxWidth).toBe('150px');
+    expect(container.querySelector('.select-value')?.textContent).toContain('GPT-Image-2.5 Flare Extra Long');
+    expect(trigger.getAttribute('data-tip')).toBe('模型: GPT-Image-2.5 Flare Extra Long');
+
+    app.unmount();
+  });
+
   it('should render and toggle UiSwitch correctly', async () => {
     const checked = ref(false);
     const app = createApp({
