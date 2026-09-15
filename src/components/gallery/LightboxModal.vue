@@ -48,6 +48,7 @@ const {
   resetTransform,
   rotateCw,
   handleWheel,
+  handlePointerDown,
   handleMouseDown,
   handleDoubleClick
 } = useViewportCanvas(panelRef);
@@ -220,6 +221,7 @@ onUnmounted(() => {
           @reset-view="resetView"
           @rotate-cw="rotateCw"
           @wheel="handleWheel"
+          @pointerdown="handlePointerDown"
           @mousedown="handleMouseDown"
           @dblclick="handleDoubleClick"
         />
@@ -254,6 +256,12 @@ onUnmounted(() => {
   justify-content: center;
   padding: 24px;
   animation: fadeIn 0.2s ease;
+
+  @media (max-width: 860px) {
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
 }
 
 .modal-card {
@@ -272,8 +280,12 @@ onUnmounted(() => {
   flex-direction: column;
 
   @media (max-width: 860px) {
-    height: auto;
+    max-width: none;
+    height: 100%;
     min-height: 0;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
   }
 }
 
@@ -363,8 +375,7 @@ onUnmounted(() => {
   @media (max-width: 860px) {
     display: flex;
     flex-direction: column;
-    max-height: 90vh;
-    overflow-y: auto;
+    overflow: hidden;
   }
 }
 </style>

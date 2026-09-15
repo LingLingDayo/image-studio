@@ -240,4 +240,29 @@ describe('LightboxModal 作品切换箭头', () => {
 
     app.unmount();
   });
+
+  it('灯箱详情面板将内容放入独立滚动区，视口支持 pointer 拖拽', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGalleryStore();
+    store.items = [createMockAsset(1, '可拖拽作品')];
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: store.items[0],
+          allAssets: [store.items[0]]
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    expect(container.querySelector('.info-scroll')).not.toBeNull();
+    expect(container.querySelector('.modal-image-panel')).not.toBeNull();
+    expect(container.querySelector('.modal-actions')).not.toBeNull();
+
+    app.unmount();
+  });
 });

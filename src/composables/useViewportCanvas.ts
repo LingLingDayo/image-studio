@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue';
+import { ref, onUnmounted, getCurrentInstance, type Ref } from 'vue';
 
 export interface ViewportCanvasOptions {
   minScale?: number;
@@ -19,6 +19,7 @@ export function useViewportCanvas(panelRef: Ref<HTMLElement | null>, options: Vi
   let startDragY = 0;
   let startTranslateX = 0;
   let startTranslateY = 0;
+  let activePointerId: number | null = null;
 
   /**
    * 以指定屏幕相对坐标 (pivotX, pivotY) 为锚点进行等比缩放
@@ -99,29 +100,84 @@ export function useViewportCanvas(panelRef: Ref<HTMLElement | null>, options: Vi
     }
   }
 
-  function handleMouseDown(e: MouseEvent) {
-    if (e.button !== 0 && e.button !== 1) return;
-
+  function beginDrag(clientX: number, clientY: number) {
     isDragging.value = true;
-    startDragX = e.clientX;
-    startDragY = e.clientY;
+    startDragX = clientX;
+    startDragY = clientY;
     startTranslateX = translateX.value;
     startTranslateY = translateY.value;
+  }
 
+  function applyDrag(clientX: number, clientY: number) {
+    if (!isDragging.value) return;
+    translateX.value = startTranslateX + (clientX - startDragX);
+    translateY.value = startTranslateY + (clientY - startDragY);
+  }
+
+  function stopDrag() {
+    isDragging.value = false;
+    activePointerId = null;
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerUp);
+    window.removeEventListener('pointercancel', onPointerUp);
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+  }
+
+  function handlePointerDown(e: PointerEvent) {
+    if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1) return;
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
+    if (e.cancelable) e.preventDefault();
+
+    beginDrag(e.clientX, e.clientY);
+    activePointerId = e.pointerId;
+
+    const target = e.currentTarget;
+    if (target instanceof HTMLElement && typeof target.setPointerCapture === 'function') {
+      try {
+        target.setPointerCapture(e.pointerId);
+      } catch {
+        // 部分测试环境不支持 pointer capture
+      }
+    }
+
+    window.addEventListener('pointermove', onPointerMove, { passive: false });
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+  }
+
+  function onPointerMove(e: PointerEvent) {
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
+    if (e.cancelable) e.preventDefault();
+    applyDrag(e.clientX, e.clientY);
+  }
+
+  function onPointerUp(e: PointerEvent) {
+    if (activePointerId !== null && e.pointerId !== activePointerId) return;
+    stopDrag();
+  }
+
+  function handleMouseDown(e: MouseEvent) {
+    if (e.button !== 0 && e.button !== 1) return;
+    if (isDragging.value) return;
+
+    beginDrag(e.clientX, e.clientY);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
   }
 
   function onMouseMove(e: MouseEvent) {
-    if (!isDragging.value) return;
-    translateX.value = startTranslateX + (e.clientX - startDragX);
-    translateY.value = startTranslateY + (e.clientY - startDragY);
+    applyDrag(e.clientX, e.clientY);
   }
 
   function onMouseUp() {
-    isDragging.value = false;
-    window.removeEventListener('mousemove', onMouseMove);
-    window.removeEventListener('mouseup', onMouseUp);
+    stopDrag();
+  }
+
+  if (getCurrentInstance()) {
+    onUnmounted(() => {
+      stopDrag();
+    });
   }
 
   function resetTransform() {
@@ -145,6 +201,7 @@ export function useViewportCanvas(panelRef: Ref<HTMLElement | null>, options: Vi
     resetTransform,
     rotateCw,
     handleWheel,
+    handlePointerDown,
     handleMouseDown,
     handleDoubleClick
   };

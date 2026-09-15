@@ -30,6 +30,7 @@ const emit = defineEmits<{
   (e: 'resetView'): void;
   (e: 'rotateCw'): void;
   (e: 'wheel', event: WheelEvent): void;
+  (e: 'pointerdown', event: PointerEvent): void;
   (e: 'mousedown', event: MouseEvent): void;
   (e: 'dblclick', event: MouseEvent): void;
 }>();
@@ -47,6 +48,7 @@ defineExpose({
     class="modal-image-panel" 
     :class="{ 'is-dragging': isDragging }"
     @wheel.prevent="emit('wheel', $event)"
+    @pointerdown="emit('pointerdown', $event)"
     @mousedown="emit('mousedown', $event)"
     @dblclick="emit('dblclick', $event)"
   >
@@ -69,7 +71,7 @@ defineExpose({
     </div>
 
     <!-- 多图大图切换悬浮按钮 (批次多图时可见) -->
-    <div v-if="batchAssets.length > 1" class="lightbox-carousel-controls" @mousedown.stop>
+    <div v-if="batchAssets.length > 1" class="lightbox-carousel-controls" @pointerdown.stop @mousedown.stop>
       <button class="btn-lightbox-nav prev" data-tip="上一张 (← 键盘左键)" @click.stop="emit('prev')">
         <ChevronLeft :size="20" />
       </button>
@@ -80,7 +82,7 @@ defineExpose({
     </div>
 
     <!-- 浮动半透明工具栏 (hover 显示) -->
-    <div class="image-floating-toolbar" @mousedown.stop @wheel.stop @dblclick.stop>
+    <div class="image-floating-toolbar" @pointerdown.stop @mousedown.stop @wheel.stop @dblclick.stop>
       <button class="tool-btn" data-tip="缩小 (滚轮向下)" @click="emit('zoomOut')">
         <ZoomOut :size="15" />
       </button>
@@ -126,11 +128,14 @@ defineExpose({
   height: 100%;
 
   @media (max-width: 860px) {
-    min-height: 380px;
-    height: 48vh;
+    flex: 0 0 auto;
+    width: 100%;
+    height: 36vh;
+    min-height: 168px;
+    max-height: 38vh;
+    padding: 12px;
     border-right: none;
     border-bottom: 1px solid $border-color;
-    flex-shrink: 0;
   }
 
   &.is-dragging {
@@ -280,5 +285,19 @@ defineExpose({
   opacity: 1;
   transform: translate(-50%, 0);
   pointer-events: auto;
+}
+
+@media (max-width: 860px) {
+  .lightbox-carousel-controls {
+    top: 12px;
+    left: 12px;
+  }
+
+  .image-floating-toolbar {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    pointer-events: auto;
+    bottom: 12px;
+  }
 }
 </style>

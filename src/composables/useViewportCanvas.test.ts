@@ -77,4 +77,48 @@ describe('useViewportCanvas (useViewportCanvas.ts)', () => {
     expect(canvas.translateX.value).toBe(0);
     expect(canvas.translateY.value).toBe(0);
   });
+
+  it('should pan the canvas with pointer drag, including touch pointers', () => {
+    const dummyRef = ref<HTMLElement | null>(null);
+    const canvas = useViewportCanvas(dummyRef);
+    const target = document.createElement('div');
+
+    const down = new PointerEvent('pointerdown', {
+      pointerId: 1,
+      pointerType: 'touch',
+      clientX: 100,
+      clientY: 80,
+      bubbles: true,
+      cancelable: true
+    });
+    Object.defineProperty(down, 'currentTarget', { value: target });
+
+    canvas.handlePointerDown(down);
+    expect(canvas.isDragging.value).toBe(true);
+
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        pointerId: 1,
+        pointerType: 'touch',
+        clientX: 140,
+        clientY: 50,
+        bubbles: true
+      })
+    );
+
+    expect(canvas.translateX.value).toBe(40);
+    expect(canvas.translateY.value).toBe(-30);
+
+    window.dispatchEvent(
+      new PointerEvent('pointerup', {
+        pointerId: 1,
+        pointerType: 'touch',
+        clientX: 140,
+        clientY: 50,
+        bubbles: true
+      })
+    );
+
+    expect(canvas.isDragging.value).toBe(false);
+  });
 });

@@ -137,6 +137,7 @@ async function handleCopyPrompt() {
       </div>
     </div>
 
+    <div class="info-scroll">
     <!-- 提示词 -->
     <div class="info-block">
       <div class="block-label">
@@ -238,6 +239,7 @@ async function handleCopyPrompt() {
         </div>
       </div>
     </div>
+    </div>
 
     <!-- 底部操作按钮 -->
     <div class="modal-actions">
@@ -273,8 +275,25 @@ async function handleCopyPrompt() {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
   border-left: 1px solid $border-color;
+
+  @media (max-width: 860px) {
+    flex: 1 1 auto;
+    padding: 14px 16px 16px;
+    border-left: none;
+  }
+}
+
+.info-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .info-header {
@@ -537,7 +556,8 @@ async function handleCopyPrompt() {
 }
 
 .modal-actions {
-  margin-top: auto;
+  margin-top: 0;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
