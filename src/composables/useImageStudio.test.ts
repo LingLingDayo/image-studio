@@ -233,9 +233,9 @@ describe('useImageStudio - prompt batches', () => {
     return useImageStudio();
   }
 
-  it('空行分隔的多段提示词应分别创建任务，数量作为每批张数', async () => {
+  it('连续两个空行分隔的多段提示词应分别创建任务，数量作为每批张数', async () => {
     const studio = await configuredStudio();
-    studio.prompt.value = '一只猫\n\n一只狗';
+    studio.prompt.value = '一只猫\n\n\n一只狗';
     studio.count.value = 2;
 
     const tasks = await studio.generate();
@@ -246,22 +246,22 @@ describe('useImageStudio - prompt batches', () => {
     expect(defaultTaskScheduler.execute).toHaveBeenCalledTimes(2);
   });
 
-  it('单换行的提示词仍作为单个任务', async () => {
+  it('单换行或单个空行的提示词仍作为单个任务', async () => {
     const studio = await configuredStudio();
-    studio.prompt.value = '一只猫\n站在屋顶';
+    studio.prompt.value = '一只猫\n\n站在屋顶';
     studio.count.value = 3;
 
     const tasks = await studio.generate();
 
     expect(tasks).toHaveLength(1);
-    expect(tasks[0].params.prompt).toBe('一只猫\n站在屋顶');
+    expect(tasks[0].params.prompt).toBe('一只猫\n\n站在屋顶');
     expect(tasks[0].params.count).toBe(3);
     expect(defaultTaskScheduler.execute).toHaveBeenCalledTimes(1);
   });
 
   it('三段提示词应创建三个独立任务并共享其余参数', async () => {
     const studio = await configuredStudio();
-    studio.prompt.value = '日出\n\n海边\n\n城市夜景';
+    studio.prompt.value = '日出\n\n\n海边\n\n\n城市夜景';
     studio.count.value = 1;
     studio.quality.value = 'high';
 

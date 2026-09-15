@@ -189,12 +189,28 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     app.unmount();
   });
 
-  it('单段提示词时数量控件文案为数量且无批量说明', async () => {
+  it('空输入时应在占位文案中说明连续两个空行可分批生成', async () => {
+    const app = createApp({
+      render() {
+        return h(PromptBar as any, defaultProps);
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+    expect(textarea.placeholder).toContain('连续两个空行分隔即可分批生成');
+
+    app.unmount();
+  });
+
+  it('单段提示词或仅单个空行时数量控件文案为数量且无批量说明', async () => {
     const app = createApp({
       render() {
         return h(PromptBar as any, {
           ...defaultProps,
-          prompt: '一只猫\n站在屋顶',
+          prompt: '一只猫\n\n站在屋顶',
           count: 2
         });
       }
@@ -210,12 +226,12 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     app.unmount();
   });
 
-  it('空行分隔多段提示词时数量控件切换为批量并展示批次说明', async () => {
+  it('连续两个空行分隔多段提示词时数量控件切换为批量并展示批次说明', async () => {
     const app = createApp({
       render() {
         return h(PromptBar as any, {
           ...defaultProps,
-          prompt: '一只猫\n\n一只狗',
+          prompt: '一只猫\n\n\n一只狗',
           count: 2
         });
       }
@@ -241,7 +257,7 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
       render() {
         return h(PromptBar as any, {
           ...defaultProps,
-          prompt: '日出\n\n海边\n\n城市',
+          prompt: '日出\n\n\n海边\n\n\n城市',
           count: 1
         });
       }

@@ -375,7 +375,7 @@ onUnmounted(() => {
           ref="textareaRef"
           :value="prompt"
           :rows="TEXTAREA_MIN_ROWS"
-          placeholder="输入画面描述或图生图指令... (支持直接粘贴或拖入参考图，Ctrl + Enter 快速生成)"
+          placeholder="输入画面描述或图生图指令... (支持直接粘贴或拖入参考图，Ctrl + Enter 快速生成；连续两个空行分隔即可分批生成)"
           @input="handlePromptInput"
           @keydown="handleKeyDown"
         ></textarea>
@@ -473,7 +473,7 @@ onUnmounted(() => {
             @update:model-value="handleTransparentChange"
           />
 
-          <!-- 数量步进器：多段空行提示词时切换为每批张数 -->
+          <!-- 数量步进器：连续两个空行分隔多段提示词时切换为每批张数 -->
           <UiStepper
             :model-value="count"
             :label="countLabel"

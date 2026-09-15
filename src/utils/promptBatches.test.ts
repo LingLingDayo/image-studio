@@ -12,40 +12,44 @@ describe('promptBatches', () => {
       expect(splitPromptBatches('   \n\n  ')).toEqual([]);
     });
 
-    it('单段提示词即使含单换行也不拆分', () => {
+    it('单段提示词即使含单换行或单个空行也不拆分', () => {
       expect(splitPromptBatches('一只赛博猫咪')).toEqual(['一只赛博猫咪']);
       expect(splitPromptBatches('一只猫\n站在屋顶上')).toEqual(['一只猫\n站在屋顶上']);
+      expect(splitPromptBatches('一只猫\n\n一只狗')).toEqual(['一只猫\n\n一只狗']);
       expect(splitPromptBatches('  前置空格的提示词  ')).toEqual(['前置空格的提示词']);
     });
 
-    it('两个换行应拆成多个非空批次', () => {
-      expect(splitPromptBatches('一只猫\n\n一只狗')).toEqual(['一只猫', '一只狗']);
-      expect(splitPromptBatches('A\n\nB\n\nC')).toEqual(['A', 'B', 'C']);
+    it('连续两个空行应拆成多个非空批次', () => {
+      expect(splitPromptBatches('一只猫\n\n\n一只狗')).toEqual(['一只猫', '一只狗']);
+      expect(splitPromptBatches('A\n\n\nB\n\n\nC')).toEqual(['A', 'B', 'C']);
     });
 
-    it('应忽略多余空行、行内空格与首尾空白片段', () => {
+    it('应忽略多于两个的空行、行内空格与首尾空白片段', () => {
       expect(splitPromptBatches('\n\n一只猫\n\n\n一只狗\n\n')).toEqual(['一只猫', '一只狗']);
-      expect(splitPromptBatches('  一只猫  \n\n  一只狗  ')).toEqual(['一只猫', '一只狗']);
-      expect(splitPromptBatches('一只猫\n  \n一只狗')).toEqual(['一只猫', '一只狗']);
+      expect(splitPromptBatches('  一只猫  \n\n\n  一只狗  ')).toEqual(['一只猫', '一只狗']);
+      expect(splitPromptBatches('一只猫\n  \n  \n一只狗')).toEqual(['一只猫', '一只狗']);
+      expect(splitPromptBatches('一只猫\n\n\n\n一只狗')).toEqual(['一只猫', '一只狗']);
     });
 
     it('应兼容 Windows 与旧 Mac 换行', () => {
-      expect(splitPromptBatches('一只猫\r\n\r\n一只狗')).toEqual(['一只猫', '一只狗']);
-      expect(splitPromptBatches('一只猫\r\r一只狗')).toEqual(['一只猫', '一只狗']);
+      expect(splitPromptBatches('一只猫\r\n\r\n\r\n一只狗')).toEqual(['一只猫', '一只狗']);
+      expect(splitPromptBatches('一只猫\r\r\r一只狗')).toEqual(['一只猫', '一只狗']);
     });
 
-    it('应保留批次内部的单换行', () => {
-      expect(splitPromptBatches('第一行\n第二行\n\n另一段')).toEqual(['第一行\n第二行', '另一段']);
+    it('应保留批次内部的单换行与单个空行', () => {
+      expect(splitPromptBatches('第一行\n第二行\n\n\n另一段')).toEqual(['第一行\n第二行', '另一段']);
+      expect(splitPromptBatches('第一行\n\n第二行\n\n\n另一段')).toEqual(['第一行\n\n第二行', '另一段']);
     });
   });
 
   describe('isMultiPromptBatch', () => {
-    it('仅在存在至少两段非空提示词时为批量模式', () => {
+    it('仅在连续两个空行分隔出至少两段非空提示词时为批量模式', () => {
       expect(isMultiPromptBatch('')).toBe(false);
       expect(isMultiPromptBatch('一只猫')).toBe(false);
       expect(isMultiPromptBatch('一只猫\n站在屋顶')).toBe(false);
-      expect(isMultiPromptBatch('一只猫\n\n')).toBe(false);
-      expect(isMultiPromptBatch('一只猫\n\n一只狗')).toBe(true);
+      expect(isMultiPromptBatch('一只猫\n\n一只狗')).toBe(false);
+      expect(isMultiPromptBatch('一只猫\n\n\n')).toBe(false);
+      expect(isMultiPromptBatch('一只猫\n\n\n一只狗')).toBe(true);
     });
   });
 
