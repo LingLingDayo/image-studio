@@ -714,16 +714,27 @@ onUnmounted(() => {
     position: absolute;
     top: 0;
     right: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
     background: none;
     border: none;
     color: $text-dim;
     cursor: pointer;
-    padding: 4px;
     border-radius: 50%;
+    line-height: 0;
+    flex-shrink: 0;
 
     &:hover {
       background: #f1f5f9;
       color: $text-main;
+    }
+
+    :deep(svg) {
+      display: block;
     }
   }
 }

@@ -229,16 +229,24 @@ function handleClear() {
   border: none;
   color: $text-dim;
   cursor: pointer;
-  padding: 4px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   border-radius: 50%;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  line-height: 0;
+  flex-shrink: 0;
   transition: all 0.12s ease;
 
   &:hover {
     color: $text-main;
     background: #f1f5f9;
+  }
+
+  :deep(svg) {
+    display: block;
   }
 }
 
