@@ -278,7 +278,6 @@ function handleKeyDown(e: KeyboardEvent) {
 
     .select-trigger {
       min-width: 0;
-      overflow: hidden;
     }
 
     .select-label,
@@ -309,8 +308,16 @@ function handleKeyDown(e: KeyboardEvent) {
   font-family: inherit;
   text-align: left;
   outline: none;
+  line-height: 1;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
+}
+
+.select-label,
+.select-value {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.25;
 }
 
 /* 变体: pill (用于 Prompt 底部控制台，纯净白底 + 晶亮微边框) */
@@ -320,6 +327,7 @@ function handleKeyDown(e: KeyboardEvent) {
     border: 1px solid rgba(226, 232, 240, 0.95);
     border-radius: 9999px;
     padding: 4px 11px;
+    min-height: 28px;
     font-size: 0.75rem;
     color: $text-secondary;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
@@ -351,11 +359,14 @@ function handleKeyDown(e: KeyboardEvent) {
     font-size: 0.72rem;
     color: $text-muted;
     font-weight: 500;
+    line-height: 1.25;
   }
 
   .select-value {
+    font-size: 0.72rem;
     font-weight: 600;
     color: $text-main;
+    line-height: 1.25;
   }
 }
 
