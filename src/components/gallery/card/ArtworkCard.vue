@@ -10,11 +10,12 @@ import {
   Download,
   ChevronLeft, 
   ChevronRight, 
-  Layers,
+  AlertCircle,
   Clock
 } from '@lucide/vue';
 import { downloadRotatedImage, generateAssetFilename } from '@/utils/download';
 import { formatQualityLabel, getResolutionDisplay, formatDisplayRatio } from '@/utils/imageSize';
+import { getErrorHeadline } from '@/utils/apiError';
 import { useConfigStore } from '@/stores/configStore';
 
 const props = defineProps<{
@@ -46,14 +47,21 @@ const assetsList = computed<MediaAsset[]>(() => {
 
 const currentAssetIndex = ref(0);
 
-// 当 assets 列表变化时重置或修正 index
+// 当 assets 列表变化时，优先选择首张成功的图片，避免卡片封面展示失败占位
 watch(
-  () => assetsList.value.length,
-  (len) => {
-    if (currentAssetIndex.value >= len) {
-      currentAssetIndex.value = Math.max(0, len - 1);
+  () => assetsList.value,
+  (list) => {
+    if (!list || list.length === 0) {
+      currentAssetIndex.value = 0;
+      return;
     }
-  }
+    const current = list[currentAssetIndex.value];
+    if (!current || current.status === 'failed') {
+      const firstValid = list.findIndex((a) => a.status !== 'failed');
+      currentAssetIndex.value = firstValid >= 0 ? firstValid : 0;
+    }
+  },
+  { immediate: true }
 );
 
 // 当前正在展示的图片资产
@@ -215,11 +223,22 @@ async function handleDownload() {
   <div v-if="currentAsset" class="gallery-card artwork-card">
     <!-- 左侧图片缩略图区 -->
     <div class="card-image-wrapper" @click="handleCardClick">
-      <img :src="currentAsset.url" :alt="currentAsset.prompt" loading="lazy" />
+      <img 
+        v-if="currentAsset.status !== 'failed' && currentAsset.url"
+        :src="currentAsset.url" 
+        :alt="currentAsset.prompt" 
+        loading="lazy" 
+      />
+      <!-- 失败项占位展示 -->
+      <div v-else class="card-failed-placeholder" :data-tip="currentAsset.errorMessage || '生图失败'">
+        <AlertCircle :size="20" class="fail-icon" />
+        <span class="fail-status-text">{{ getErrorHeadline(currentAsset.errorMessage) }}</span>
+      </div>
       
-      <!-- 尺寸悬浮标签 (仅左上角显示尺寸) -->
+      <!-- 尺寸与多图数量悬浮角标 (仅左上角显示尺寸与数量) -->
       <div class="image-badge-overlay">
         <span class="size-pill">{{ dimensionText }}</span>
+        <span v-if="assetsList.length > 1" class="count-pill">共 {{ assetsList.length }} 张</span>
       </div>
 
       <!-- 多图轮播切换左右按钮 (当多于 1 张时展示) -->
@@ -275,10 +294,6 @@ async function handleDownload() {
         </span>
         <span class="tag-badge">
           质量 {{ qualityChineseText }}
-        </span>
-        <span v-if="assetsList.length > 1" class="tag-badge batch-tag">
-          <Layers :size="11" />
-          <span>共 {{ assetsList.length }} 张</span>
         </span>
         <span class="tag-badge time-tag" :data-tip="`生成时间：${fullTimeText}`">
           <Clock :size="11" />
@@ -394,6 +409,26 @@ async function handleDownload() {
   }
 }
 
+.card-failed-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #fff5f5;
+  color: $danger;
+
+  .fail-status-text {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 0 8px;
+    line-height: 1.3;
+  }
+}
+
 .image-badge-overlay {
   position: absolute;
   top: 6px;
@@ -402,7 +437,7 @@ async function handleDownload() {
   gap: 4px;
   z-index: 2;
 
-  .size-pill {
+  .size-pill, .count-pill {
     background: rgba(15, 23, 42, 0.75);
     color: #ffffff;
     font-size: 0.65rem;

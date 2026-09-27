@@ -265,4 +265,87 @@ describe('LightboxModal 作品切换箭头', () => {
 
     app.unmount();
   });
+
+  it('ArtworkCard 和 TaskCard 不在 card-tags 中显示批量 tag，而在 image-badge-overlay 显示共 N 张', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const asset1 = createMockAsset(1, '第一张');
+    const asset2 = createMockAsset(2, '第二张');
+    const batch = {
+      id: 'batch_test_1',
+      prompt: '多张测试',
+      model: 'gpt-image-2',
+      size: '1024x1024',
+      quality: 'medium',
+      duration: '2.0s',
+      timestamp: Date.now(),
+      assets: [asset1, asset2]
+    };
+
+    const app = createApp({
+      render() {
+        return h(ArtworkCard, { batch });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    // 验证 card-tags 里没有 batch-tag
+    expect(container.querySelector('.card-tags .batch-tag')).toBeNull();
+    // 验证 image-badge-overlay 里有 count-pill
+    const countPill = container.querySelector('.image-badge-overlay .count-pill');
+    expect(countPill).not.toBeNull();
+    expect(countPill?.textContent).toBe('共 2 张');
+
+    app.unmount();
+  });
+
+  it('Lightbox 切换到失败资产时大图区域展示失败提示信息且下载按钮禁用', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const failedAsset: MediaAsset = {
+      id: 999,
+      url: '',
+      blob: new Blob([]),
+      prompt: '触发拦截的提示词',
+      model: 'gpt-image-2',
+      size: '1024x1024',
+      quality: 'medium',
+      duration: '1.5s',
+      timestamp: Date.now(),
+      status: 'failed',
+      errorMessage: '生图失败: [内容安全审核拦截] 您的请求无法用于生成图像。'
+    };
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: failedAsset,
+          allAssets: [failedAsset]
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    // 大图区域应显示失败标题和详细信息
+    expect(container.querySelector('.viewport-failed-stage')).not.toBeNull();
+    expect(container.querySelector('.failed-title')?.textContent).toBe('安全拦截');
+    expect(container.querySelector('.failed-message')?.textContent).toContain('内容安全审核拦截');
+
+    // 详情面板应显示失败提示条
+    expect(container.querySelector('.failed-alert-banner')).not.toBeNull();
+    expect(container.querySelector('.alert-headline')?.textContent).toBe('安全拦截');
+
+    // 下载按钮应处于 disabled 状态
+    const downloadBtn = container.querySelector('.modal-actions .btn-primary') as HTMLButtonElement;
+    expect(downloadBtn.disabled).toBe(true);
+    expect(downloadBtn.textContent).toContain('未生成成功');
+
+    app.unmount();
+  });
 });

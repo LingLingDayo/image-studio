@@ -23,6 +23,8 @@ export interface MediaAsset {
   isFavorite?: boolean;
   type?: 't2i' | 'i2i';
   referenceImages?: string[];
+  status?: 'succeeded' | 'failed';
+  errorMessage?: string;
 }
 
 export interface ArtworkBatch {

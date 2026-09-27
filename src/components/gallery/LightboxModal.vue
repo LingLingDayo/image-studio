@@ -66,7 +66,12 @@ const currentBatchAssets = computed(() => {
 });
 const currentAssetIndex = computed(() => {
   if (!currentActiveItem.value || currentBatchAssets.value.length === 0) return 0;
-  const idx = currentBatchAssets.value.findIndex(a => a.id === currentActiveItem.value?.id || a.url === currentActiveItem.value?.url);
+  const idx = currentBatchAssets.value.findIndex(
+    (a) =>
+      (a.id && a.id === currentActiveItem.value?.id) ||
+      (a.url && a.url === currentActiveItem.value?.url) ||
+      a === currentActiveItem.value
+  );
   return idx !== -1 ? idx : 0;
 });
 
@@ -103,6 +108,10 @@ const configStore = useConfigStore();
 async function handleDownload() {
   const item = currentActiveItem.value;
   if (item) {
+    if (item.status === 'failed' || !item.url) {
+      emit('showToast', '当前图片未生成成功，无法下载', 'error');
+      return;
+    }
     const pattern = configStore.downloadFilenamePattern;
     const targetFormat = configStore.downloadImageFormat;
     const origExt = (item.format || 'png').replace(/^\./, '');

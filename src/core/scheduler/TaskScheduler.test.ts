@@ -282,5 +282,65 @@ describe('TaskScheduler & TaskProgressTracker', () => {
       expect(task.errorMessage).toContain('[内容安全审核拦截]');
       expect(task.errorMessage).toContain('content_policy_violation');
     });
+
+    it('多张生成时只要有成功的即视为任务成功，并持久化失败项记录供详情页查看', async () => {
+      const scheduler = new TaskScheduler();
+      const params: TaskGenerationParams = {
+        model: 'gpt-image-2',
+        prompt: 'batch with one success and one failure',
+        type: 't2i',
+        size: '1024x1024',
+        resolution: '1k',
+        quality: 'medium',
+        format: 'png',
+        transparent: false,
+        count: 2
+      };
+
+      let reqCount = 0;
+      globalThis.fetch = vi.fn().mockImplementation(async (_input: any, init?: RequestInit) => {
+        if (init?.method === 'POST') {
+          reqCount += 1;
+          if (reqCount === 1) {
+            // 第1张成功
+            return {
+              ok: true,
+              json: async () => ({
+                created: 1720000000,
+                data: [{ b64_json: 'iVBORw0KGgo=' }]
+              })
+            };
+          } else {
+            // 第2张模拟安全审核拦截
+            return new Response(
+              JSON.stringify({ error: { message: 'content_policy_violation: prompt was flagged' } }),
+              { status: 400, statusText: 'Bad Request' }
+            );
+          }
+        }
+        return {
+          ok: true,
+          blob: async () => new Blob(['png'], { type: 'image/png' })
+        };
+      });
+
+      const task = scheduler.createTask(params);
+      const assets = await scheduler.execute(
+        task,
+        { baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' },
+        GPT_IMAGE_2_PROFILE
+      );
+
+      expect(reqCount).toBe(2);
+      expect(task.status).toBe('succeeded');
+      expect(assets).toHaveLength(2);
+
+      const succeeded = assets.find((a) => a.status !== 'failed');
+      const failed = assets.find((a) => a.status === 'failed');
+
+      expect(succeeded).toBeDefined();
+      expect(failed).toBeDefined();
+      expect(failed?.errorMessage).toContain('[内容安全审核拦截]');
+    });
   });
 });

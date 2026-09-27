@@ -3,6 +3,7 @@ import type { ModelProfile } from '@/types/model';
 import type { ProviderConfig } from '@/types/provider';
 import type { MediaAsset } from '@/types/asset';
 import { defaultImagePipeline, type ImagePipeline } from '@/core/pipeline/ImagePipeline';
+import { assetRepository } from '@/core/storage/AssetRepository';
 import { formatThrownError } from '@/utils/apiError';
 
 export interface TaskExecuteCallbacks {
@@ -119,6 +120,8 @@ export class TaskScheduler {
 
     const total = Math.max(1, task.params.count || 1);
     const allAssets: MediaAsset[] = [];
+    const failedAssets: MediaAsset[] = [];
+    let lastError: any = null;
 
     task.status = 'processing';
     task.progress = 0;
@@ -136,24 +139,75 @@ export class TaskScheduler {
         }
 
         task.currentIndex = i + 1;
-        const assets = await this.executeSingleImage(
-          task,
-          config,
-          modelProfile,
-          controller.signal,
-          callbacks
-        );
-        allAssets.push(...assets);
-        callbacks?.onImageComplete?.(task, assets);
+        try {
+          const assets = await this.executeSingleImage(
+            task,
+            config,
+            modelProfile,
+            controller.signal,
+            callbacks
+          );
+          allAssets.push(...assets);
+          callbacks?.onImageComplete?.(task, assets);
+        } catch (err: any) {
+          if (controller.signal.aborted) {
+            throw err;
+          }
+          lastError = err;
+          const errorMsg = formatThrownError(err, '生图');
+          const failedAsset: MediaAsset = {
+            batchId: task.id,
+            url: '',
+            blob: new Blob([], { type: 'image/png' }),
+            prompt: task.params.prompt.trim(),
+            model: task.params.model || config.model || '',
+            size: task.params.size,
+            targetResolution: task.params.resolution,
+            targetRatio: task.params.aspectRatio,
+            targetSize: task.params.size,
+            ratio: task.params.aspectRatio || 'auto',
+            quality: task.params.quality,
+            format: task.params.format,
+            duration: task.durationFormatted || '0.0s',
+            timestamp: Date.now(),
+            isFavorite: false,
+            type: task.params.type,
+            referenceImages: task.params.referenceImages?.map((r) => r.previewUrl) || [],
+            status: 'failed',
+            errorMessage: errorMsg
+          };
+          failedAssets.push(failedAsset);
+        }
       }
 
-      task.status = 'succeeded';
-      task.progress = 100;
-      task.updatedAt = Date.now();
-      callbacks?.onProgress?.(task);
-      callbacks?.onStatusChange?.(task);
-      callbacks?.onSuccess?.(task, allAssets);
-      return allAssets;
+      const succeededAssets = allAssets.filter((a) => a.status !== 'failed');
+
+      // 只要有成功的就能够进入详情页
+      if (succeededAssets.length > 0) {
+        if (failedAssets.length > 0) {
+          const savedFailedList: MediaAsset[] = [];
+          for (const item of failedAssets) {
+            const saved = await assetRepository.save(item);
+            savedFailedList.push(saved);
+            if (saved.id) {
+              task.resultAssetIds.push(saved.id);
+            }
+          }
+          allAssets.push(...savedFailedList);
+          callbacks?.onImageComplete?.(task, savedFailedList);
+        }
+
+        task.status = 'succeeded';
+        task.progress = 100;
+        task.updatedAt = Date.now();
+        callbacks?.onProgress?.(task);
+        callbacks?.onStatusChange?.(task);
+        callbacks?.onSuccess?.(task, allAssets);
+        return allAssets;
+      }
+
+      // 如果全部失败
+      throw lastError || new Error('生成失败');
     } catch (err: any) {
       if (controller.signal.aborted) {
         task.status = 'cancelled';

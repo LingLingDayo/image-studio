@@ -6,7 +6,6 @@ import {
   Trash2, 
   Loader2, 
   AlertCircle,
-  Layers,
   Clock,
   CornerUpLeft
 } from '@lucide/vue';
@@ -145,10 +144,6 @@ const failDetail = computed(() => {
         </span>
         <span class="tag-badge">
           质量 {{ qualityChineseText }}
-        </span>
-        <span v-if="task.params.count > 1" class="tag-badge batch-tag">
-          <Layers :size="11" />
-          <span>批量 {{ task.params.count }} 张</span>
         </span>
         <span class="tag-badge time-tag" :data-tip="`创建时间：${fullTimeText}`">
           <Clock :size="11" />
@@ -336,10 +331,6 @@ const failDetail = computed(() => {
     border-radius: 4px;
     backdrop-filter: blur(8px);
     font-family: $font-mono;
-  }
-
-  .count-pill {
-    background: rgba(37, 99, 235, 0.85);
   }
 }
 

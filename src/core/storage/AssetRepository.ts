@@ -49,6 +49,21 @@ class AssetRepository {
   }
 
   private async toStoredRecord(asset: Omit<MediaAsset, 'id'> | MediaAsset): Promise<StoredAsset> {
+    if (asset.status === 'failed') {
+      const { blob: _blob, url: _url, ...rest } = asset;
+      const record: any = {
+        ...rest,
+        url: '',
+        imageBytes: new ArrayBuffer(0),
+        imageMime: '',
+        isFavorite: false
+      };
+      if ('id' in asset && asset.id !== undefined) {
+        record.id = asset.id;
+      }
+      return record as StoredAsset;
+    }
+
     if (!(asset.blob instanceof Blob) || asset.blob.size === 0) {
       throw new Error('保存失败: 缺少本地图像数据');
     }
@@ -68,6 +83,12 @@ class AssetRepository {
 
   private fromStoredRecord(record: StoredAsset): MediaAsset {
     const { imageBytes, imageMime, ...rest } = record;
+    if (rest.status === 'failed' || !imageBytes || imageBytes.byteLength === 0) {
+      return {
+        ...rest,
+        blob: new Blob([])
+      };
+    }
     return {
       ...rest,
       blob: new Blob([imageBytes], { type: imageMime || 'image/png' })
@@ -75,6 +96,9 @@ class AssetRepository {
   }
 
   private hydrateAsset(asset: MediaAsset): MediaAsset {
+    if (asset.status === 'failed' || !asset.blob || asset.blob.size === 0) {
+      return { ...asset, url: '' };
+    }
     if (asset.id) {
       this.revokeDisplayUrl(asset.id);
     }

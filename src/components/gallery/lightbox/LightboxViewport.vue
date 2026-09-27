@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import type { MediaAsset } from '@/types/asset';
 import { 
   ZoomIn, 
@@ -7,10 +7,12 @@ import {
   RotateCw, 
   Maximize2, 
   ChevronLeft, 
-  ChevronRight 
+  ChevronRight,
+  AlertCircle
 } from '@lucide/vue';
+import { getErrorHeadline } from '@/utils/apiError';
 
-defineProps<{
+const props = defineProps<{
   activeItem: MediaAsset;
   batchAssets: MediaAsset[];
   currentIndex: number;
@@ -37,6 +39,10 @@ const emit = defineEmits<{
 
 const containerRef = ref<HTMLElement | null>(null);
 
+const headlineText = computed(() => {
+  return getErrorHeadline(props.activeItem.errorMessage);
+});
+
 defineExpose({
   containerRef
 });
@@ -52,7 +58,23 @@ defineExpose({
     @mousedown="emit('mousedown', $event)"
     @dblclick="emit('dblclick', $event)"
   >
+    <!-- 失败状态大图视口展示 -->
+    <div v-if="activeItem.status === 'failed' || !activeItem.url" class="viewport-failed-stage">
+      <div class="failed-card-box">
+        <div class="failed-icon-wrap">
+          <AlertCircle :size="48" class="fail-icon" />
+        </div>
+        <h3 class="failed-title">{{ headlineText }}</h3>
+        <p class="failed-message">{{ activeItem.errorMessage || '该图像生成失败，未返回具体原因' }}</p>
+        <p class="failed-hint">
+          此批次中的当前项未生成成功。您可以点击切换按钮查看已成功的图片，或在右侧面板复用提示词重新生成。
+        </p>
+      </div>
+    </div>
+
+    <!-- 正常图片视口展示 -->
     <div 
+      v-else
       class="image-stage"
       :style="{
         transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
@@ -81,8 +103,15 @@ defineExpose({
       </button>
     </div>
 
-    <!-- 浮动半透明工具栏 (hover 显示) -->
-    <div class="image-floating-toolbar" @pointerdown.stop @mousedown.stop @wheel.stop @dblclick.stop>
+    <!-- 浮动半透明工具栏 (hover 显示，仅在图片正常时呈现) -->
+    <div 
+      v-if="activeItem.status !== 'failed' && activeItem.url"
+      class="image-floating-toolbar" 
+      @pointerdown.stop 
+      @mousedown.stop 
+      @wheel.stop 
+      @dblclick.stop
+    >
       <button class="tool-btn" data-tip="缩小 (滚轮向下)" @click="emit('zoomOut')">
         <ZoomOut :size="15" />
       </button>
@@ -140,6 +169,71 @@ defineExpose({
 
   &.is-dragging {
     cursor: grabbing;
+  }
+}
+
+.viewport-failed-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  z-index: 1;
+
+  .failed-card-box {
+    max-width: 480px;
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 12px;
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  }
+
+  .failed-icon-wrap {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #fef2f2;
+    color: $danger;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+
+  .failed-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #991b1b;
+    margin: 0 0 10px 0;
+  }
+
+  .failed-message {
+    font-size: 0.88rem;
+    color: #dc2626;
+    background: #fff5f5;
+    border: 1px solid #fee2e2;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: 0 0 14px 0;
+    line-height: 1.5;
+    word-break: break-word;
+    text-align: left;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .failed-hint {
+    font-size: 0.78rem;
+    color: $text-secondary;
+    line-height: 1.45;
+    margin: 0;
   }
 }
 

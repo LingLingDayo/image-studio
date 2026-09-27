@@ -14,8 +14,10 @@ import {
   Sliders,
   Image as ImageIcon,
   Timer,
-  Clock
+  Clock,
+  AlertCircle
 } from '@lucide/vue';
+import { getErrorHeadline } from '@/utils/apiError';
 
 const props = defineProps<{
   item: MediaAsset;
@@ -32,6 +34,9 @@ const emit = defineEmits<{
 }>();
 
 const isCopied = ref(false);
+
+const isFailed = computed(() => props.item.status === 'failed');
+const failHeadline = computed(() => getErrorHeadline(props.item.errorMessage));
 
 // 模型优化提示词有效性判定（存在且不等于原提示词）
 const hasRevisedPrompt = computed(() => {
@@ -55,6 +60,7 @@ const presetResolution = computed(() => {
 });
 
 const actualResolution = computed(() => {
+  if (isFailed.value) return '-';
   if (props.item.width && props.item.height) {
     return inferResolutionTier(Math.max(props.item.width, props.item.height)).toUpperCase();
   }
@@ -70,6 +76,7 @@ const presetRatio = computed(() => {
 });
 
 const actualRatio = computed(() => {
+  if (isFailed.value) return '-';
   return formatActualRatio(props.item.ratio, {
     width: props.item.width,
     height: props.item.height
@@ -88,6 +95,7 @@ const presetSize = computed(() => {
 });
 
 const actualDimension = computed(() => {
+  if (isFailed.value) return '失败';
   if (props.item.width && props.item.height) {
     return `${props.item.width}×${props.item.height}`;
   }
@@ -100,6 +108,7 @@ const presetQuality = computed(() => {
 });
 
 const actualFormat = computed(() => {
+  if (isFailed.value) return '-';
   return (props.item.format || 'png').toUpperCase();
 });
 
@@ -127,6 +136,7 @@ async function handleCopyPrompt() {
       <div class="header-title-wrap">
         <h3>作品详情</h3>
         <button 
+          v-if="!isFailed"
           class="btn-fav" 
           :class="{ 'is-fav': item.isFavorite }" 
           :data-tip="item.isFavorite ? '取消收藏' : '收藏此图'"
@@ -138,114 +148,129 @@ async function handleCopyPrompt() {
     </div>
 
     <div class="info-scroll">
-    <!-- 提示词 -->
-    <div class="info-block">
-      <div class="block-label">
-        <span>提示词</span>
-        <button class="btn-text-copy" @click="handleCopyPrompt">
-          <Check v-if="isCopied" :size="13" />
-          <Copy v-else :size="13" />
-          <span>{{ isCopied ? '已复制' : '复制' }}</span>
-        </button>
+      <!-- 失败状态提示横幅 -->
+      <div v-if="isFailed" class="failed-alert-banner">
+        <AlertCircle :size="16" class="alert-icon" />
+        <div class="alert-text-wrap">
+          <span class="alert-headline">{{ failHeadline }}</span>
+          <span class="alert-detail">{{ item.errorMessage || '生图失败' }}</span>
+        </div>
       </div>
-      <div class="prompt-box">
-        {{ item.prompt }}
-      </div>
-    </div>
 
-    <!-- 模型优化提示词 (如有且与原提示词不同) -->
-    <div v-if="hasRevisedPrompt" class="info-block">
-      <span class="block-label">模型优化提示词</span>
-      <div class="prompt-box revised">
-        {{ item.revisedPrompt }}
+      <!-- 提示词 -->
+      <div class="info-block">
+        <div class="block-label">
+          <span>提示词</span>
+          <button class="btn-text-copy" @click="handleCopyPrompt">
+            <Check v-if="isCopied" :size="13" />
+            <Copy v-else :size="13" />
+            <span>{{ isCopied ? '已复制' : '复制' }}</span>
+          </button>
+        </div>
+        <div class="prompt-box">
+          {{ item.prompt }}
+        </div>
       </div>
-    </div>
 
-    <!-- 参数与规格看板 (单层一体化布局) -->
-    <div class="params-dashboard">
-      <!-- 核心规格双栏对比区 -->
-      <div class="specs-grid">
-        <!-- 左栏：生图设定 (4项核心维度) -->
-        <div class="spec-column preset-column">
-          <div class="spec-column-header">
-            <div class="header-title">
-              <Sliders :size="12" />
-              <span>生图设定</span>
+      <!-- 模型优化提示词 (如有且与原提示词不同) -->
+      <div v-if="hasRevisedPrompt" class="info-block">
+        <span class="block-label">模型优化提示词</span>
+        <div class="prompt-box revised">
+          {{ item.revisedPrompt }}
+        </div>
+      </div>
+
+      <!-- 参数与规格看板 (单层一体化布局) -->
+      <div class="params-dashboard">
+        <!-- 核心规格双栏对比区 -->
+        <div class="specs-grid">
+          <!-- 左栏：生图设定 (4项核心维度) -->
+          <div class="spec-column preset-column">
+            <div class="spec-column-header">
+              <div class="header-title">
+                <Sliders :size="12" />
+                <span>生图设定</span>
+              </div>
+              <span class="mode-mini-tag" :class="presetTypeLabel === '图生图' ? 'is-i2i' : 'is-t2i'">
+                {{ presetTypeLabel }}
+              </span>
             </div>
-            <span class="mode-mini-tag" :class="presetTypeLabel === '图生图' ? 'is-i2i' : 'is-t2i'">
-              {{ presetTypeLabel }}
-            </span>
-          </div>
-          <div class="spec-item">
-            <span class="spec-k">设定分辨率</span>
-            <span class="spec-v">{{ presetResolution }}</span>
-          </div>
-          <div class="spec-item">
-            <span class="spec-k">设定比例</span>
-            <span class="spec-v">{{ presetRatio }}</span>
-          </div>
-          <div class="spec-item">
-            <span class="spec-k">设定尺寸</span>
-            <span class="spec-v">{{ presetSize }}</span>
-          </div>
-          <div class="spec-item">
-            <span class="spec-k">设定画质</span>
-            <span class="spec-v">{{ presetQuality }}</span>
-          </div>
-        </div>
-
-        <!-- 右栏：实际结果 (4项核心维度) -->
-        <div class="spec-column output-column">
-          <div class="spec-column-header">
-            <div class="header-title">
-              <ImageIcon :size="12" />
-              <span>实际结果</span>
+            <div class="spec-item">
+              <span class="spec-k">设定分辨率</span>
+              <span class="spec-v">{{ presetResolution }}</span>
             </div>
-            <span v-if="item.transparent" class="mode-mini-tag is-transparent">
-              透明底
-            </span>
+            <div class="spec-item">
+              <span class="spec-k">设定比例</span>
+              <span class="spec-v">{{ presetRatio }}</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-k">设定尺寸</span>
+              <span class="spec-v">{{ presetSize }}</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-k">设定画质</span>
+              <span class="spec-v">{{ presetQuality }}</span>
+            </div>
           </div>
-          <div class="spec-item">
-            <span class="spec-k">实际分辨率</span>
-            <span class="spec-v">{{ actualResolution }}</span>
-          </div>
-          <div class="spec-item">
-            <span class="spec-k">实际比例</span>
-            <span class="spec-v">{{ actualRatio }}</span>
-          </div>
-          <div class="spec-item">
-            <span class="spec-k">真实尺寸</span>
-            <span class="spec-v highlight-mono">{{ actualDimension }}</span>
-          </div>
-          <div class="spec-item">
-            <span class="spec-k">图像格式</span>
-            <span class="spec-v">{{ actualFormat }}</span>
-          </div>
-        </div>
-      </div>
 
-      <!-- 底部一体化元数据栏 -->
-      <div class="meta-footer">
-        <div class="meta-stat-item" :data-tip="`生成耗时: ${item.duration || '-'}`">
-          <Timer :size="12" class="stat-icon" />
-          <span class="stat-k">耗时</span>
-          <span class="stat-v">{{ item.duration || '-' }}</span>
+          <!-- 右栏：实际结果 (4项核心维度) -->
+          <div class="spec-column output-column">
+            <div class="spec-column-header">
+              <div class="header-title">
+                <ImageIcon :size="12" />
+                <span>实际结果</span>
+              </div>
+              <span v-if="item.transparent" class="mode-mini-tag is-transparent">
+                透明底
+              </span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-k">实际分辨率</span>
+              <span class="spec-v">{{ actualResolution }}</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-k">实际比例</span>
+              <span class="spec-v">{{ actualRatio }}</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-k">真实尺寸</span>
+              <span class="spec-v highlight-mono">{{ actualDimension }}</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-k">图像格式</span>
+              <span class="spec-v">{{ actualFormat }}</span>
+            </div>
+          </div>
         </div>
-        <div class="meta-stat-divider"></div>
-        <div class="meta-stat-item" :data-tip="`创建时间: ${formatFullTime(item.timestamp)}`">
-          <Clock :size="12" class="stat-icon" />
-          <span class="stat-k">时间</span>
-          <span class="stat-v">{{ formatFullTime(item.timestamp) }}</span>
+
+        <!-- 底部一体化元数据栏 -->
+        <div class="meta-footer">
+          <div class="meta-stat-item" :data-tip="`生成耗时: ${item.duration || '-'}`">
+            <Timer :size="12" class="stat-icon" />
+            <span class="stat-k">耗时</span>
+            <span class="stat-v">{{ item.duration || '-' }}</span>
+          </div>
+          <div class="meta-stat-divider"></div>
+          <div class="meta-stat-item" :data-tip="`创建时间: ${formatFullTime(item.timestamp)}`">
+            <Clock :size="12" class="stat-icon" />
+            <span class="stat-k">时间</span>
+            <span class="stat-v">{{ formatFullTime(item.timestamp) }}</span>
+          </div>
         </div>
       </div>
-    </div>
     </div>
 
     <!-- 底部操作按钮 -->
     <div class="modal-actions">
-      <button class="btn-primary full-width" @click="emit('download')">
+      <button 
+        class="btn-primary full-width" 
+        :class="{ 'is-disabled': isFailed }"
+        :disabled="isFailed"
+        :data-tip="isFailed ? '当前图片未生成成功，无法下载' : undefined"
+        @click="!isFailed && emit('download')"
+      >
         <Download :size="16" />
-        <span>{{ rotation % 360 !== 0 ? `下载旋转 (${((rotation % 360) + 360) % 360}°) 原图` : '下载原图' }}</span>
+        <span>{{ isFailed ? '未生成成功' : (rotation % 360 !== 0 ? `下载旋转 (${((rotation % 360) + 360) % 360}°) 原图` : '下载原图') }}</span>
       </button>
 
       <div class="action-btn-row">
@@ -254,12 +279,18 @@ async function handleCopyPrompt() {
           <span>复用参数</span>
         </button>
 
-        <button class="btn-secondary flex-1" @click="emit('editAsReference', item)">
+        <button 
+          class="btn-secondary flex-1" 
+          :class="{ 'is-disabled': isFailed }"
+          :disabled="isFailed"
+          :data-tip="isFailed ? '无可用参考图' : undefined"
+          @click="!isFailed && emit('editAsReference', item)"
+        >
           <Edit3 :size="15" />
           <span>以此图编辑</span>
         </button>
 
-        <button class="btn-danger-outline btn-icon" data-tip="删除此图片" @click="item.id && emit('delete', item.id)">
+        <button class="btn-danger-outline btn-icon" data-tip="删除此记录" @click="item.id && emit('delete', item.id)">
           <Trash2 :size="15" />
         </button>
       </div>
@@ -294,6 +325,48 @@ async function handleCopyPrompt() {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.failed-alert-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+
+  .alert-icon {
+    color: $danger;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .alert-text-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .alert-headline {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #991b1b;
+  }
+
+  .alert-detail {
+    font-size: 0.76rem;
+    color: #b91c1c;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+}
+
+.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed !important;
+  pointer-events: none;
 }
 
 .info-header {
