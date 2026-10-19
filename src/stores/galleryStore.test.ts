@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
-import { useGalleryStore, PAGE_SIZE_STORAGE_KEY, DEFAULT_PAGE_SIZE } from './galleryStore';
+import { 
+  useGalleryStore, 
+  PAGE_SIZE_STORAGE_KEY, 
+  FILTER_FAVORITE_STORAGE_KEY, 
+  DEFAULT_PAGE_SIZE 
+} from './galleryStore';
 import type { MediaAsset } from '@/types/asset';
 
 function createMockAsset(id: number, prompt: string = 'test prompt'): MediaAsset {
@@ -186,6 +191,34 @@ describe('useGalleryStore Pagination', () => {
     expect(store.batches[0].targetSize).toBe('auto');
     expect(store.batches[0].width).toBe(1920);
     expect(store.batches[0].height).toBe(1080);
+  });
+
+  it('should persist favorite status and restore after reload', async () => {
+    const store = useGalleryStore();
+    const mock = createMockAsset(1, 'Cyberpunk test');
+    const { id: _id, ...assetWithoutId } = mock;
+    const saved = await store.addItem(assetWithoutId);
+    expect(saved.isFavorite).toBe(false);
+
+    await store.toggleFavorite(saved.id as number);
+    expect(store.items[0].isFavorite).toBe(true);
+
+    const store2 = useGalleryStore();
+    await store2.loadGallery();
+    expect(store2.items[0].isFavorite).toBe(true);
+  });
+
+  it('should persist filterFavoriteOnly to localStorage', async () => {
+    const store = useGalleryStore();
+    expect(store.filterFavoriteOnly).toBe(false);
+
+    store.filterFavoriteOnly = true;
+    // wait for watch trigger
+    await new Promise((r) => setTimeout(r, 0));
+    expect(localStorage.getItem(FILTER_FAVORITE_STORAGE_KEY)).toBe('true');
+
+    const store2 = useGalleryStore();
+    expect(store2.filterFavoriteOnly).toBe(true);
   });
 });
 

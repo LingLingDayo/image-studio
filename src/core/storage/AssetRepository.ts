@@ -48,11 +48,38 @@ class AssetRepository {
     return this.dbPromise;
   }
 
+  private extractPlainMetadata(asset: Omit<MediaAsset, 'id'> | MediaAsset): Omit<StoredAsset, 'imageBytes' | 'imageMime' | 'url'> {
+    return {
+      batchId: asset.batchId,
+      prompt: asset.prompt || '',
+      revisedPrompt: asset.revisedPrompt,
+      model: asset.model || '',
+      size: asset.size || '',
+      ratio: asset.ratio,
+      width: asset.width,
+      height: asset.height,
+      targetResolution: asset.targetResolution,
+      targetRatio: asset.targetRatio,
+      targetSize: asset.targetSize,
+      quality: asset.quality || '',
+      format: asset.format,
+      transparent: asset.transparent,
+      duration: asset.duration || '',
+      timestamp: asset.timestamp || Date.now(),
+      isFavorite: Boolean(asset.isFavorite),
+      type: asset.type,
+      referenceImages: asset.referenceImages ? [...asset.referenceImages] : [],
+      status: asset.status,
+      errorMessage: asset.errorMessage
+    };
+  }
+
   private async toStoredRecord(asset: Omit<MediaAsset, 'id'> | MediaAsset): Promise<StoredAsset> {
+    const meta = this.extractPlainMetadata(asset);
+
     if (asset.status === 'failed') {
-      const { blob: _blob, url: _url, ...rest } = asset;
-      const record: any = {
-        ...rest,
+      const record: StoredAsset = {
+        ...meta,
         url: '',
         imageBytes: new ArrayBuffer(0),
         imageMime: '',
@@ -61,24 +88,23 @@ class AssetRepository {
       if ('id' in asset && asset.id !== undefined) {
         record.id = asset.id;
       }
-      return record as StoredAsset;
+      return record;
     }
 
     if (!(asset.blob instanceof Blob) || asset.blob.size === 0) {
       throw new Error('保存失败: 缺少本地图像数据');
     }
-    const { blob, url: _url, ...rest } = asset;
-    const record: any = {
-      ...rest,
+
+    const record: StoredAsset = {
+      ...meta,
       url: '',
-      imageBytes: await blob.arrayBuffer(),
-      imageMime: blob.type || 'image/png',
-      isFavorite: asset.isFavorite || false
+      imageBytes: await asset.blob.arrayBuffer(),
+      imageMime: asset.blob.type || 'image/png'
     };
     if ('id' in asset && asset.id !== undefined) {
       record.id = asset.id;
     }
-    return record as StoredAsset;
+    return record;
   }
 
   private fromStoredRecord(record: StoredAsset): MediaAsset {
@@ -86,11 +112,13 @@ class AssetRepository {
     if (rest.status === 'failed' || !imageBytes || imageBytes.byteLength === 0) {
       return {
         ...rest,
+        isFavorite: Boolean(rest.isFavorite),
         blob: new Blob([])
       };
     }
     return {
       ...rest,
+      isFavorite: Boolean(rest.isFavorite),
       blob: new Blob([imageBytes], { type: imageMime || 'image/png' })
     };
   }
@@ -140,15 +168,63 @@ class AssetRepository {
   }
 
   public async update(asset: MediaAsset): Promise<boolean> {
-    if (!asset.id) return false;
-    const stored = await this.toStoredRecord(asset);
+    const assetId = asset.id;
+    if (!assetId) return false;
     const db = await this.getDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(ASSET_STORE, 'readwrite');
       const store = tx.objectStore(ASSET_STORE);
-      const req = store.put({ ...stored, id: asset.id });
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
+      const getReq = store.get(assetId);
+      getReq.onsuccess = async () => {
+        const existing = getReq.result as StoredAsset | undefined;
+        if (!existing) {
+          resolve(false);
+          return;
+        }
+
+        const meta = this.extractPlainMetadata(asset);
+        let imageBytes = existing.imageBytes;
+        let imageMime = existing.imageMime;
+
+        if (asset.blob instanceof Blob && asset.blob.size > 0 && asset.blob.size !== existing.imageBytes?.byteLength) {
+          imageBytes = await asset.blob.arrayBuffer();
+          imageMime = asset.blob.type || existing.imageMime || 'image/png';
+        }
+
+        const updated: StoredAsset = {
+          ...meta,
+          id: assetId,
+          url: '',
+          imageBytes,
+          imageMime
+        };
+
+        const putReq = store.put(updated);
+        putReq.onsuccess = () => resolve(true);
+        putReq.onerror = () => reject(putReq.error);
+      };
+      getReq.onerror = () => reject(getReq.error);
+    });
+  }
+
+  public async updateFavorite(id: number, isFavorite: boolean): Promise<boolean> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(ASSET_STORE, 'readwrite');
+      const store = tx.objectStore(ASSET_STORE);
+      const getReq = store.get(id);
+      getReq.onsuccess = () => {
+        const record = getReq.result as StoredAsset | undefined;
+        if (!record) {
+          resolve(false);
+          return;
+        }
+        record.isFavorite = Boolean(isFavorite);
+        const putReq = store.put(record);
+        putReq.onsuccess = () => resolve(true);
+        putReq.onerror = () => reject(putReq.error);
+      };
+      getReq.onerror = () => reject(getReq.error);
     });
   }
 

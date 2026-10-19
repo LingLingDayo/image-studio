@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { reactive } from 'vue';
 import { assetRepository } from './AssetRepository';
 import { dataUrlToBlob } from './imageBlob';
 import type { MediaAsset } from '@/types/asset';
@@ -75,5 +76,28 @@ describe('AssetRepository (AssetRepository.ts)', () => {
     await expect(
       assetRepository.save(createAsset({ blob: new Blob([]) }))
     ).rejects.toThrow('缺少本地图像数据');
+  });
+
+  it('should update favorite flag using updateFavorite directly', async () => {
+    const saved = await assetRepository.save(createAsset({ prompt: 'fav test' }));
+    expect(saved.isFavorite).toBe(false);
+
+    await assetRepository.updateFavorite(saved.id as number, true);
+    let all = await assetRepository.getAll();
+    expect(all[0].isFavorite).toBe(true);
+
+    await assetRepository.updateFavorite(saved.id as number, false);
+    all = await assetRepository.getAll();
+    expect(all[0].isFavorite).toBe(false);
+  });
+
+  it('should safely update assets wrapped in Vue reactive proxies without DataCloneError', async () => {
+    const saved = await assetRepository.save(createAsset({ prompt: 'proxy test' }));
+    const proxiedAsset = reactive({ ...saved, isFavorite: true, referenceImages: ['blob:ref1'] });
+    await expect(assetRepository.update(proxiedAsset)).resolves.toBe(true);
+
+    const all = await assetRepository.getAll();
+    expect(all[0].isFavorite).toBe(true);
+    expect(all[0].referenceImages).toEqual(['blob:ref1']);
   });
 });

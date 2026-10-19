@@ -4,6 +4,7 @@ import type { MediaAsset, ArtworkBatch } from '@/types/asset';
 import { assetRepository } from '@/core/storage/AssetRepository';
 
 export const PAGE_SIZE_STORAGE_KEY = 'gpt_image_page_size';
+export const FILTER_FAVORITE_STORAGE_KEY = 'gpt_image_filter_favorite';
 export const DEFAULT_PAGE_SIZE = 24;
 export const PAGE_SIZE_OPTIONS = [12, 24, 36, 48, 96];
 
@@ -12,10 +13,16 @@ export const useGalleryStore = defineStore('gallery', () => {
   const activeItem = ref<MediaAsset | null>(null);
   const isLoading = ref<boolean>(false);
 
-  // 筛选状态
+  // 筛选状态与持久化
   const searchQuery = ref<string>('');
-  const filterFavoriteOnly = ref<boolean>(false);
+  const filterFavoriteOnly = ref<boolean>(
+    localStorage.getItem(FILTER_FAVORITE_STORAGE_KEY) === 'true'
+  );
   const filterType = ref<'all' | 't2i' | 'i2i'>('all');
+
+  watch(filterFavoriteOnly, (val) => {
+    localStorage.setItem(FILTER_FAVORITE_STORAGE_KEY, String(val));
+  });
 
   // 分页状态与持久化
   const rawSavedSize = Number(localStorage.getItem(PAGE_SIZE_STORAGE_KEY));
@@ -30,7 +37,7 @@ export const useGalleryStore = defineStore('gallery', () => {
     const result: ArtworkBatch[] = [];
 
     for (const item of items.value) {
-      const groupKey = item.batchId ? `batch_${item.batchId}` : `single_${item.id || item.timestamp}_${Math.random()}`;
+      const groupKey = item.batchId ? `batch_${item.batchId}` : `single_${item.id || item.timestamp}`;
 
       if (item.batchId && map.has(groupKey)) {
         const batch = map.get(groupKey)!;
@@ -227,7 +234,12 @@ export const useGalleryStore = defineStore('gallery', () => {
     const item = items.value.find((i) => i.id === id);
     if (item) {
       item.isFavorite = !item.isFavorite;
-      await assetRepository.update(item);
+      try {
+        await assetRepository.updateFavorite(id, item.isFavorite);
+      } catch (err) {
+        console.error('更新收藏状态失败:', err);
+        item.isFavorite = !item.isFavorite;
+      }
     }
   }
 

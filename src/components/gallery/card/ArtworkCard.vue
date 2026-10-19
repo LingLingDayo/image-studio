@@ -316,7 +316,7 @@ async function handleDownload() {
         <button 
           class="card-action-btn" 
           :class="{ 'is-favorite': currentAsset.isFavorite }"
-          data-tip="收藏此图"
+          :data-tip="currentAsset.isFavorite ? '取消收藏' : '收藏此图'"
           @click.stop="currentAsset.id && emit('toggleFavorite', currentAsset.id)"
         >
           <Star :size="15" :class="{ 'star-filled': currentAsset.isFavorite }" />
