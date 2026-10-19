@@ -299,6 +299,18 @@ describe('LightboxModal 作品切换箭头', () => {
     expect(countPill).not.toBeNull();
     expect(countPill?.textContent).toBe('共 2 张');
 
+    // 验证右上角小圆点切换菜单已移除，只保留底部精简切换条
+    expect(container.querySelector('.carousel-dots-wrap')).toBeNull();
+    const carouselNav = container.querySelector('.carousel-nav-overlay');
+    expect(carouselNav).not.toBeNull();
+    expect(container.querySelector('.carousel-counter')?.textContent).toBe('1 / 2');
+
+    // 点击下一张切换图片
+    const nextBtn = container.querySelector('.carousel-arrow.right-arrow') as HTMLButtonElement;
+    nextBtn.click();
+    await nextTick();
+    expect(container.querySelector('.carousel-counter')?.textContent).toBe('2 / 2');
+
     app.unmount();
   });
 

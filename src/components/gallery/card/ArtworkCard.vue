@@ -177,10 +177,6 @@ function handleNextImage(e: Event) {
   currentAssetIndex.value = (currentAssetIndex.value + 1) % total;
 }
 
-function handleSelectImage(idx: number, e: Event) {
-  e.stopPropagation();
-  currentAssetIndex.value = idx;
-}
 
 function handleCardClick() {
   if (currentAsset.value) {
@@ -241,14 +237,15 @@ async function handleDownload() {
         <span v-if="assetsList.length > 1" class="count-pill">共 {{ assetsList.length }} 张</span>
       </div>
 
-      <!-- 多图轮播切换左右按钮 (当多于 1 张时展示) -->
+      <!-- 多图轮播切换左右按钮 (当多于 1 张时展示，hover 卡片图片时浮现) -->
       <div v-if="assetsList.length > 1" class="carousel-nav-overlay" @click.stop>
         <button 
           class="carousel-arrow left-arrow" 
           data-tip="上一张"
+          aria-label="上一张"
           @click="handlePrevImage"
         >
-          <ChevronLeft :size="14" />
+          <ChevronLeft :size="12" />
         </button>
 
         <span class="carousel-counter">{{ currentAssetIndex + 1 }} / {{ assetsList.length }}</span>
@@ -256,21 +253,11 @@ async function handleDownload() {
         <button 
           class="carousel-arrow right-arrow" 
           data-tip="下一张"
+          aria-label="下一张"
           @click="handleNextImage"
         >
-          <ChevronRight :size="14" />
+          <ChevronRight :size="12" />
         </button>
-      </div>
-
-      <!-- 底部图片小圆点指示器 -->
-      <div v-if="assetsList.length > 1" class="carousel-dots-wrap" @click.stop>
-        <span 
-          v-for="(_, idx) in assetsList" 
-          :key="idx" 
-          class="carousel-dot"
-          :class="{ active: idx === currentAssetIndex }"
-          @click="handleSelectImage(idx, $event)"
-        ></span>
       </div>
     </div>
 
@@ -407,6 +394,14 @@ async function handleDownload() {
   &:hover img {
     transform: scale(1.03);
   }
+
+  &:hover .carousel-nav-overlay,
+  &:focus-within .carousel-nav-overlay {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translate(-50%, 0);
+  }
 }
 
 .card-failed-placeholder {
@@ -449,76 +444,64 @@ async function handleDownload() {
   }
 }
 
-/* 多图轮播浮动控制器 */
+/* 多图轮播浮动控制器 (精简紧凑胶囊设计，仅在 hover 图片时浮现) */
 .carousel-nav-overlay {
   position: absolute;
   bottom: 6px;
-  left: 6px;
-  right: 6px;
-  display: flex;
+  left: 50%;
+  transform: translate(-50%, 4px);
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  background: rgba(15, 23, 42, 0.65);
+  gap: 2px;
+  background: rgba(15, 23, 42, 0.76);
   backdrop-filter: blur(8px);
-  padding: 2px 4px;
+  -webkit-backdrop-filter: blur(8px);
+  padding: 1.5px 5px;
   border-radius: 9999px;
   z-index: 3;
-  opacity: 0.9;
-  transition: opacity 0.2s ease;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+              transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+              visibility 0.2s ease;
 
   .carousel-arrow {
     background: transparent;
     border: none;
     color: #ffffff;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.15s ease;
+    padding: 0;
+    line-height: 1;
+    transition: background-color 0.15s ease, transform 0.15s ease;
 
     &:hover {
       background: rgba(255, 255, 255, 0.25);
-      transform: scale(1.15);
+      transform: scale(1.1);
+    }
+
+    &:active {
+      transform: scale(0.95);
     }
   }
 
   .carousel-counter {
     color: #ffffff;
     font-family: $font-mono;
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     font-weight: 600;
-  }
-}
-
-.carousel-dots-wrap {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  z-index: 3;
-  background: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(6px);
-  padding: 2px 4px;
-  border-radius: 9999px;
-
-  .carousel-dot {
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.45);
-    cursor: pointer;
-    transition: all 0.15s ease;
-
-    &.active {
-      background: #60a5fa;
-      width: 8px;
-      border-radius: 9999px;
-    }
+    line-height: 1;
+    padding: 0 3px;
+    letter-spacing: 0.5px;
+    user-select: none;
+    white-space: nowrap;
   }
 }
 
