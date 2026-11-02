@@ -360,4 +360,32 @@ describe('LightboxModal 作品切换箭头', () => {
 
     app.unmount();
   });
+
+  it('灯箱详情只展示输入框发送的原始提示词，不展示模型优化后的生图提示词', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const asset = createMockAsset(1, '一只坐在窗边的橘猫');
+    asset.revisedPrompt = 'A highly detailed orange tabby cat sitting by a sunlit window, cinematic lighting';
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: asset,
+          allAssets: [asset]
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const promptText = container.querySelector('.prompt-box')?.textContent ?? '';
+    expect(promptText).toContain('一只坐在窗边的橘猫');
+    expect(promptText).not.toContain('highly detailed orange tabby');
+    expect(container.textContent).not.toContain('模型优化提示词');
+    expect(container.textContent).not.toContain(asset.revisedPrompt);
+
+    app.unmount();
+  });
 });

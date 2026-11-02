@@ -38,14 +38,6 @@ const isCopied = ref(false);
 const isFailed = computed(() => props.item.status === 'failed');
 const failHeadline = computed(() => getErrorHeadline(props.item.errorMessage));
 
-// 模型优化提示词有效性判定（存在且不等于原提示词）
-const hasRevisedPrompt = computed(() => {
-  if (!props.item.revisedPrompt) return false;
-  const revised = props.item.revisedPrompt.trim();
-  const origin = (props.item.prompt || '').trim();
-  return revised !== '' && revised !== origin;
-});
-
 // 生图模式标签
 const presetTypeLabel = computed(() => {
   return props.item.type === 'i2i' || (props.item.referenceImages && props.item.referenceImages.length > 0) ? '图生图' : '文生图';
@@ -169,14 +161,6 @@ async function handleCopyPrompt() {
         </div>
         <div class="prompt-box">
           {{ item.prompt }}
-        </div>
-      </div>
-
-      <!-- 模型优化提示词 (如有且与原提示词不同) -->
-      <div v-if="hasRevisedPrompt" class="info-block">
-        <span class="block-label">模型优化提示词</span>
-        <div class="prompt-box revised">
-          {{ item.revisedPrompt }}
         </div>
       </div>
 
@@ -471,11 +455,6 @@ async function handleCopyPrompt() {
   max-height: 140px;
   overflow-y: auto;
   word-break: break-word;
-
-  &.revised {
-    color: $text-secondary;
-    font-style: italic;
-  }
 }
 
 .params-dashboard {
