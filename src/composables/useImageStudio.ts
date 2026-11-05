@@ -14,6 +14,7 @@ import {
 } from '@/types/model';
 import type { MediaAsset, ArtworkBatch } from '@/types/asset';
 import { dataUrlToFile } from '@/utils/download';
+import { calculateImageDimensions } from '@/utils/image';
 import {
   applyAspectRatioChange,
   applyHeightChange,
@@ -22,6 +23,7 @@ import {
   applyWidthChange,
   formatSizeParam,
   hydrateImageSizeFromSettings,
+  isReferenceRatio,
   materializeSize,
   type ImageSizeState
 } from '@/utils/imageSize';
@@ -34,6 +36,13 @@ export function useImageStudio() {
   const galleryStore = useGalleryStore();
 
   const prompt = ref<string>('');
+  const referenceImages = ref<TaskReferenceImage[]>([]);
+
+  const primaryReferenceRatio = computed<string | null>(() => {
+    if (referenceImages.value.length === 0) return null;
+    return referenceImages.value[0]?.ratio || null;
+  });
+
   const sizeState = reactive<ImageSizeState>({
     resolution: modelStore.activeModel.defaultParams.resolution,
     aspectRatio: modelStore.activeModel.defaultParams.aspectRatio,
@@ -42,27 +51,25 @@ export function useImageStudio() {
   });
   const resolution = computed({
     get: () => sizeState.resolution,
-    set: (value: ResolutionTier) => Object.assign(sizeState, applyResolutionChange(sizeState, value))
+    set: (value: ResolutionTier) => Object.assign(sizeState, applyResolutionChange(sizeState, value, primaryReferenceRatio.value))
   });
   const aspectRatio = computed({
     get: () => sizeState.aspectRatio,
-    set: (value: string) => Object.assign(sizeState, applyAspectRatioChange(sizeState, value))
+    set: (value: string) => Object.assign(sizeState, applyAspectRatioChange(sizeState, value, primaryReferenceRatio.value))
   });
   const sizeWidth = computed({
     get: () => sizeState.width,
-    set: (value: number | null) => Object.assign(sizeState, applyWidthChange(sizeState, value))
+    set: (value: number | null) => Object.assign(sizeState, applyWidthChange(sizeState, value, primaryReferenceRatio.value))
   });
   const sizeHeight = computed({
     get: () => sizeState.height,
-    set: (value: number | null) => Object.assign(sizeState, applyHeightChange(sizeState, value))
+    set: (value: number | null) => Object.assign(sizeState, applyHeightChange(sizeState, value, primaryReferenceRatio.value))
   });
   const quality = ref<ModelQuality>(modelStore.activeModel.defaultParams.quality);
   const format = ref<ModelFormat>(modelStore.activeModel.defaultParams.format);
   const transparent = ref<boolean>(modelStore.activeModel.defaultParams.transparent);
   const moderation = ref<ModelModeration>(modelStore.activeModel.defaultParams.moderation ?? 'low');
   const count = ref<number>(modelStore.activeModel.defaultParams.count);
-
-  const referenceImages = ref<TaskReferenceImage[]>([]);
 
   const isGenerating = computed(() => taskStore.isGenerating);
   const elapsedTime = computed(() => taskStore.currentElapsedTime);
@@ -74,11 +81,23 @@ export function useImageStudio() {
       const file = files[i];
       if (!file.type.startsWith('image/')) continue;
       const previewUrl = URL.createObjectURL(file);
-      referenceImages.value.push({
+      const newImg = reactive<TaskReferenceImage>({
         id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         file,
         previewUrl
       });
+      referenceImages.value.push(newImg);
+
+      calculateImageDimensions(previewUrl)
+        .then((dims) => {
+          newImg.width = dims.width;
+          newImg.height = dims.height;
+          newImg.ratio = dims.ratioStr;
+          if (isReferenceRatio(sizeState.aspectRatio) && referenceImages.value[0]?.id === newImg.id) {
+            Object.assign(sizeState, applyAspectRatioChange(sizeState, sizeState.aspectRatio, dims.ratioStr));
+          }
+        })
+        .catch(() => {});
     }
   }
 
@@ -87,12 +106,18 @@ export function useImageStudio() {
     if (idx !== -1) {
       URL.revokeObjectURL(referenceImages.value[idx].previewUrl);
       referenceImages.value.splice(idx, 1);
+      if (isReferenceRatio(sizeState.aspectRatio)) {
+        Object.assign(sizeState, applyAspectRatioChange(sizeState, sizeState.aspectRatio, primaryReferenceRatio.value));
+      }
     }
   }
 
   function clearReferenceImages() {
     referenceImages.value.forEach((img) => URL.revokeObjectURL(img.previewUrl));
     referenceImages.value = [];
+    if (isReferenceRatio(sizeState.aspectRatio)) {
+      Object.assign(sizeState, applyAspectRatioChange(sizeState, sizeState.aspectRatio, null));
+    }
   }
 
   async function generate(): Promise<GenerationTask[]> {
@@ -219,7 +244,7 @@ export function useImageStudio() {
   }
 
   function materializeImageSize() {
-    Object.assign(sizeState, materializeSize(sizeState));
+    Object.assign(sizeState, materializeSize(sizeState, primaryReferenceRatio.value));
   }
 
   async function reuseItem(item: MediaAsset | ArtworkBatch | GenerationTask | TaskGenerationParams) {
@@ -315,6 +340,18 @@ export function useImageStudio() {
     clearReferenceImages();
     if (refsTask && refsTask.length > 0) {
       referenceImages.value = [...refsTask];
+      refsTask.forEach((img) => {
+        if (!img.ratio) {
+          calculateImageDimensions(img.previewUrl).then((dims) => {
+            img.width = dims.width;
+            img.height = dims.height;
+            img.ratio = dims.ratioStr;
+            if (isReferenceRatio(sizeState.aspectRatio) && referenceImages.value[0]?.id === img.id) {
+              Object.assign(sizeState, applyAspectRatioChange(sizeState, sizeState.aspectRatio, dims.ratioStr));
+            }
+          }).catch(() => {});
+        }
+      });
     } else if (refsStrings && refsStrings.length > 0) {
       for (let i = 0; i < refsStrings.length; i++) {
         const refStr = refsStrings[i];

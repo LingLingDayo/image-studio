@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  ASPECT_RATIO_OPTIONS,
   applyAspectRatioChange,
   applyHeightChange,
   applyResolutionChange,
@@ -15,9 +16,11 @@ import {
   hydrateImageSizeFromAsset,
   hydrateImageSizeFromParams,
   inferResolutionTier,
+  isReferenceRatio,
   materializeSize,
   parseRatio,
   parseSizeString,
+  resolveEffectiveAspectRatio,
   formatDisplayRatio,
   formatActualRatio,
   formatResolutionSetting,
@@ -374,6 +377,70 @@ describe('imageSize (imageSize.ts)', () => {
     expect(formatSizeSetting(undefined)).toBe('自动');
     expect(formatSizeSetting('1024x1024')).toBe('1024×1024');
     expect(formatSizeSetting('2048×1152')).toBe('2048×1152');
+  });
+
+  it('should include reference ratio option and correctly format settings', () => {
+    expect(ASPECT_RATIO_OPTIONS).toContainEqual({ label: '同参考图', value: 'reference' });
+    expect(isReferenceRatio('reference')).toBe(true);
+    expect(isReferenceRatio('same_as_reference')).toBe(true);
+    expect(isReferenceRatio('auto')).toBe(false);
+    expect(isReferenceRatio('16:9')).toBe(false);
+
+    expect(formatRatioSetting('reference')).toBe('同参考图');
+    expect(formatDisplayRatio('reference')).toBe('同参考图');
+  });
+
+  it('should behave identically to auto when reference ratio is set without uploaded reference image', () => {
+    // 1. 无参考图时解析生效比例为 auto
+    expect(resolveEffectiveAspectRatio('reference', null)).toBe('auto');
+    expect(resolveEffectiveAspectRatio('reference', undefined)).toBe('auto');
+
+    // 2. parseRatio 针对 reference 返回 null
+    expect(parseRatio('reference')).toBeNull();
+
+    // 3. calcMaxSize 返回 null（同 auto）
+    expect(calcMaxSize('1k', 'reference')).toBeNull();
+    expect(calcMaxSize('2k', 'reference', null)).toBeNull();
+
+    // 4. applyAspectRatioChange 不锁定尺寸，保持 width/height 为 null（同 auto）
+    const initial = state({ resolution: '1k', width: 1024, height: 1024 });
+    const next = applyAspectRatioChange(initial, 'reference');
+    expect(next.aspectRatio).toBe('reference');
+    expect(next.width).toBeNull();
+    expect(next.height).toBeNull();
+
+    // 5. materializeSize 回退到 1024x1024（同 auto）
+    expect(materializeSize(state({ aspectRatio: 'reference' }))).toEqual({
+      resolution: 'auto',
+      aspectRatio: 'reference',
+      width: 1024,
+      height: 1024
+    });
+
+    // 6. buildSizePromptHint 不输出比例后缀提示词（同 auto）
+    expect(buildSizePromptHint(state({ resolution: '1k', aspectRatio: 'reference' }))).toBe('1K分辨率');
+    expect(buildSizePromptHint(state({ aspectRatio: 'reference' }))).toBeNull();
+  });
+
+  it('should adopt uploaded image ratio when reference ratio is present', () => {
+    // 1. 存在参考图比例时解析为对应实际比例
+    expect(resolveEffectiveAspectRatio('reference', '16:9')).toBe('16:9');
+    expect(resolveEffectiveAspectRatio('reference', '4:3')).toBe('4:3');
+
+    // 2. 具备参考图比例时 calcMaxSize 计算对应最大宽高
+    expect(calcMaxSize('1k', 'reference', '16:9')).toEqual({ width: 1024, height: 576 });
+    expect(calcMaxSize('2k', 'reference', '4:3')).toEqual({ width: 2048, height: 1536 });
+
+    // 3. applyAspectRatioChange 切换至 reference 时应用参考图比例
+    const current = state({ resolution: '1k', aspectRatio: 'auto' });
+    const applied = applyAspectRatioChange(current, 'reference', '16:9');
+    expect(applied.aspectRatio).toBe('reference');
+    expect(applied.width).toBe(1024);
+    expect(applied.height).toBe(576);
+
+    // 4. buildSizePromptHint 携带参考图实际比例提示
+    expect(buildSizePromptHint(state({ resolution: '1k', aspectRatio: 'reference' }), '16:9')).toBe('1K分辨率，16:9比例');
+    expect(buildSizePromptHint(state({ aspectRatio: 'reference' }), '16:9')).toBe('16:9比例');
   });
 });
 

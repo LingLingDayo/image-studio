@@ -29,32 +29,53 @@ export const RESOLUTION_OPTIONS: { label: string; value: ResolutionTier }[] = [
 
 export const ASPECT_RATIO_OPTIONS: { label: string; value: string }[] = [
   { label: '自动', value: 'auto' },
+  { label: '同参考图', value: 'reference' },
   { label: '1:1', value: '1:1' },
-  { label: '5:4', value: '5:4' },
-  { label: '4:5', value: '4:5' },
-  { label: '4:3', value: '4:3' },
-  { label: '3:4', value: '3:4' },
-  { label: '3:2', value: '3:2' },
-  { label: '2:3', value: '2:3' },
-  { label: '16:10', value: '16:10' },
-  { label: '10:16', value: '10:16' },
-  { label: '16:9', value: '16:9' },
-  { label: '9:16', value: '9:16' },
-  { label: '1.91:1', value: '1.91:1' },
-  { label: '1:1.91', value: '1:1.91' },
   { label: '2:1', value: '2:1' },
   { label: '1:2', value: '1:2' },
+  { label: '3:2', value: '3:2' },
+  { label: '2:3', value: '2:3' },
+  { label: '3:1', value: '3:1' },
+  { label: '1:3', value: '1:3' },
+  { label: '4:3', value: '4:3' },
+  { label: '3:4', value: '3:4' },
+  { label: '5:4', value: '5:4' },
+  { label: '4:5', value: '4:5' },
+  { label: '16:9', value: '16:9' },
+  { label: '9:16', value: '9:16' },
   { label: '21:9', value: '21:9' },
   { label: '9:21', value: '9:21' },
-  { label: '3:1', value: '3:1' },
-  { label: '1:3', value: '1:3' }
 ];
 
 const MIN_DIM = 1;
 const MAX_DIM = 8192;
-const PRESET_RATIO_VALUES = ASPECT_RATIO_OPTIONS
-  .map((opt) => opt.value)
-  .filter((value) => value !== 'auto');
+const STANDARD_RATIO_PRESETS = ['1.91:1', '1:1.91', '16:10', '10:16'];
+const PRESET_RATIO_VALUES = Array.from(
+  new Set([
+    ...ASPECT_RATIO_OPTIONS.map((opt) => opt.value).filter((value) => value !== 'auto' && !isReferenceRatio(value)),
+    ...STANDARD_RATIO_PRESETS
+  ])
+);
+
+export function isReferenceRatio(ratio?: string | null): boolean {
+  if (!ratio) return false;
+  const lower = ratio.trim().toLowerCase();
+  return lower === 'reference' || lower === 'same_as_reference' || lower === 'match_reference' || lower === '同参考图';
+}
+
+export function resolveEffectiveAspectRatio(
+  aspectRatio?: string | null,
+  referenceRatio?: string | null
+): string {
+  if (!aspectRatio || aspectRatio === 'auto') return 'auto';
+  if (isReferenceRatio(aspectRatio)) {
+    if (referenceRatio && referenceRatio !== 'auto' && parseRatio(referenceRatio)) {
+      return referenceRatio;
+    }
+    return 'auto';
+  }
+  return aspectRatio;
+}
 
 export function createDefaultImageSizeState(): ImageSizeState {
   return {
@@ -70,7 +91,7 @@ export function hasConcreteSize(state: Pick<ImageSizeState, 'width' | 'height'>)
 }
 
 export function parseRatio(ratio: string): RatioParts | null {
-  if (!ratio || ratio === 'auto') return null;
+  if (!ratio || ratio === 'auto' || isReferenceRatio(ratio)) return null;
   const cleanRatio = ratio.replace(/^[≈~#\s]+/, '').trim();
   const parts = cleanRatio.split(':');
   if (parts.length !== 2) return null;
@@ -110,10 +131,12 @@ export function bumpResolutionIfNeeded(
 
 export function calcMaxSize(
   resolution: ResolutionTier,
-  aspectRatio: string
+  aspectRatio: string,
+  referenceRatio?: string | null
 ): { width: number; height: number } | null {
   const cap = resolutionCap(resolution);
-  const ratio = parseRatio(aspectRatio);
+  const effectiveRatio = resolveEffectiveAspectRatio(aspectRatio, referenceRatio);
+  const ratio = parseRatio(effectiveRatio);
   if (cap == null || !ratio) return null;
 
   if (ratio.w >= ratio.h) {
@@ -131,9 +154,11 @@ export function applyLockedRatio(
   width: number | null,
   height: number | null,
   aspectRatio: string,
-  source: 'width' | 'height' | 'max'
+  source: 'width' | 'height' | 'max',
+  referenceRatio?: string | null
 ): { width: number; height: number } | null {
-  const ratio = parseRatio(aspectRatio);
+  const effectiveRatio = resolveEffectiveAspectRatio(aspectRatio, referenceRatio);
+  const ratio = parseRatio(effectiveRatio);
   if (!ratio) return null;
 
   if (source === 'width') {
@@ -171,9 +196,13 @@ function scaleToFitCap(
   };
 }
 
-export function applyResolutionChange(state: ImageSizeState, next: ResolutionTier): ImageSizeState {
+export function applyResolutionChange(
+  state: ImageSizeState,
+  next: ResolutionTier,
+  referenceRatio?: string | null
+): ImageSizeState {
   const nextState: ImageSizeState = { ...state, resolution: next };
-  const maxSize = calcMaxSize(next, state.aspectRatio);
+  const maxSize = calcMaxSize(next, state.aspectRatio, referenceRatio);
   if (maxSize) {
     return { ...nextState, width: maxSize.width, height: maxSize.height };
   }
@@ -186,17 +215,27 @@ export function applyResolutionChange(state: ImageSizeState, next: ResolutionTie
   return nextState;
 }
 
-export function applyAspectRatioChange(state: ImageSizeState, next: string): ImageSizeState {
+export function applyAspectRatioChange(
+  state: ImageSizeState,
+  next: string,
+  referenceRatio?: string | null
+): ImageSizeState {
   const nextState: ImageSizeState = { ...state, aspectRatio: next };
-  if (next === 'auto') return nextState;
+  const effectiveRatio = resolveEffectiveAspectRatio(next, referenceRatio);
+  if (effectiveRatio === 'auto') {
+    if (next === 'auto' || isReferenceRatio(next)) {
+      return { ...nextState, width: null, height: null };
+    }
+    return nextState;
+  }
 
-  const maxSize = calcMaxSize(state.resolution, next);
+  const maxSize = calcMaxSize(state.resolution, effectiveRatio);
   if (maxSize) {
     return { ...nextState, width: maxSize.width, height: maxSize.height };
   }
 
   if (hasConcreteSize(state)) {
-    const locked = applyLockedRatio(state.width, state.height, next, 'max');
+    const locked = applyLockedRatio(state.width, state.height, effectiveRatio, 'max');
     if (locked) {
       return {
         ...nextState,
@@ -210,14 +249,19 @@ export function applyAspectRatioChange(state: ImageSizeState, next: string): Ima
   return nextState;
 }
 
-export function applyWidthChange(state: ImageSizeState, next: number | null): ImageSizeState {
+export function applyWidthChange(
+  state: ImageSizeState,
+  next: number | null,
+  referenceRatio?: string | null
+): ImageSizeState {
   if (next == null) {
     return { ...state, width: null, height: null };
   }
 
   const width = sanitizeDim(next);
-  if (state.aspectRatio !== 'auto') {
-    const locked = applyLockedRatio(width, state.height, state.aspectRatio, 'width');
+  const effectiveRatio = resolveEffectiveAspectRatio(state.aspectRatio, referenceRatio);
+  if (effectiveRatio !== 'auto') {
+    const locked = applyLockedRatio(width, state.height, effectiveRatio, 'width');
     if (locked) {
       return {
         ...state,
@@ -237,14 +281,19 @@ export function applyWidthChange(state: ImageSizeState, next: number | null): Im
   };
 }
 
-export function applyHeightChange(state: ImageSizeState, next: number | null): ImageSizeState {
+export function applyHeightChange(
+  state: ImageSizeState,
+  next: number | null,
+  referenceRatio?: string | null
+): ImageSizeState {
   if (next == null) {
     return { ...state, width: null, height: null };
   }
 
   const height = sanitizeDim(next);
-  if (state.aspectRatio !== 'auto') {
-    const locked = applyLockedRatio(state.width, height, state.aspectRatio, 'height');
+  const effectiveRatio = resolveEffectiveAspectRatio(state.aspectRatio, referenceRatio);
+  if (effectiveRatio !== 'auto') {
+    const locked = applyLockedRatio(state.width, height, effectiveRatio, 'height');
     if (locked) {
       return {
         ...state,
@@ -268,10 +317,13 @@ export function applySizeAuto(state: ImageSizeState): ImageSizeState {
   return { ...state, width: null, height: null };
 }
 
-export function materializeSize(state: ImageSizeState): ImageSizeState {
+export function materializeSize(
+  state: ImageSizeState,
+  referenceRatio?: string | null
+): ImageSizeState {
   if (hasConcreteSize(state)) return state;
 
-  const maxSize = calcMaxSize(state.resolution, state.aspectRatio);
+  const maxSize = calcMaxSize(state.resolution, state.aspectRatio, referenceRatio);
   if (maxSize) {
     return { ...state, width: maxSize.width, height: maxSize.height };
   }
@@ -281,8 +333,9 @@ export function materializeSize(state: ImageSizeState): ImageSizeState {
     return { ...state, width: cap, height: cap };
   }
 
-  if (state.aspectRatio !== 'auto') {
-    const fallback = calcMaxSize('1k', state.aspectRatio);
+  const effectiveRatio = resolveEffectiveAspectRatio(state.aspectRatio, referenceRatio);
+  if (effectiveRatio !== 'auto') {
+    const fallback = calcMaxSize('1k', effectiveRatio);
     if (fallback) {
       return { ...state, width: fallback.width, height: fallback.height };
     }
@@ -351,7 +404,7 @@ export function hydrateImageSizeFromSettings(input: {
     if (targetSize) {
       const parsed = parseSizeString(targetSize);
       if (parsed) {
-        const presetFromItem = (targetRatio && targetRatio !== 'auto')
+        const presetFromItem = (targetRatio && targetRatio !== 'auto' && !isReferenceRatio(targetRatio))
           ? targetRatio
           : (input.ratio && parseRatio(input.ratio) ? input.ratio : null);
         const matchedPreset = presetFromItem && PRESET_RATIO_VALUES.includes(presetFromItem)
@@ -383,7 +436,7 @@ export function hydrateImageSizeFromSettings(input: {
     };
   }
 
-  const presetFromItem = input.ratio && parseRatio(input.ratio) ? input.ratio : null;
+  const presetFromItem = input.ratio && parseRatio(input.ratio) && !isReferenceRatio(input.ratio) ? input.ratio : null;
   const matchedPreset = presetFromItem && PRESET_RATIO_VALUES.includes(presetFromItem)
     ? presetFromItem
     : nearestAspectRatio(parsed.width, parsed.height);
@@ -420,7 +473,10 @@ export function hydrateImageSizeFromParams(input: {
 }
 
 
-export function buildSizePromptHint(state: Pick<ImageSizeState, 'resolution' | 'aspectRatio' | 'width' | 'height'>): string | null {
+export function buildSizePromptHint(
+  state: Pick<ImageSizeState, 'resolution' | 'aspectRatio' | 'width' | 'height'>,
+  referenceRatio?: string | null
+): string | null {
   if (hasConcreteSize(state)) return null;
 
   const parts: string[] = [];
@@ -428,8 +484,9 @@ export function buildSizePromptHint(state: Pick<ImageSizeState, 'resolution' | '
     const label = RESOLUTION_OPTIONS.find((opt) => opt.value === state.resolution)?.label || state.resolution.toUpperCase();
     parts.push(`${label}分辨率`);
   }
-  if (state.aspectRatio && state.aspectRatio !== 'auto') {
-    parts.push(`${state.aspectRatio}比例`);
+  const effectiveRatio = resolveEffectiveAspectRatio(state.aspectRatio, referenceRatio);
+  if (effectiveRatio && effectiveRatio !== 'auto') {
+    parts.push(`${effectiveRatio}比例`);
   }
   if (parts.length === 0) return null;
   return parts.join('，');
@@ -487,8 +544,10 @@ export function getResolutionDisplay(item?: {
  */
 export function formatDisplayRatio(ratio?: string): string {
   if (!ratio || ratio === 'auto') return '1:1';
+  if (isReferenceRatio(ratio)) return '同参考图';
   const cleaned = ratio.replace(/^[≈~#\s]+/, '').trim();
   if (!cleaned || cleaned === 'auto') return '1:1';
+  if (isReferenceRatio(cleaned)) return '同参考图';
 
   // 检查是否为标准比例 16:9, 4:3, 3:4, 1:1, 1.91:1 等预设
   if (PRESET_RATIO_VALUES.includes(cleaned)) {
@@ -517,6 +576,7 @@ export function formatResolutionSetting(resolution?: ResolutionTier | string | n
 /** 展示用户设定的宽高比：自动保持「自动」，生成前不得回退为 1:1 */
 export function formatRatioSetting(ratio?: string | null): string {
   if (!ratio || ratio === 'auto') return '自动';
+  if (isReferenceRatio(ratio)) return '同参考图';
   return formatDisplayRatio(ratio);
 }
 
@@ -537,7 +597,7 @@ export function formatActualRatio(
   let targetRatio = ratio;
 
   // 1. 如果没有 ratio，但有真实宽高，先推导 ratio
-  if ((!targetRatio || targetRatio === 'auto') && dimensions?.width && dimensions?.height) {
+  if ((!targetRatio || targetRatio === 'auto' || isReferenceRatio(targetRatio)) && dimensions?.width && dimensions?.height) {
     const w = dimensions.width;
     const h = dimensions.height;
     const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
@@ -561,7 +621,7 @@ export function formatActualRatio(
     }
   }
 
-  if (!targetRatio || targetRatio === 'auto') return '1:1';
+  if (!targetRatio || targetRatio === 'auto' || isReferenceRatio(targetRatio)) return '1:1';
 
   const raw = String(targetRatio).trim();
   const hasApproxPrefix = /^[≈~]/.test(raw);

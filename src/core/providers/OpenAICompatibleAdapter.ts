@@ -20,12 +20,16 @@ function resolveOutputFormat(params: TaskGenerationParams): string | undefined {
 
 function resolveRequestPrompt(params: TaskGenerationParams): string {
   const parsed = parseSizeString(params.size);
-  const hint = buildSizePromptHint({
-    resolution: params.resolution ?? 'auto',
-    aspectRatio: params.aspectRatio ?? 'auto',
-    width: parsed?.width ?? null,
-    height: parsed?.height ?? null
-  });
+  const refRatio = params.referenceImages?.[0]?.ratio;
+  const hint = buildSizePromptHint(
+    {
+      resolution: params.resolution ?? 'auto',
+      aspectRatio: params.aspectRatio ?? 'auto',
+      width: parsed?.width ?? null,
+      height: parsed?.height ?? null
+    },
+    refRatio
+  );
   return applySizePromptHint(params.prompt, hint);
 }
 

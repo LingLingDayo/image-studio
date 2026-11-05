@@ -314,3 +314,43 @@ describe('useImageStudio - clearPromptOnGenerate', () => {
   });
 });
 
+describe('useImageStudio - reference aspect ratio option', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    localStorage.clear();
+  });
+
+  it('没有上传参考图时选择同参考图，效果与 auto 保持一致', () => {
+    const studio = useImageStudio();
+    studio.resolution.value = '1k';
+    studio.aspectRatio.value = 'reference';
+
+    expect(studio.aspectRatio.value).toBe('reference');
+    expect(studio.sizeWidth.value).toBeNull();
+    expect(studio.sizeHeight.value).toBeNull();
+  });
+
+  it('已上传参考图且具备比例时，选择同参考图会按参考图比例计算尺寸', async () => {
+    const studio = useImageStudio();
+    studio.resolution.value = '1k';
+
+    // 模拟添加一张 16:9 的参考图
+    const dummyFile = new File(['dummy'], 'ref.png', { type: 'image/png' });
+    studio.addReferenceImages([dummyFile]);
+    expect(studio.referenceImages.value.length).toBe(1);
+
+    // 人工赋予解析出的比例
+    studio.referenceImages.value[0].ratio = '16:9';
+
+    studio.aspectRatio.value = 'reference';
+    expect(studio.aspectRatio.value).toBe('reference');
+    expect(studio.sizeWidth.value).toBe(1024);
+    expect(studio.sizeHeight.value).toBe(576);
+
+    // 移除参考图后，自动重置尺寸锁定
+    studio.clearReferenceImages();
+    expect(studio.sizeWidth.value).toBeNull();
+    expect(studio.sizeHeight.value).toBeNull();
+  });
+});
+

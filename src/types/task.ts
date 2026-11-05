@@ -7,6 +7,9 @@ export interface TaskReferenceImage {
   id: string;
   file: File;
   previewUrl: string;
+  width?: number;
+  height?: number;
+  ratio?: string;
 }
 
 export interface TaskGenerationParams {
