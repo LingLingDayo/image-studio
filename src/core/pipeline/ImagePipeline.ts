@@ -101,6 +101,7 @@ export class DimensionAnalysisStage implements IPipelineStage {
         quality: params.quality,
         format: params.format,
         transparent: params.transparent,
+        moderation: params.moderation,
         duration: ctx.task.durationFormatted || '0.0s',
         timestamp: Date.now(),
         isFavorite: false,

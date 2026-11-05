@@ -12,9 +12,10 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
     setActivePinia(createPinia());
   });
 
-  it('初始化时 format 默认应为 jpeg', () => {
+  it('初始化时 format 默认应为 jpeg，审核 moderation 默认应为 low', () => {
     const studio = useImageStudio();
     expect(studio.format.value).toBe('jpeg');
+    expect(studio.moderation.value).toBe('low');
   });
 
   it('应该正确从 MediaAsset 中恢复生图设定参数，而非实际结果尺寸', async () => {
@@ -40,6 +41,7 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
       quality: 'hd',
       format: 'png',
       transparent: true,
+      moderation: 'auto',
       duration: '3.2s',
       timestamp: Date.now(),
       type: 't2i'
@@ -56,9 +58,10 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
     expect(studio.sizeWidth.value).toBeNull();
     expect(studio.sizeHeight.value).toBeNull();
 
-    // 3. 画质、透明度与格式
+    // 3. 画质、透明度、审核与格式
     expect(studio.quality.value).toBe('hd');
     expect(studio.transparent.value).toBe(true);
+    expect(studio.moderation.value).toBe('auto');
     expect(studio.format.value).toBe('png');
   });
 

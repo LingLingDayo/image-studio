@@ -504,7 +504,7 @@ function handleKeyDown(e: KeyboardEvent) {
 .select-dropdown {
   position: absolute;
   left: 0;
-  min-width: 140px;
+  min-width: 90px;
   width: max-content;
   max-width: 280px;
   background: rgba(255, 255, 255, 0.98);

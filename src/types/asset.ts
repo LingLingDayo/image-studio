@@ -18,6 +18,7 @@ export interface MediaAsset {
   quality: string;
   format?: string;
   transparent?: boolean;
+  moderation?: string;
   duration: string;
   timestamp: number;
   isFavorite?: boolean;
@@ -43,6 +44,7 @@ export interface ArtworkBatch {
   quality: string;
   format?: string;
   transparent?: boolean;
+  moderation?: string;
   duration: string;
   timestamp: number;
   isFavorite?: boolean;

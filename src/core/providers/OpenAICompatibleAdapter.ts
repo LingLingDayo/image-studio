@@ -147,6 +147,9 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
     if (params.transparent) {
       payload.background = 'transparent';
     }
+    if (params.moderation) {
+      payload.moderation = params.moderation;
+    }
 
     return this.sendRequest(
       endpoint,
@@ -193,6 +196,9 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
     }
     if (params.transparent) {
       formData.append('background', 'transparent');
+    }
+    if (params.moderation) {
+      formData.append('moderation', params.moderation);
     }
 
     params.referenceImages.forEach((img) => {

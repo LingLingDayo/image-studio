@@ -1,4 +1,4 @@
-import type { ModelFormat, ModelQuality, ResolutionTier } from './model';
+import type { ModelFormat, ModelModeration, ModelQuality, ResolutionTier } from './model';
 
 export type TaskStatus = 'idle' | 'queued' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
 export type TaskType = 't2i' | 'i2i';
@@ -19,6 +19,7 @@ export interface TaskGenerationParams {
   quality: ModelQuality;
   format: ModelFormat;
   transparent: boolean;
+  moderation?: ModelModeration;
   count: number;
   referenceImages?: TaskReferenceImage[];
 }

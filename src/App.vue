@@ -60,6 +60,7 @@ const {
   quality,
   format,
   transparent,
+  moderation,
   count,
   referenceImages,
   isGenerating,
@@ -323,6 +324,7 @@ async function confirmPendingDelete() {
         v-model:quality="quality"
         v-model:format="format"
         v-model:transparent="transparent"
+        v-model:moderation="moderation"
         v-model:count="count"
         :reference-images="referenceImages"
         :is-generating="isGenerating"

@@ -8,6 +8,7 @@ import type { TaskReferenceImage, TaskGenerationParams, GenerationTask } from '@
 import {
   resolveTransparentOutputFormat,
   type ModelFormat,
+  type ModelModeration,
   type ModelQuality,
   type ResolutionTier
 } from '@/types/model';
@@ -58,6 +59,7 @@ export function useImageStudio() {
   const quality = ref<ModelQuality>(modelStore.activeModel.defaultParams.quality);
   const format = ref<ModelFormat>(modelStore.activeModel.defaultParams.format);
   const transparent = ref<boolean>(modelStore.activeModel.defaultParams.transparent);
+  const moderation = ref<ModelModeration>(modelStore.activeModel.defaultParams.moderation ?? 'low');
   const count = ref<number>(modelStore.activeModel.defaultParams.count);
 
   const referenceImages = ref<TaskReferenceImage[]>([]);
@@ -120,6 +122,7 @@ export function useImageStudio() {
         quality: quality.value,
         format: outputFormat,
         transparent: transparent.value,
+        moderation: moderation.value,
         count: count.value,
         referenceImages: sharedRefs
       };
@@ -227,6 +230,7 @@ export function useImageStudio() {
     let targetQuality: ModelQuality | undefined;
     let targetFormat: ModelFormat | undefined;
     let targetTransparent: boolean | undefined;
+    let targetModeration: ModelModeration | undefined;
     let targetCount: number | undefined;
     let refsTask: TaskReferenceImage[] | undefined;
     let refsStrings: string[] | undefined;
@@ -239,6 +243,7 @@ export function useImageStudio() {
       targetQuality = p.quality;
       targetFormat = p.format;
       targetTransparent = p.transparent;
+      targetModeration = p.moderation;
       targetCount = p.count;
       refsTask = p.referenceImages;
       Object.assign(sizeState, hydrateImageSizeFromSettings(p));
@@ -250,6 +255,7 @@ export function useImageStudio() {
       targetQuality = asset.quality as ModelQuality;
       targetFormat = asset.format as ModelFormat;
       targetTransparent = asset.transparent;
+      targetModeration = asset.moderation as ModelModeration | undefined;
       targetCount = ('assets' in item && Array.isArray((item as ArtworkBatch).assets))
         ? (item as ArtworkBatch).assets.length
         : undefined;
@@ -263,6 +269,7 @@ export function useImageStudio() {
       targetQuality = p.quality;
       targetFormat = p.format;
       targetTransparent = p.transparent;
+      targetModeration = p.moderation;
       targetCount = p.count;
       refsTask = p.referenceImages;
       Object.assign(sizeState, hydrateImageSizeFromSettings(p));
@@ -299,7 +306,12 @@ export function useImageStudio() {
       count.value = targetCount;
     }
 
-    // 6. 恢复参考图 (先清空现有参考图，精准还原生图设定的参考图状态)
+    // 6. 恢复审核力度
+    if (targetModeration) {
+      moderation.value = targetModeration;
+    }
+
+    // 7. 恢复参考图 (先清空现有参考图，精准还原生图设定的参考图状态)
     clearReferenceImages();
     if (refsTask && refsTask.length > 0) {
       referenceImages.value = [...refsTask];
@@ -351,6 +363,7 @@ export function useImageStudio() {
     quality,
     format,
     transparent,
+    moderation,
     count,
     referenceImages,
     isGenerating,

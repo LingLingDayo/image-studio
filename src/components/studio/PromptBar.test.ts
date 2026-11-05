@@ -31,6 +31,7 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     quality: 'standard' as const,
     format: 'jpeg' as const,
     transparent: false,
+    moderation: 'low' as const,
     count: 1,
     referenceImages: [],
     isGenerating: false,
@@ -370,6 +371,31 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     deleteBtn.click();
     await nextTick();
     expect(removedId).toBe('ref-1');
+
+    app.unmount();
+  });
+
+  it('应该正确渲染背景控件与审核控件，审核默认值为低，背景默认值为默认', async () => {
+    const app = createApp({
+      render() {
+        return h(PromptBar as any, {
+          ...defaultProps
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const triggerLabels = Array.from(container.querySelectorAll('.select-trigger')).map((el) =>
+      el.textContent?.trim()
+    );
+
+    // 验证包含 背景 与 审核 标签触发器
+    expect(triggerLabels.some((t) => t?.includes('背景'))).toBe(true);
+    expect(triggerLabels.some((t) => t?.includes('审核'))).toBe(true);
+    expect(triggerLabels.some((t) => t?.includes('审核') && t?.includes('低'))).toBe(true);
+    expect(triggerLabels.some((t) => t?.includes('背景') && t?.includes('默认'))).toBe(true);
 
     app.unmount();
   });

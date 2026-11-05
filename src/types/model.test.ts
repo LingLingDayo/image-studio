@@ -34,7 +34,15 @@ describe('Model Profile Specification (model.ts)', () => {
     expect(GPT_IMAGE_2_PROFILE.defaultParams.aspectRatio).toBe('auto');
     expect(GPT_IMAGE_2_PROFILE.defaultParams.quality).toBe('medium');
     expect(GPT_IMAGE_2_PROFILE.defaultParams.format).toBe('jpeg');
+    expect(GPT_IMAGE_2_PROFILE.defaultParams.moderation).toBe('low');
     expect(GPT_IMAGE_2_PROFILE.defaultParams.count).toBe(1);
+  });
+
+  it('should list moderation options with auto and low', () => {
+    expect(GPT_IMAGE_2_PROFILE.moderationOptions).toEqual([
+      { label: '默认', value: 'auto' },
+      { label: '低', value: 'low' }
+    ]);
   });
 
   it('should list quality options in Chinese without extra notes', () => {

@@ -263,6 +263,62 @@ describe('OpenAICompatibleAdapter (OpenAICompatibleAdapter.ts)', () => {
     expect(body.output_format).toBe('jpeg');
   });
 
+  it('should forward moderation parameter when specified in generate request', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ created: 1720000000, data: [{ url: 'https://example.com/img1.png' }] })
+    } as any);
+
+    const params: TaskGenerationParams = {
+      model: 'gpt-image-2.6-flare',
+      prompt: 'a cinematic scene',
+      type: 't2i',
+      size: '1024x1024',
+      quality: 'medium',
+      format: 'png',
+      transparent: false,
+      moderation: 'low',
+      count: 1
+    };
+
+    await adapter.execute(
+      { baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2.6-flare' },
+      params
+    );
+
+    const body = JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string);
+    expect(body.moderation).toBe('low');
+  });
+
+  it('should forward moderation parameter in image edit form data', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ created: 1720000000, data: [{ b64_json: 'abc' }] })
+    } as any);
+
+    const file = new File(['fake'], 'ref.png', { type: 'image/png' });
+    const params: TaskGenerationParams = {
+      model: 'gpt-image-2.6-flare',
+      prompt: 'edit this image',
+      type: 'i2i',
+      size: '1024x1024',
+      quality: 'medium',
+      format: 'png',
+      transparent: false,
+      moderation: 'low',
+      count: 1,
+      referenceImages: [{ id: '1', file, previewUrl: 'blob:fake' }]
+    };
+
+    await adapter.execute(
+      { baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2.6-flare' },
+      params
+    );
+
+    const formData = (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as FormData;
+    expect(formData.get('moderation')).toBe('low');
+  });
+
   it('should send background=transparent on image edit form data', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,

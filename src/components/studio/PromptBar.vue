@@ -15,14 +15,17 @@ import {
   FileImage,
   Blend,
   Scaling,
-  Images
+  Images,
+  ShieldCheck
 } from '@lucide/vue';
 import {
   TRANSPARENT_DEFAULT_FORMAT,
   supportsAlphaChannel,
   formatImageModelName,
   DEFAULT_IMAGE_MODEL_ID,
+  MODERATION_OPTIONS,
   type ModelFormat,
+  type ModelModeration,
   type ModelQuality,
   type ResolutionTier
 } from '@/types/model';
@@ -46,6 +49,7 @@ const props = defineProps<{
   quality: ModelQuality;
   format: ModelFormat;
   transparent: boolean;
+  moderation?: ModelModeration;
   count: number;
   referenceImages: TaskReferenceImage[];
   isGenerating: boolean;
@@ -64,6 +68,7 @@ const emit = defineEmits<{
   (e: 'update:quality', val: ModelQuality): void;
   (e: 'update:format', val: ModelFormat): void;
   (e: 'update:transparent', val: boolean): void;
+  (e: 'update:moderation', val: ModelModeration): void;
   (e: 'update:count', val: number): void;
   (e: 'addImages', files: FileList | File[]): void;
   (e: 'removeImage', id: string): void;
@@ -187,9 +192,9 @@ function handleGenerateClick() {
   emit('generate');
 }
 
-const transparentOptions = [
-  { label: '关闭', value: false },
-  { label: '开启', value: true }
+const backgroundOptions = [
+  { label: '默认', value: false },
+  { label: '透明', value: true }
 ];
 
 const formatOptions = computed(() => {
@@ -464,16 +469,27 @@ onUnmounted(() => {
             @update:model-value="emit('update:format', $event as ModelFormat)"
           />
 
-          <!-- 透明背景 (按模型能力条件渲染) -->
+          <!-- 背景 (按模型能力条件渲染) -->
           <UiSelect
             v-if="activeModel.supportsTransparent"
             :model-value="transparent"
-            label="透明背景"
+            label="背景"
             :icon="Blend"
-            :options="transparentOptions"
+            :options="backgroundOptions"
             placement="top"
             variant="pill"
             @update:model-value="handleTransparentChange"
+          />
+
+          <!-- 审核 -->
+          <UiSelect
+            :model-value="moderation || 'low'"
+            label="审核"
+            :icon="ShieldCheck"
+            :options="activeModel.moderationOptions || MODERATION_OPTIONS"
+            placement="top"
+            variant="pill"
+            @update:model-value="emit('update:moderation', $event as ModelModeration)"
           />
 
           <!-- 数量步进器：连续两个空行分隔多段提示词时切换为每批张数 -->

@@ -195,6 +195,10 @@ async function handleCopyPrompt() {
               <span class="spec-k">设定画质</span>
               <span class="spec-v">{{ presetQuality }}</span>
             </div>
+            <div v-if="item.moderation" class="spec-item">
+              <span class="spec-k">设定审核</span>
+              <span class="spec-v">{{ item.moderation === 'low' ? '低' : '默认' }}</span>
+            </div>
           </div>
 
           <!-- 右栏：实际结果 (4项核心维度) -->

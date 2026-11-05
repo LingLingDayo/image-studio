@@ -8,6 +8,12 @@ export type { ResolutionTier };
 
 export type ModelQuality = 'auto' | 'low' | 'medium' | 'high';
 export type ModelFormat = 'png' | 'jpeg' | 'webp';
+export type ModelModeration = 'auto' | 'low';
+
+export const MODERATION_OPTIONS: { label: string; value: ModelModeration }[] = [
+  { label: '默认', value: 'auto' },
+  { label: '低', value: 'low' }
+];
 
 export const TRANSPARENT_CAPABLE_FORMATS: ModelFormat[] = ['png', 'webp'];
 export const TRANSPARENT_DEFAULT_FORMAT: ModelFormat = 'png';
@@ -32,6 +38,7 @@ export interface ModelProfile {
   aspectRatioOptions: { label: string; value: string; description?: string }[];
   qualityOptions: { label: string; value: ModelQuality }[];
   formatOptions: { label: string; value: ModelFormat }[];
+  moderationOptions: { label: string; value: ModelModeration }[];
   supportsTransparent: boolean;
   maxBatchCount: number;
   defaultParams: {
@@ -41,6 +48,7 @@ export interface ModelProfile {
     quality: ModelQuality;
     format: ModelFormat;
     transparent: boolean;
+    moderation: ModelModeration;
     count: number;
   };
 }
@@ -139,6 +147,7 @@ export const GPT_IMAGE_2_PROFILE: ModelProfile = {
     { label: 'JPEG', value: 'jpeg' },
     { label: 'WEBP', value: 'webp' }
   ],
+  moderationOptions: MODERATION_OPTIONS,
   supportsTransparent: true,
   maxBatchCount: 4,
   defaultParams: {
@@ -148,6 +157,7 @@ export const GPT_IMAGE_2_PROFILE: ModelProfile = {
     quality: 'medium',
     format: 'jpeg',
     transparent: false,
+    moderation: 'low',
     count: 1
   }
 };
