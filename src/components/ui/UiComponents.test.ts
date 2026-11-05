@@ -212,7 +212,7 @@ describe('UI Components (src/components/ui)', () => {
     app.unmount();
   });
 
-  it('should render UiStepper label and optional tip', async () => {
+  it('should render UiStepper label, tip and prevent browser password autofill', async () => {
     const app = createApp({
       render() {
         return h(UiStepper, {
@@ -232,9 +232,14 @@ describe('UI Components (src/components/ui)', () => {
     expect(container.querySelector('.stepper-controls')?.getAttribute('data-tip')).toBe(
       '当前 2 个批次，每批生成 2 张，共 4 张'
     );
-    expect(container.querySelector('.step-input')?.getAttribute('data-tip')).toBe(
+    const stepInput = container.querySelector('.step-input') as HTMLInputElement;
+    expect(stepInput?.getAttribute('data-tip')).toBe(
       '当前 2 个批次，每批生成 2 张，共 4 张'
     );
+    expect(stepInput?.getAttribute('type')).toBe('number');
+    expect(stepInput?.getAttribute('autocomplete')).toBe('off');
+    expect(stepInput?.getAttribute('data-1p-ignore')).toBe('true');
+    expect(stepInput?.getAttribute('data-lpignore')).toBe('true');
 
     app.unmount();
   });
@@ -345,6 +350,9 @@ describe('UI Components (src/components/ui)', () => {
     expect(dimInputs.length).toBe(2);
     expect(dimInputs[0].value).toBe('1024');
     expect(dimInputs[1].value).toBe('768');
+    expect(dimInputs[0].getAttribute('type')).toBe('number');
+    expect(dimInputs[0].getAttribute('autocomplete')).toBe('off');
+    expect(dimInputs[0].getAttribute('data-1p-ignore')).toBe('true');
 
     const resetBtn = container.querySelector('.reset-btn') as HTMLButtonElement;
     expect(resetBtn).not.toBeNull();

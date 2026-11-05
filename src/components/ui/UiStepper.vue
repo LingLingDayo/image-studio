@@ -59,8 +59,20 @@ function handleInputChange(e: Event) {
   } else {
     val = Math.max(props.min, Math.min(props.max, val));
   }
+  target.value = String(val);
   emit('update:modelValue', val);
   emit('change', val);
+}
+
+function handleInputFocus(e: FocusEvent) {
+  const target = e.target as HTMLInputElement;
+  target?.select();
+}
+
+function handleKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Enter') {
+    (e.target as HTMLInputElement)?.blur();
+  }
 }
 
 function handleWheel(e: WheelEvent) {
@@ -99,13 +111,25 @@ function handleWheel(e: WheelEvent) {
       </button>
 
       <input 
-        type="text" 
-        inputmode="numeric" 
-        pattern="[0-9]*"
+        type="number" 
+        :min="min"
+        :max="max"
+        :step="step"
         :value="modelValue" 
         :disabled="disabled"
+        name="stepper-count"
+        autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        data-1p-ignore="true"
+        data-lpignore="true"
+        data-bwignore="true"
+        data-form-type="other"
         class="step-input"
         :data-tip="valueTip"
+        @focus="handleInputFocus"
+        @keydown="handleKeyDown"
         @change="handleInputChange"
       />
 
@@ -229,5 +253,13 @@ function handleWheel(e: WheelEvent) {
   outline: none;
   padding: 0;
   margin: 0;
+  -moz-appearance: textfield;
+  appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }
 </style>

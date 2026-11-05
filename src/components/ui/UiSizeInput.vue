@@ -75,6 +75,16 @@ function handleHeightChange(e: Event) {
   emit('update:height', parsed);
 }
 
+function handleInputFocus(e: FocusEvent) {
+  (e.target as HTMLInputElement)?.select();
+}
+
+function handleKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Enter') {
+    (e.target as HTMLInputElement)?.blur();
+  }
+}
+
 function handleMaterialize() {
   if (props.disabled) return;
   shouldFocusWidth.value = true;
@@ -134,23 +144,47 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
 
       <input
         ref="widthInputRef"
-        type="text"
-        inputmode="numeric"
+        type="number"
+        :min="min"
+        :max="max"
         class="dim-input"
         :value="width ?? ''"
         :disabled="disabled"
         :data-tip="widthTip"
+        name="size-width"
+        autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        data-1p-ignore="true"
+        data-lpignore="true"
+        data-bwignore="true"
+        data-form-type="other"
+        @focus="handleInputFocus"
+        @keydown="handleKeyDown"
         @change="handleWidthChange"
         @wheel.prevent="handleDimWheel('width', $event)"
       />
       <span class="times">×</span>
       <input
-        type="text"
-        inputmode="numeric"
+        type="number"
+        :min="min"
+        :max="max"
         class="dim-input"
         :value="height ?? ''"
         :disabled="disabled"
         :data-tip="heightTip"
+        name="size-height"
+        autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        data-1p-ignore="true"
+        data-lpignore="true"
+        data-bwignore="true"
+        data-form-type="other"
+        @focus="handleInputFocus"
+        @keydown="handleKeyDown"
         @change="handleHeightChange"
         @wheel.prevent="handleDimWheel('height', $event)"
       />
@@ -276,6 +310,14 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
   outline: none;
   padding: 0;
   margin: 0;
+  -moz-appearance: textfield;
+  appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }
 
 .times {
