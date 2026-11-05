@@ -172,7 +172,7 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     app.unmount();
   });
 
-  it('应在参数栏展示模型切换且默认选中 gpt-image-2', async () => {
+  it('应在参数栏展示模型切换且默认选中 gpt-image-2.6-flare', async () => {
     const app = createApp({
       render() {
         return h(PromptBar as any, {
@@ -191,7 +191,7 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     expect(modelSelect.classList.contains('is-truncated')).toBe(true);
     expect(modelSelect.style.maxWidth).toBe('150px');
     const modelValue = container.querySelector('.select-value')?.textContent;
-    expect(modelValue).toBe('GPT-Image-2');
+    expect(modelValue).toBe('GPT-Image-2.6 Flare');
     const iconSelects = container.querySelectorAll('.params-group .ui-select.has-icon');
     expect(iconSelects.length).toBeGreaterThanOrEqual(6);
     expect(container.querySelectorAll('.params-group .ui-select .select-arrow').length).toBe(0);

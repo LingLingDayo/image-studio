@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   GPT_IMAGE_2_PROFILE,
   DEFAULT_IMAGE_MODEL_ID,
+  PREFERRED_IMAGE_MODEL_IDS,
   formatImageModelName,
   isImageGenerationModel,
   pickAvailableImageModel,
@@ -11,6 +12,14 @@ import {
 } from './model';
 
 describe('Model Profile Specification (model.ts)', () => {
+  it('should define valid default image model and preferences', () => {
+    expect(DEFAULT_IMAGE_MODEL_ID).toBe('gpt-image-2.6-flare');
+    expect(PREFERRED_IMAGE_MODEL_IDS).toEqual([
+      'gpt-image-2.6-flare',
+      'gpt-image-2.5-flare',
+      'gpt-image-2'
+    ]);
+  });
   it('should define valid gpt-image-2 profile configuration', () => {
     expect(GPT_IMAGE_2_PROFILE.id).toBe('gpt-image-2');
     expect(GPT_IMAGE_2_PROFILE.providerType).toBe('openai-compatible');
@@ -61,29 +70,47 @@ describe('Model Profile Specification (model.ts)', () => {
   });
 
   it('should format known image model names and detect image models', () => {
+    expect(formatImageModelName('gpt-image-2.6-flare')).toBe('GPT-Image-2.6 Flare');
+    expect(formatImageModelName('gpt-image-2.6-flare-2026-03-01')).toBe('GPT-Image-2.6 Flare');
     expect(formatImageModelName('gpt-image-2')).toBe('GPT-Image-2');
     expect(formatImageModelName('gpt-image-2.5-flare')).toBe('GPT-Image-2.5 Flare');
     expect(formatImageModelName('gpt-image-2.5-sunburst')).toBe('GPT-Image-2.5 Sunburst');
     expect(formatImageModelName('gpt-image-2.5-flare-2026-09-08')).toBe('GPT-Image-2.5 Flare');
     expect(formatImageModelName('custom-flux')).toBe('custom-flux');
+    expect(isImageGenerationModel('gpt-image-2.6-flare')).toBe(true);
     expect(isImageGenerationModel('gpt-image-2.5-flare')).toBe(true);
     expect(isImageGenerationModel('dall-e-3')).toBe(true);
     expect(isImageGenerationModel('gpt-4o')).toBe(false);
   });
 
-  it('should keep gpt-image-2 when supported and otherwise use the first image model', () => {
+  it('should pick image models by priority: 2.6-flare -> 2.5-flare -> 2 -> first model in list', () => {
     expect(
-      resolveImageModelList(['gpt-4o', 'gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst'])
-    ).toEqual(['gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst']);
+      resolveImageModelList(['gpt-4o', 'gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.6-flare'])
+    ).toEqual(['gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.6-flare']);
 
-    expect(pickAvailableImageModel(['gpt-image-2', 'gpt-image-2.5-flare'], DEFAULT_IMAGE_MODEL_ID)).toBe(
-      'gpt-image-2'
-    );
-    expect(pickAvailableImageModel(['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst'], 'gpt-image-2')).toBe(
-      'gpt-image-2.5-flare'
-    );
+    // 1. 有 2.6-flare 时默认优先选中 2.6-flare
     expect(
-      pickAvailableImageModel(['gpt-image-2', 'gpt-image-2.5-flare'], 'gpt-image-2.5-flare')
+      pickAvailableImageModel(['gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.6-flare'])
+    ).toBe('gpt-image-2.6-flare');
+
+    // 2. 没有 2.6-flare 时选中 2.5-flare
+    expect(
+      pickAvailableImageModel(['gpt-image-2', 'gpt-image-2.5-flare'])
     ).toBe('gpt-image-2.5-flare');
+
+    // 3. 再没有 2.5-flare 时选中 gpt-image-2
+    expect(
+      pickAvailableImageModel(['gpt-image-2', 'custom-model'])
+    ).toBe('gpt-image-2');
+
+    // 4. 还没有时选中生图 key 模型列表的第一个模型
+    expect(
+      pickAvailableImageModel(['custom-model-a', 'custom-model-b'])
+    ).toBe('custom-model-a');
+
+    // 5. 当前已选且依然在列表中时保持当前选择
+    expect(
+      pickAvailableImageModel(['gpt-image-2', 'gpt-image-2.6-flare', 'custom-model'], 'custom-model')
+    ).toBe('custom-model');
   });
 });

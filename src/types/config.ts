@@ -1,3 +1,5 @@
+import { DEFAULT_IMAGE_MODEL_ID } from './model';
+
 export interface ApiConfig {
   baseUrl: string;
   apiKey: string;
@@ -32,7 +34,7 @@ export const ENV_API_KEY_HINT: string = (import.meta.env.VITE_IMAGE_API_KEY_HINT
 export const DEFAULT_CONFIG: ApiConfig = {
   baseUrl: ENV_BASE_URL,
   apiKey: ENV_API_KEY,
-  model: 'gpt-image-2'
+  model: DEFAULT_IMAGE_MODEL_ID
 };
 
 export const ENV_OPTIMIZER_BASE_URL: string = (import.meta.env.VITE_OPTIMIZER_API_BASE_URL || '').trim();
