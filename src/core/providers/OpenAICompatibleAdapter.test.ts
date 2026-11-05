@@ -449,4 +449,68 @@ describe('OpenAICompatibleAdapter (OpenAICompatibleAdapter.ts)', () => {
       adapter.execute({ baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' }, params)
     ).rejects.toThrow('[内容安全审核拦截]');
   });
+
+  it('should trigger onResponseStart and onContentStart with streaming reader', async () => {
+    let responseStartTriggered = false;
+    let contentStartDuration: number | null = null;
+
+    const payload = JSON.stringify({
+      created: 1720000000,
+      data: [{ url: 'https://example.com/stream-img.png' }]
+    });
+
+    const encoder = new TextEncoder();
+    const chunk1 = encoder.encode(payload.slice(0, 20));
+    const chunk2 = encoder.encode(payload.slice(20));
+
+    let readCount = 0;
+    const mockReader = {
+      read: vi.fn().mockImplementation(async () => {
+        readCount++;
+        if (readCount === 1) {
+          return { done: false, value: chunk1 };
+        }
+        if (readCount === 2) {
+          return { done: false, value: chunk2 };
+        }
+        return { done: true, value: undefined };
+      })
+    };
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: {
+        getReader: () => mockReader
+      }
+    } as any);
+
+    const params: TaskGenerationParams = {
+      model: 'gpt-image-2',
+      prompt: 'stream timing cat',
+      type: 't2i',
+      size: '1024x1024',
+      quality: 'medium',
+      format: 'png',
+      transparent: false,
+      count: 1
+    };
+
+    const result = await adapter.execute(
+      { baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' },
+      params,
+      {
+        onResponseStart: () => {
+          responseStartTriggered = true;
+        },
+        onContentStart: (duration) => {
+          contentStartDuration = duration;
+        }
+      }
+    );
+
+    expect(responseStartTriggered).toBe(true);
+    expect(typeof contentStartDuration).toBe('number');
+    expect(contentStartDuration).toBeGreaterThanOrEqual(0);
+    expect(result.items[0].url).toBe('https://example.com/stream-img.png');
+  });
 });

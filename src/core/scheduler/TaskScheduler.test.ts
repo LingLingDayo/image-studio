@@ -342,5 +342,70 @@ describe('TaskScheduler & TaskProgressTracker', () => {
       expect(failed).toBeDefined();
       expect(failed?.errorMessage).toContain('[内容安全审核拦截]');
     });
+
+    it('should start timer only when response starts and stop timer as soon as content begins', async () => {
+      const scheduler = new TaskScheduler();
+      const params: TaskGenerationParams = {
+        model: 'gpt-image-2',
+        prompt: 'timing precision test',
+        type: 't2i',
+        size: '1024x1024',
+        resolution: '1k',
+        quality: 'medium',
+        format: 'png',
+        transparent: false,
+        count: 1
+      };
+
+      const payload = JSON.stringify({
+        created: 1720000000,
+        data: [{ b64_json: 'iVBORw0KGgo=' }]
+      });
+      const encoder = new TextEncoder();
+      const chunk = encoder.encode(payload);
+
+      let readerCalled = false;
+      const mockReader = {
+        read: vi.fn().mockImplementation(async () => {
+          if (!readerCalled) {
+            readerCalled = true;
+            // 模拟收到首包内容
+            return { done: false, value: chunk };
+          }
+          return { done: true, value: undefined };
+        })
+      };
+
+      globalThis.fetch = vi.fn().mockImplementation(async (_input: any, init?: RequestInit) => {
+        if (init?.method === 'POST') {
+          return {
+            ok: true,
+            body: {
+              getReader: () => mockReader
+            }
+          };
+        }
+        return {
+          ok: true,
+          blob: async () => new Blob(['png'], { type: 'image/png' })
+        };
+      });
+
+      const task = scheduler.createTask(params);
+      expect(task.durationFormatted).toBe('0.0s');
+
+      const assets = await scheduler.execute(
+        task,
+        { baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' },
+        GPT_IMAGE_2_PROFILE
+      );
+
+      expect(task.status).toBe('succeeded');
+      expect(assets).toHaveLength(1);
+      expect(assets[0].duration).toBeDefined();
+      expect(assets[0].duration).not.toBe('');
+      // 生成耗时应格式化为形如 "X.Xs"
+      expect(assets[0].duration).toMatch(/^\d+\.\d+s$/);
+    });
   });
 });

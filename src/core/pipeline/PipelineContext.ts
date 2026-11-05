@@ -9,6 +9,8 @@ export interface PipelineContext {
   modelProfile: ModelProfile;
   signal?: AbortSignal;
   onProgress?: (percent: number) => void;
+  onResponseStart?: () => void;
+  onContentStart?: (durationSeconds: number) => void;
   rawResult?: ProviderExecutionResult;
   generatedAssets: MediaAsset[];
 }

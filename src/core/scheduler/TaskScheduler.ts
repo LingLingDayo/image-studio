@@ -243,13 +243,43 @@ export class TaskScheduler {
     task.updatedAt = Date.now();
     callbacks?.onProgress?.(task);
 
-    const startTime = Date.now();
-    const timer = setInterval(() => {
-      task.elapsedSeconds = (Date.now() - startTime) / 1000;
-      task.durationFormatted = `${task.elapsedSeconds.toFixed(1)}s`;
-      task.progress = tracker.calculateProgress(task.elapsedSeconds);
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let timingStartTime = 0;
+    let isTimerRunning = false;
+    let isTimerStopped = false;
+
+    const stopTimer = (durationSec?: number) => {
+      if (isTimerStopped) return;
+      isTimerStopped = true;
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+      isTimerRunning = false;
+      if (typeof durationSec === 'number' && durationSec >= 0) {
+        task.elapsedSeconds = durationSec;
+        task.durationFormatted = `${durationSec.toFixed(1)}s`;
+      } else if (timingStartTime > 0) {
+        task.elapsedSeconds = (performance.now() - timingStartTime) / 1000;
+        task.durationFormatted = `${task.elapsedSeconds.toFixed(1)}s`;
+      }
+      task.updatedAt = Date.now();
       callbacks?.onProgress?.(task);
-    }, 100);
+    };
+
+    const startTimer = () => {
+      if (isTimerRunning || isTimerStopped) return;
+      isTimerRunning = true;
+      timingStartTime = performance.now();
+      timer = setInterval(() => {
+        if (isTimerStopped) return;
+        task.elapsedSeconds = (performance.now() - timingStartTime) / 1000;
+        task.durationFormatted = `${task.elapsedSeconds.toFixed(1)}s`;
+        task.progress = tracker.calculateProgress(task.elapsedSeconds);
+        task.updatedAt = Date.now();
+        callbacks?.onProgress?.(task);
+      }, 100);
+    };
 
     try {
       const assets = await this.pipeline.run({
@@ -257,17 +287,27 @@ export class TaskScheduler {
         config,
         modelProfile,
         signal,
+        onResponseStart: () => {
+          startTimer();
+        },
+        onContentStart: (durationSec) => {
+          stopTimer(durationSec);
+        },
         generatedAssets: []
       });
 
-      task.elapsedSeconds = (Date.now() - startTime) / 1000;
-      task.durationFormatted = `${task.elapsedSeconds.toFixed(1)}s`;
+      // 确保计时器已停止
+      stopTimer();
+
       task.progress = 100;
       task.updatedAt = Date.now();
       callbacks?.onProgress?.(task);
       return assets;
     } finally {
-      clearInterval(timer);
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
     }
   }
 

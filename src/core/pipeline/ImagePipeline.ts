@@ -43,7 +43,11 @@ export class ProviderExecutionStage implements IPipelineStage {
     const adapter = providerRegistry.get(ctx.modelProfile.providerType);
     ctx.onProgress?.(30);
 
-    const result = await adapter.execute(ctx.config, ctx.task.params, ctx.signal);
+    const result = await adapter.execute(ctx.config, ctx.task.params, {
+      signal: ctx.signal,
+      onResponseStart: ctx.onResponseStart,
+      onContentStart: ctx.onContentStart
+    });
     ctx.rawResult = result;
     ctx.onProgress?.(70);
   }

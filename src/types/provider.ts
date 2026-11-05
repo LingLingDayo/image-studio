@@ -17,6 +17,12 @@ export interface ProviderConfig {
   model: string;
 }
 
+export interface ProviderExecuteOptions {
+  signal?: AbortSignal;
+  onResponseStart?: () => void;
+  onContentStart?: (durationSeconds: number) => void;
+}
+
 /**
  * 图像提供商适配器标准契约
  * // Extension Point: 所有底层生图协议 (OpenAI标准、Fal.ai、Replicate 等) 均实现此接口
@@ -28,6 +34,6 @@ export interface IImageProviderAdapter {
   execute(
     config: ProviderConfig,
     params: TaskGenerationParams,
-    signal?: AbortSignal
+    signalOrOptions?: AbortSignal | ProviderExecuteOptions
   ): Promise<ProviderExecutionResult>;
 }

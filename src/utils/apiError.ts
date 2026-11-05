@@ -490,22 +490,26 @@ export async function extractResponseError(response: Response | any, defaultActi
 /**
  * 封装带友好错误解析的 JSON 获取，杜绝抛出 Unexpected token '<' 异常
  */
-export async function parseResponseSafeJson(response: Response | any, actionName = '生图'): Promise<any> {
-  if (!response) {
+export async function parseResponseSafeJson(response: Response | string | any, actionName = '生图'): Promise<any> {
+  if (response === undefined || response === null) {
     throw new Error(`${actionName}失败: 服务端返回了空响应`);
   }
 
-  if (typeof response.text !== 'function' && typeof response.json === 'function') {
-    return await response.json();
-  }
-
   let rawText = '';
-  try {
-    rawText = await response.text();
-  } catch {
-    if (typeof response.json === 'function') {
-      return await response.json();
+  if (typeof response === 'string') {
+    rawText = response;
+  } else if (typeof response.text !== 'function' && typeof response.json === 'function') {
+    return await response.json();
+  } else if (typeof response.text === 'function') {
+    try {
+      rawText = await response.text();
+    } catch {
+      if (typeof response.json === 'function') {
+        return await response.json();
+      }
+      throw new Error(`${actionName}失败: 无法读取响应体`);
     }
+  } else {
     throw new Error(`${actionName}失败: 无法读取响应体`);
   }
 

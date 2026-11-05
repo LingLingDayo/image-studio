@@ -1,4 +1,4 @@
-import type { IImageProviderAdapter, ProviderConfig, ProviderExecutionResult, ProviderItemResult } from '@/types/provider';
+import type { IImageProviderAdapter, ProviderConfig, ProviderExecutionResult, ProviderItemResult, ProviderExecuteOptions } from '@/types/provider';
 import type { TaskGenerationParams } from '@/types/task';
 import { resolveTransparentOutputFormat } from '@/types/model';
 import { applySizePromptHint, buildSizePromptHint, parseSizeString } from '@/utils/imageSize';
@@ -101,24 +101,29 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
   async execute(
     config: ProviderConfig,
     params: TaskGenerationParams,
-    signal?: AbortSignal
+    signalOrOptions?: AbortSignal | ProviderExecuteOptions
   ): Promise<ProviderExecutionResult> {
     if (!config.apiKey || config.apiKey.trim() === '') {
       throw new Error('未配置 API Key，请在右上角设置中填写');
     }
 
+    const options: ProviderExecuteOptions =
+      signalOrOptions instanceof AbortSignal
+        ? { signal: signalOrOptions }
+        : signalOrOptions || {};
+
     const isEditMode = params.type === 'i2i' || (params.referenceImages && params.referenceImages.length > 0);
 
     if (isEditMode) {
-      return this.executeEdit(config, params, signal);
+      return this.executeEdit(config, params, options);
     }
-    return this.executeGenerate(config, params, signal);
+    return this.executeGenerate(config, params, options);
   }
 
   private async executeGenerate(
     config: ProviderConfig,
     params: TaskGenerationParams,
-    signal?: AbortSignal
+    options?: ProviderExecuteOptions
   ): Promise<ProviderExecutionResult> {
     const endpoint = normalizeEndpoint(config.baseUrl, '/images/generations');
 
@@ -152,16 +157,17 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
           'Authorization': `Bearer ${config.apiKey.trim()}`
         },
         body: JSON.stringify(payload),
-        signal
+        signal: options?.signal
       },
-      '生图'
+      '生图',
+      options
     );
   }
 
   private async executeEdit(
     config: ProviderConfig,
     params: TaskGenerationParams,
-    signal?: AbortSignal
+    options?: ProviderExecuteOptions
   ): Promise<ProviderExecutionResult> {
     const endpoint = normalizeEndpoint(config.baseUrl, '/images/edits');
 
@@ -201,17 +207,22 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
           'Authorization': `Bearer ${config.apiKey.trim()}`
         },
         body: formData,
-        signal
+        signal: options?.signal
       },
-      '图生图/编辑'
+      '图生图/编辑',
+      options
     );
   }
 
   private async sendRequest(
     endpoint: string,
     init: RequestInit,
-    actionName: string
+    actionName: string,
+    options?: ProviderExecuteOptions
   ): Promise<ProviderExecutionResult> {
+    options?.onResponseStart?.();
+    const requestSentAt = performance.now();
+
     let response: Response;
     try {
       response = await fetch(endpoint, init);
@@ -222,12 +233,59 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
       throw new Error(formatThrownError(err, actionName));
     }
 
+    const responseReceivedAt = performance.now();
+
     if (!response.ok) {
       const errorDetail = await extractResponseError(response, actionName);
       throw new Error(`${actionName}失败: ${errorDetail}`);
     }
 
-    const data = await parseResponseSafeJson(response, actionName);
+    let rawText = '';
+    if (response.body && typeof response.body.getReader === 'function') {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let hasTriggeredContentStart = false;
+      const chunks: string[] = [];
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value && value.length > 0) {
+            if (!hasTriggeredContentStart) {
+              hasTriggeredContentStart = true;
+              const firstContentAt = performance.now();
+              const durationMs =
+                responseReceivedAt - requestSentAt >= 800
+                  ? firstContentAt - requestSentAt
+                  : Math.max(firstContentAt - responseReceivedAt, firstContentAt - requestSentAt);
+              options?.onContentStart?.(durationMs / 1000);
+            }
+            chunks.push(decoder.decode(value, { stream: true }));
+          }
+        }
+        chunks.push(decoder.decode());
+        rawText = chunks.join('');
+      } catch (streamErr) {
+        if (init.signal?.aborted) {
+          throw streamErr;
+        }
+        throw new Error(`${actionName}失败: 读取响应内容流中断`);
+      }
+
+      if (!hasTriggeredContentStart) {
+        const durationMs = performance.now() - requestSentAt;
+        options?.onContentStart?.(durationMs / 1000);
+      }
+    } else {
+      const firstContentAt = performance.now();
+      const durationMs = firstContentAt - requestSentAt;
+      options?.onContentStart?.(durationMs / 1000);
+      const data = await parseResponseSafeJson(response, actionName);
+      return parseResponseBody(data, actionName);
+    }
+
+    const data = await parseResponseSafeJson(rawText, actionName);
     return parseResponseBody(data, actionName);
   }
 }
