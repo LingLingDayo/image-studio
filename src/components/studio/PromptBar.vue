@@ -788,6 +788,8 @@ onUnmounted(() => {
     color: #7c3aed;
     border-color: #c4b5fd;
     animation: magic-btn-glow 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    transform-origin: center center;
+    will-change: transform, box-shadow;
     cursor: wait;
   }
 }
@@ -813,10 +815,12 @@ onUnmounted(() => {
 
 @keyframes magic-btn-glow {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.15), 0 2px 6px rgba(124, 58, 237, 0.1);
+    transform: scale(1);
+    box-shadow: 0 2px 6px rgba(124, 58, 237, 0.12);
   }
   50% {
-    box-shadow: 0 0 0 4px rgba(147, 51, 234, 0.22), 0 4px 14px rgba(124, 58, 237, 0.26);
+    transform: scale(1.06);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.24);
   }
 }
 
