@@ -66,6 +66,18 @@ const qualityChineseText = computed(() => {
   return formatQualityLabel(props.task.params.quality);
 });
 
+// 判断参数项是否为「自动」（生成中不展示“自动”，仅在生成完成后展示具体值）
+const isAutoValue = (val?: string | null): boolean => {
+  if (!val) return true;
+  const s = val.trim().toLowerCase();
+  return s === '自动' || s === 'auto';
+};
+
+const showDimension = computed(() => !isAutoValue(props.task.params.size) && !isAutoValue(dimensionText.value));
+const showResolution = computed(() => !isAutoValue(props.task.params.resolution) && !isAutoValue(resolutionText.value));
+const showRatio = computed(() => !isAutoValue(props.task.params.aspectRatio) && !isAutoValue(ratioText.value));
+const showQuality = computed(() => !isAutoValue(props.task.params.quality) && !isAutoValue(qualityChineseText.value));
+
 // 是否为图生图模式
 const isI2I = computed(() => {
   return props.task.type === 'i2i' || (props.task.params.referenceImages && props.task.params.referenceImages.length > 0);
@@ -117,9 +129,9 @@ const failDetail = computed(() => {
         <span class="fail-status-text">{{ failHeadline }}</span>
       </div>
 
-      <!-- 尺寸与数量角标 (左上角仅显示尺寸与多图数量) -->
-      <div class="image-badge-overlay">
-        <span class="size-pill">{{ dimensionText }}</span>
+      <!-- 尺寸与数量角标 (左上角仅显示尺寸与多图数量，若尺寸为自动则不展示) -->
+      <div v-if="showDimension || isBatchTask" class="image-badge-overlay">
+        <span v-if="showDimension" class="size-pill">{{ dimensionText }}</span>
         <span v-if="isBatchTask" class="count-pill">{{ countPillText }}</span>
       </div>
     </div>
@@ -131,18 +143,18 @@ const failDetail = computed(() => {
         {{ task.params.prompt }}
       </p>
 
-      <!-- 参数标签 (图生图等特殊标签置顶，其后为用户设定) -->
+      <!-- 参数标签 (图生图等特殊标签置顶，其后为用户设定，自动项不展示) -->
       <div class="card-tags">
         <span v-if="isI2I" class="tag-badge ref-tag">
           图生图
         </span>
-        <span class="tag-badge">
+        <span v-if="showResolution" class="tag-badge">
           {{ resolutionText }}
         </span>
-        <span class="tag-badge">
+        <span v-if="showRatio" class="tag-badge">
           {{ ratioText }}
         </span>
-        <span class="tag-badge">
+        <span v-if="showQuality" class="tag-badge">
           质量 {{ qualityChineseText }}
         </span>
         <span class="tag-badge time-tag" :data-tip="`创建时间：${fullTimeText}`">

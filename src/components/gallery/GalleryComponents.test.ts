@@ -101,6 +101,148 @@ describe('TaskCard 失败原因展示', () => {
 
     app.unmount();
   });
+
+  it('生成进行中：当尺寸、分辨率、比例为自动时，左上角不显示尺寸且参数标签不包含「自动」', async () => {
+    const task: GenerationTask = {
+      id: 'task_auto_1',
+      type: 'i2i',
+      params: {
+        model: 'gpt-image-2',
+        prompt: '测试自动项隐藏',
+        type: 'i2i',
+        size: 'auto',
+        resolution: 'auto',
+        aspectRatio: 'auto',
+        quality: 'medium',
+        format: 'png',
+        transparent: false,
+        count: 1
+      },
+      status: 'processing',
+      progress: 30,
+      currentIndex: 1,
+      elapsedSeconds: 4,
+      durationFormatted: '4.0s',
+      resultAssetIds: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    const app = createApp({
+      render() {
+        return h(TaskCard, { task });
+      }
+    });
+    app.mount(container);
+    await nextTick();
+
+    // 1. 左上角尺寸 pill 应该隐藏
+    const sizePill = container.querySelector('.image-badge-overlay .size-pill');
+    expect(sizePill).toBeNull();
+
+    // 2. 参数标签中不应含有「自动」字样
+    const tags = Array.from(container.querySelectorAll('.card-tags .tag-badge')).map(
+      (el) => el.textContent?.trim()
+    );
+    expect(tags.some((t) => t === '自动')).toBe(false);
+
+    // 3. 图生图与质量等明确项应正常展示
+    expect(container.querySelector('.card-tags .ref-tag')?.textContent).toContain('图生图');
+    expect(tags.some((t) => t?.includes('质量 中'))).toBe(true);
+
+    app.unmount();
+  });
+
+  it('生成进行中：当设定了具体的自定义尺寸与比例时，左上角与参数标签正常展示', async () => {
+    const task: GenerationTask = {
+      id: 'task_concrete_1',
+      type: 't2i',
+      params: {
+        model: 'gpt-image-2',
+        prompt: '测试具体参数',
+        type: 't2i',
+        size: '1920x1080',
+        resolution: '2k',
+        aspectRatio: '16:9',
+        quality: 'high',
+        format: 'png',
+        transparent: false,
+        count: 1
+      },
+      status: 'processing',
+      progress: 50,
+      currentIndex: 1,
+      elapsedSeconds: 2,
+      durationFormatted: '2.0s',
+      resultAssetIds: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    const app = createApp({
+      render() {
+        return h(TaskCard, { task });
+      }
+    });
+    app.mount(container);
+    await nextTick();
+
+    // 1. 左上角展示具体尺寸
+    const sizePill = container.querySelector('.image-badge-overlay .size-pill');
+    expect(sizePill?.textContent).toBe('1920×1080');
+
+    // 2. 参数标签中展示 2K, 16:9, 质量 高
+    const tags = Array.from(container.querySelectorAll('.card-tags .tag-badge')).map(
+      (el) => el.textContent?.trim()
+    );
+    expect(tags).toContain('2K');
+    expect(tags).toContain('16:9');
+    expect(tags.some((t) => t?.includes('质量 高'))).toBe(true);
+
+    app.unmount();
+  });
+
+  it('生成进行中：多图批量任务且尺寸为自动时，左上角保留张数角标但不展示尺寸', async () => {
+    const task: GenerationTask = {
+      id: 'task_batch_auto',
+      type: 't2i',
+      params: {
+        model: 'gpt-image-2',
+        prompt: '多图自动尺寸',
+        type: 't2i',
+        size: 'auto',
+        resolution: 'auto',
+        aspectRatio: 'auto',
+        quality: 'medium',
+        format: 'png',
+        transparent: false,
+        count: 4
+      },
+      status: 'processing',
+      progress: 25,
+      currentIndex: 2,
+      elapsedSeconds: 5,
+      durationFormatted: '5.0s',
+      resultAssetIds: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    const app = createApp({
+      render() {
+        return h(TaskCard, { task });
+      }
+    });
+    app.mount(container);
+    await nextTick();
+
+    // 尺寸 pill 不存在，但张数 pill 存在且为 2/4
+    expect(container.querySelector('.image-badge-overlay .size-pill')).toBeNull();
+    const countPill = container.querySelector('.image-badge-overlay .count-pill');
+    expect(countPill?.textContent).toBe('2/4');
+
+    app.unmount();
+  });
 });
 
 describe('LightboxModal 作品切换箭头', () => {

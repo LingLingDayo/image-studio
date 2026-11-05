@@ -113,7 +113,10 @@ const dimensionText = computed(() => {
     if (currentAsset.value.width && currentAsset.value.height) {
       return `${currentAsset.value.width}×${currentAsset.value.height}`;
     }
-    return currentAsset.value.size || '1024×1024';
+    if (currentAsset.value.size && currentAsset.value.size !== 'auto') {
+      return currentAsset.value.size.replace(/x/i, '×');
+    }
+    return '1024×1024';
   }
   return '1024×1024';
 });
