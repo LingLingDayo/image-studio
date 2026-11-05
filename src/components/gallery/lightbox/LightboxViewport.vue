@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import type { MediaAsset } from '@/types/asset';
 import UiImageViewer from '@/components/ui/UiImageViewer.vue';
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   activeItem: MediaAsset;
   batchAssets: MediaAsset[];
   currentIndex: number;
