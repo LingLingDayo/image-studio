@@ -9,7 +9,11 @@ export interface PipelineContext {
   modelProfile: ModelProfile;
   signal?: AbortSignal;
   onProgress?: (percent: number) => void;
+  /** 当服务端建立连接并开始返回 HTTP 响应时触发 */
   onResponseStart?: () => void;
+  /** 当服务端返回图片时触发 */
+  onImageReceived?: () => void;
+  /** @deprecated 保持兼容旧字段 */
   onContentStart?: (durationSeconds: number) => void;
   rawResult?: ProviderExecutionResult;
   generatedAssets: MediaAsset[];

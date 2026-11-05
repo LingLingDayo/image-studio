@@ -247,8 +247,9 @@ export class TaskScheduler {
     let timingStartTime = 0;
     let isTimerRunning = false;
     let isTimerStopped = false;
+    const taskExecutionStartTime = performance.now();
 
-    const stopTimer = (durationSec?: number) => {
+    const stopTimer = () => {
       if (isTimerStopped) return;
       isTimerStopped = true;
       if (timer) {
@@ -256,13 +257,9 @@ export class TaskScheduler {
         timer = null;
       }
       isTimerRunning = false;
-      if (typeof durationSec === 'number' && durationSec >= 0) {
-        task.elapsedSeconds = durationSec;
-        task.durationFormatted = `${durationSec.toFixed(1)}s`;
-      } else if (timingStartTime > 0) {
-        task.elapsedSeconds = (performance.now() - timingStartTime) / 1000;
-        task.durationFormatted = `${task.elapsedSeconds.toFixed(1)}s`;
-      }
+      const baseStart = timingStartTime > 0 ? timingStartTime : taskExecutionStartTime;
+      task.elapsedSeconds = Math.max(0, (performance.now() - baseStart) / 1000);
+      task.durationFormatted = `${task.elapsedSeconds.toFixed(1)}s`;
       task.updatedAt = Date.now();
       callbacks?.onProgress?.(task);
     };
@@ -290,8 +287,8 @@ export class TaskScheduler {
         onResponseStart: () => {
           startTimer();
         },
-        onContentStart: (durationSec) => {
-          stopTimer(durationSec);
+        onImageReceived: () => {
+          stopTimer();
         },
         generatedAssets: []
       });

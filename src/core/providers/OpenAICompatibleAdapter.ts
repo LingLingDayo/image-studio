@@ -220,7 +220,6 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
     actionName: string,
     options?: ProviderExecuteOptions
   ): Promise<ProviderExecutionResult> {
-    options?.onResponseStart?.();
     const requestSentAt = performance.now();
 
     let response: Response;
@@ -233,18 +232,18 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
       throw new Error(formatThrownError(err, actionName));
     }
 
-    const responseReceivedAt = performance.now();
-
     if (!response.ok) {
       const errorDetail = await extractResponseError(response, actionName);
       throw new Error(`${actionName}失败: ${errorDetail}`);
     }
 
-    let rawText = '';
+    // 服务器响应成功后，开始正常走时
+    options?.onResponseStart?.();
+
+    let data: any;
     if (response.body && typeof response.body.getReader === 'function') {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let hasTriggeredContentStart = false;
       const chunks: string[] = [];
 
       try {
@@ -252,40 +251,32 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
           const { done, value } = await reader.read();
           if (done) break;
           if (value && value.length > 0) {
-            if (!hasTriggeredContentStart) {
-              hasTriggeredContentStart = true;
-              const firstContentAt = performance.now();
-              const durationMs =
-                responseReceivedAt - requestSentAt >= 800
-                  ? firstContentAt - requestSentAt
-                  : Math.max(firstContentAt - responseReceivedAt, firstContentAt - requestSentAt);
-              options?.onContentStart?.(durationMs / 1000);
-            }
             chunks.push(decoder.decode(value, { stream: true }));
           }
         }
         chunks.push(decoder.decode());
-        rawText = chunks.join('');
+        const rawText = chunks.join('');
+        data = await parseResponseSafeJson(rawText, actionName);
       } catch (streamErr) {
         if (init.signal?.aborted) {
           throw streamErr;
         }
         throw new Error(`${actionName}失败: 读取响应内容流中断`);
       }
-
-      if (!hasTriggeredContentStart) {
-        const durationMs = performance.now() - requestSentAt;
-        options?.onContentStart?.(durationMs / 1000);
-      }
     } else {
-      const firstContentAt = performance.now();
-      const durationMs = firstContentAt - requestSentAt;
-      options?.onContentStart?.(durationMs / 1000);
-      const data = await parseResponseSafeJson(response, actionName);
-      return parseResponseBody(data, actionName);
+      data = await parseResponseSafeJson(response, actionName);
     }
 
-    const data = await parseResponseSafeJson(rawText, actionName);
-    return parseResponseBody(data, actionName);
+    const result = parseResponseBody(data, actionName);
+
+    // 服务器返回图片完成，通知结束走时
+    options?.onImageReceived?.();
+
+    if (options?.onContentStart) {
+      const durationSec = (performance.now() - requestSentAt) / 1000;
+      options.onContentStart(durationSec);
+    }
+
+    return result;
   }
 }

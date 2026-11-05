@@ -450,8 +450,9 @@ describe('OpenAICompatibleAdapter (OpenAICompatibleAdapter.ts)', () => {
     ).rejects.toThrow('[内容安全审核拦截]');
   });
 
-  it('should trigger onResponseStart and onContentStart with streaming reader', async () => {
+  it('should trigger onResponseStart after response and onImageReceived when stream finishes', async () => {
     let responseStartTriggered = false;
+    let imageReceivedTriggered = false;
     let contentStartDuration: number | null = null;
 
     const payload = JSON.stringify({
@@ -502,6 +503,9 @@ describe('OpenAICompatibleAdapter (OpenAICompatibleAdapter.ts)', () => {
         onResponseStart: () => {
           responseStartTriggered = true;
         },
+        onImageReceived: () => {
+          imageReceivedTriggered = true;
+        },
         onContentStart: (duration) => {
           contentStartDuration = duration;
         }
@@ -509,6 +513,7 @@ describe('OpenAICompatibleAdapter (OpenAICompatibleAdapter.ts)', () => {
     );
 
     expect(responseStartTriggered).toBe(true);
+    expect(imageReceivedTriggered).toBe(true);
     expect(typeof contentStartDuration).toBe('number');
     expect(contentStartDuration).toBeGreaterThanOrEqual(0);
     expect(result.items[0].url).toBe('https://example.com/stream-img.png');

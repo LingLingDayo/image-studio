@@ -19,7 +19,11 @@ export interface ProviderConfig {
 
 export interface ProviderExecuteOptions {
   signal?: AbortSignal;
+  /** 当服务端建立连接并开始返回 HTTP 响应时触发 */
   onResponseStart?: () => void;
+  /** 当服务端返回图片（数据完全接收并解析完成）时触发 */
+  onImageReceived?: () => void;
+  /** @deprecated 保持兼容旧字段 */
   onContentStart?: (durationSeconds: number) => void;
 }
 

@@ -343,7 +343,7 @@ describe('TaskScheduler & TaskProgressTracker', () => {
       expect(failed?.errorMessage).toContain('[内容安全审核拦截]');
     });
 
-    it('should start timer only when response starts and stop timer as soon as content begins', async () => {
+    it('should start timer when response starts and stop timer when image is returned', async () => {
       const scheduler = new TaskScheduler();
       const params: TaskGenerationParams = {
         model: 'gpt-image-2',
@@ -362,15 +362,18 @@ describe('TaskScheduler & TaskProgressTracker', () => {
         data: [{ b64_json: 'iVBORw0KGgo=' }]
       });
       const encoder = new TextEncoder();
-      const chunk = encoder.encode(payload);
+      const chunk1 = encoder.encode(payload.slice(0, 20));
+      const chunk2 = encoder.encode(payload.slice(20));
 
-      let readerCalled = false;
+      let readStep = 0;
       const mockReader = {
         read: vi.fn().mockImplementation(async () => {
-          if (!readerCalled) {
-            readerCalled = true;
-            // 模拟收到首包内容
-            return { done: false, value: chunk };
+          readStep++;
+          if (readStep === 1) {
+            return { done: false, value: chunk1 };
+          }
+          if (readStep === 2) {
+            return { done: false, value: chunk2 };
           }
           return { done: true, value: undefined };
         })
@@ -394,13 +397,20 @@ describe('TaskScheduler & TaskProgressTracker', () => {
       const task = scheduler.createTask(params);
       expect(task.durationFormatted).toBe('0.0s');
 
+      const progressSnapshots: { progress: number; duration: string }[] = [];
       const assets = await scheduler.execute(
         task,
         { baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' },
-        GPT_IMAGE_2_PROFILE
+        GPT_IMAGE_2_PROFILE,
+        {
+          onProgress: (t) => {
+            progressSnapshots.push({ progress: t.progress, duration: t.durationFormatted });
+          }
+        }
       );
 
       expect(task.status).toBe('succeeded');
+      expect(task.progress).toBe(100);
       expect(assets).toHaveLength(1);
       expect(assets[0].duration).toBeDefined();
       expect(assets[0].duration).not.toBe('');

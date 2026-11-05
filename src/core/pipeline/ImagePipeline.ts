@@ -46,9 +46,12 @@ export class ProviderExecutionStage implements IPipelineStage {
     const result = await adapter.execute(ctx.config, ctx.task.params, {
       signal: ctx.signal,
       onResponseStart: ctx.onResponseStart,
+      onImageReceived: ctx.onImageReceived,
       onContentStart: ctx.onContentStart
     });
     ctx.rawResult = result;
+    // 服务器返回图片时（或者如果表明生成结束时），结束计时
+    ctx.onImageReceived?.();
     ctx.onProgress?.(70);
   }
 }
