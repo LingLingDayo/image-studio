@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createApp, h, nextTick } from 'vue';
+import { createApp, h, nextTick, ref } from 'vue';
 import { setActivePinia, createPinia } from 'pinia';
 import PromptBar from './PromptBar.vue';
 import { useConfigStore } from '@/stores/configStore';
@@ -169,6 +169,78 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     expect(magicBtn.classList.contains('is-optimizing')).toBe(false);
     const svgIconAfter = magicBtn.querySelector('svg');
     expect(svgIconAfter?.classList.contains('magic-sparkle-active')).toBe(false);
+
+    app.unmount();
+  });
+
+  it('模型优化提示词后不展示撤销按钮，但支持按 Ctrl+Z 回退提示词', async () => {
+    const configStore = useConfigStore();
+    configStore.updateOptimizerConfig({
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: 'sk-test-key',
+      model: 'gpt-4o-mini'
+    });
+
+    vi.spyOn(PromptOptimizerService, 'optimizePrompt').mockResolvedValue(
+      '一只毛茸茸的英短银渐层幼猫，在温暖阳光下安静打盹'
+    );
+
+    const promptRef = ref('一只可爱的猫咪');
+
+    const app = createApp({
+      render() {
+        return h(PromptBar as any, {
+          ...defaultProps,
+          prompt: promptRef.value,
+          'onUpdate:prompt': (val: string) => {
+            promptRef.value = val;
+          }
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const magicBtn = container.querySelector('.btn-magic') as HTMLButtonElement;
+    magicBtn.click();
+    await nextTick();
+    await nextTick();
+
+    // 确认优化后的提示词已经更新
+    expect(promptRef.value).toBe('一只毛茸茸的英短银渐层幼猫，在温暖阳光下安静打盹');
+
+    // 界面上不展示撤销按钮
+    const restoreBtn = container.querySelector('.btn-restore-prompt');
+    expect(restoreBtn).toBeNull();
+
+    // 模拟按下 Ctrl+Z 回退
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+    const undoEvent = new KeyboardEvent('keydown', {
+      key: 'z',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    textarea.dispatchEvent(undoEvent);
+    await nextTick();
+
+    // 验证提示词成功回退为原词
+    expect(promptRef.value).toBe('一只可爱的猫咪');
+    expect(undoEvent.defaultPrevented).toBe(true);
+
+    // 模拟按下 Ctrl+Y 重做恢复优化词
+    const redoEvent = new KeyboardEvent('keydown', {
+      key: 'y',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    textarea.dispatchEvent(redoEvent);
+    await nextTick();
+
+    expect(promptRef.value).toBe('一只毛茸茸的英短银渐层幼猫，在温暖阳光下安静打盹');
+    expect(redoEvent.defaultPrevented).toBe(true);
 
     app.unmount();
   });

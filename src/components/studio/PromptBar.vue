@@ -6,7 +6,6 @@ import {
   X,
   UploadCloud,
   Sparkles,
-  RotateCcw,
   Cpu,
   Scan,
   Ratio,
@@ -118,14 +117,47 @@ function handleModelSelectOpen() {
 
 const isOptimizing = ref(false);
 const previousPrompt = ref<string | null>(null);
+const optimizedPrompt = ref<string | null>(null);
 
-const canRestorePrompt = computed(() => {
+const canUndoOptimization = computed(() => {
   return (
     previousPrompt.value !== null &&
-    props.prompt.trim().length > 0 &&
-    previousPrompt.value.trim() !== props.prompt.trim()
+    optimizedPrompt.value !== null &&
+    props.prompt === optimizedPrompt.value
   );
 });
+
+const canRedoOptimization = computed(() => {
+  return (
+    previousPrompt.value !== null &&
+    optimizedPrompt.value !== null &&
+    props.prompt === previousPrompt.value
+  );
+});
+
+function handleUndoOptimization(): boolean {
+  if (canUndoOptimization.value && previousPrompt.value !== null) {
+    emit('update:prompt', previousPrompt.value);
+    nextTick(() => {
+      syncTextareaHeight();
+      textareaRef.value?.focus();
+    });
+    return true;
+  }
+  return false;
+}
+
+function handleRedoOptimization(): boolean {
+  if (canRedoOptimization.value && optimizedPrompt.value !== null) {
+    emit('update:prompt', optimizedPrompt.value);
+    nextTick(() => {
+      syncTextareaHeight();
+      textareaRef.value?.focus();
+    });
+    return true;
+  }
+  return false;
+}
 
 const promptBatches = computed(() => splitPromptBatches(props.prompt));
 const isBatchPromptMode = computed(() => promptBatches.value.length > 1);
@@ -161,33 +193,31 @@ async function handleOptimizePrompt() {
   }
 
   isOptimizing.value = true;
-  previousPrompt.value = props.prompt;
+  const originalPrompt = props.prompt;
+  previousPrompt.value = originalPrompt;
+  optimizedPrompt.value = null;
 
   try {
     const enhanced = await PromptOptimizerService.optimizePrompt(
       configStore.optimizerConfig,
       currentText
     );
+    optimizedPrompt.value = enhanced;
     emit('update:prompt', enhanced);
     emit('showToast', '提示词优化成功！已提升描写精准度与AI理解度', 'success');
   } catch (err: any) {
+    previousPrompt.value = null;
+    optimizedPrompt.value = null;
     emit('showToast', err.message || '提示词优化失败', 'error');
   } finally {
     isOptimizing.value = false;
   }
 }
 
-function handleRestorePrompt() {
-  if (previousPrompt.value !== null) {
-    emit('update:prompt', previousPrompt.value);
-    previousPrompt.value = null;
-    emit('showToast', '已恢复原提示词', 'info');
-  }
-}
-
 function handleGenerateClick() {
   if (!props.prompt.trim()) return;
   previousPrompt.value = null;
+  optimizedPrompt.value = null;
   emit('generate');
 }
 
@@ -294,6 +324,55 @@ function handleKeyDown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
     handleGenerateClick();
+    return;
+  }
+
+  const isZ = e.key === 'z' || e.key === 'Z';
+  const isY = e.key === 'y' || e.key === 'Y';
+
+  // Ctrl+Z 撤销优化恢复原词
+  if ((e.ctrlKey || e.metaKey) && isZ && !e.shiftKey) {
+    if (handleUndoOptimization()) {
+      e.preventDefault();
+      return;
+    }
+  }
+
+  // Ctrl+Shift+Z 或 Ctrl+Y 重做优化
+  if (((e.ctrlKey || e.metaKey) && isZ && e.shiftKey) || ((e.ctrlKey || e.metaKey) && isY && !e.shiftKey)) {
+    if (handleRedoOptimization()) {
+      e.preventDefault();
+      return;
+    }
+  }
+}
+
+function handleGlobalKeyDown(e: KeyboardEvent) {
+  if (e.defaultPrevented) return;
+
+  const activeEl = document.activeElement;
+  if (
+    activeEl &&
+    activeEl !== textareaRef.value &&
+    (activeEl.tagName === 'INPUT' ||
+      activeEl.tagName === 'SELECT' ||
+      (activeEl.tagName === 'TEXTAREA' && activeEl !== textareaRef.value))
+  ) {
+    return;
+  }
+
+  const isZ = e.key === 'z' || e.key === 'Z';
+  const isY = e.key === 'y' || e.key === 'Y';
+
+  // 全局 Ctrl+Z 支持优化后立即回退
+  if ((e.ctrlKey || e.metaKey) && isZ && !e.shiftKey) {
+    if (handleUndoOptimization()) {
+      e.preventDefault();
+    }
+  } else if (((e.ctrlKey || e.metaKey) && isZ && e.shiftKey) || ((e.ctrlKey || e.metaKey) && isY && !e.shiftKey)) {
+    if (handleRedoOptimization()) {
+      e.preventDefault();
+    }
   }
 }
 
@@ -302,6 +381,15 @@ watch(
   async (newVal) => {
     if (!newVal || !newVal.trim()) {
       previousPrompt.value = null;
+      optimizedPrompt.value = null;
+    } else if (
+      optimizedPrompt.value !== null &&
+      newVal !== optimizedPrompt.value &&
+      newVal !== previousPrompt.value
+    ) {
+      // 提示词被外部或用户直接编辑，清除优化撤销历史
+      previousPrompt.value = null;
+      optimizedPrompt.value = null;
     }
     await nextTick();
     syncTextareaHeight();
@@ -313,6 +401,7 @@ watch(
   (generating) => {
     if (generating) {
       previousPrompt.value = null;
+      optimizedPrompt.value = null;
     }
   }
 );
@@ -330,12 +419,14 @@ watch(
 onMounted(() => {
   window.addEventListener('paste', handlePaste);
   window.addEventListener('resize', syncTextareaHeight);
+  window.addEventListener('keydown', handleGlobalKeyDown);
   syncTextareaHeight();
 });
 
 onUnmounted(() => {
   window.removeEventListener('paste', handlePaste);
   window.removeEventListener('resize', syncTextareaHeight);
+  window.removeEventListener('keydown', handleGlobalKeyDown);
 });
 </script>
 
@@ -500,18 +591,6 @@ onUnmounted(() => {
 
         <!-- 右侧动作按钮 -->
         <div class="actions-group">
-          <!-- 撤销优化恢复原词 (仅在可恢复时显示) -->
-          <button 
-            v-if="canRestorePrompt"
-            type="button" 
-            class="btn-restore-prompt" 
-            data-tip="撤销优化，恢复修改前的原始提示词"
-            @click="handleRestorePrompt"
-          >
-            <RotateCcw :size="13" />
-            <span>撤销优化</span>
-          </button>
-
           <!-- AI 提示词智能优化按钮 (默认展示，未配置或输入为空时禁用) -->
           <button 
             type="button" 
@@ -823,30 +902,6 @@ onUnmounted(() => {
     box-shadow: 0 4px 12px rgba(124, 58, 237, 0.24);
   }
 }
-
-.btn-restore-prompt {
-  height: 34px;
-  padding: 0 10px;
-  border-radius: 9999px;
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  background: #ffffff;
-  color: $text-muted;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.78rem;
-  cursor: pointer;
-  white-space: nowrap;
-  box-shadow: $shadow-xs;
-  transition: all 0.15s ease;
-
-  &:hover {
-    border-color: #cbd5e1;
-    background: #f8fafc;
-    color: $text-main;
-  }
-}
-
 
 .hidden-file-input {
   display: none;
