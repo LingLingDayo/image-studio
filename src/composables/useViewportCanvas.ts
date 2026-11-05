@@ -87,6 +87,10 @@ export function useViewportCanvas(panelRef: Ref<HTMLElement | null>, options: Vi
     rotation.value = (rotation.value + 90) % 360;
   }
 
+  function rotateCcw() {
+    rotation.value = (rotation.value - 90 + 360) % 360;
+  }
+
   function handleDoubleClick(e: MouseEvent) {
     if (!panelRef.value) return;
     const rect = panelRef.value.getBoundingClientRect();
@@ -200,6 +204,7 @@ export function useViewportCanvas(panelRef: Ref<HTMLElement | null>, options: Vi
     resetView,
     resetTransform,
     rotateCw,
+    rotateCcw,
     handleWheel,
     handlePointerDown,
     handleMouseDown,

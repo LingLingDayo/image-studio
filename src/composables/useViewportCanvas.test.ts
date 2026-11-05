@@ -30,6 +30,23 @@ describe('useViewportCanvas (useViewportCanvas.ts)', () => {
     expect(canvas.rotation.value).toBe(0);
   });
 
+  it('should rotate 90 degrees counter-clockwise and cycle', () => {
+    const dummyRef = ref<HTMLElement | null>(null);
+    const canvas = useViewportCanvas(dummyRef);
+
+    canvas.rotateCcw();
+    expect(canvas.rotation.value).toBe(270);
+
+    canvas.rotateCcw();
+    expect(canvas.rotation.value).toBe(180);
+
+    canvas.rotateCcw();
+    expect(canvas.rotation.value).toBe(90);
+
+    canvas.rotateCcw();
+    expect(canvas.rotation.value).toBe(0);
+  });
+
   it('should clamp zoom scale between min and max bounds', () => {
     const dummyRef = ref<HTMLElement | null>(null);
     const canvas = useViewportCanvas(dummyRef, { minScale: 0.5, maxScale: 5 });

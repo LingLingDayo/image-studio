@@ -388,4 +388,199 @@ describe('LightboxModal 作品切换箭头', () => {
 
     app.unmount();
   });
+
+  it('工具栏应单独包含左转、右转、重置视图和全屏切换按钮，支持分别向左/向右旋转', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const asset = createMockAsset(1, '测试旋转图片');
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: asset,
+          allAssets: [asset]
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const toolbar = container.querySelector('.image-floating-toolbar');
+    expect(toolbar).not.toBeNull();
+
+    // 检查按钮工具提示与存在性
+    const rotateCcwBtn = toolbar?.querySelector('[data-tip*="向左旋转"]') as HTMLButtonElement;
+    const rotateCwBtn = toolbar?.querySelector('[data-tip*="向右旋转"]') as HTMLButtonElement;
+    const resetViewBtn = toolbar?.querySelector('[data-tip*="重置视图"]') as HTMLButtonElement;
+    const fullscreenBtn = toolbar?.querySelector('[data-tip*="全屏"]') as HTMLButtonElement;
+
+    expect(rotateCcwBtn).not.toBeNull();
+    expect(rotateCwBtn).not.toBeNull();
+    expect(resetViewBtn).not.toBeNull();
+    expect(fullscreenBtn).not.toBeNull();
+    expect(fullscreenBtn.getAttribute('data-tip')).toBe('全屏显示');
+
+    const img = container.querySelector('.image-stage img') as HTMLImageElement;
+    expect(img.style.transform).toContain('rotate(0deg)');
+
+    // 点击向左旋转 90° -> 270°
+    rotateCcwBtn.click();
+    await nextTick();
+    expect(img.style.transform).toContain('rotate(270deg)');
+
+    // 点击向右旋转 90° -> 0°
+    rotateCwBtn.click();
+    await nextTick();
+    expect(img.style.transform).toContain('rotate(0deg)');
+
+    // 再次向右旋转 90° -> 90°
+    rotateCwBtn.click();
+    await nextTick();
+    expect(img.style.transform).toContain('rotate(90deg)');
+
+    app.unmount();
+  });
+
+  it('点击全屏按钮后进入全屏模式，右上角显示关闭X按钮且右侧面板隐藏，点击X或按Esc退出全屏', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const asset = createMockAsset(1, '测试全屏模式图片');
+    let closed = false;
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: asset,
+          allAssets: [asset],
+          onClose: () => {
+            closed = true;
+          }
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const backdrop = container.querySelector('.modal-backdrop') as HTMLDivElement;
+    const toolbar = container.querySelector('.image-floating-toolbar') as HTMLDivElement;
+    const fullscreenBtn = toolbar.querySelector('[data-tip*="全屏"]') as HTMLButtonElement;
+
+    expect(backdrop.classList.contains('is-fullscreen')).toBe(false);
+    expect(container.querySelector('.fullscreen-close-btn')).toBeNull();
+
+    // 点击进入全屏
+    fullscreenBtn.click();
+    await nextTick();
+
+    expect(backdrop.classList.contains('is-fullscreen')).toBe(true);
+    const fullscreenCloseBtn = container.querySelector('.fullscreen-close-btn') as HTMLButtonElement;
+    expect(fullscreenCloseBtn).not.toBeNull();
+    expect(fullscreenCloseBtn.getAttribute('data-tip')).toContain('退出全屏');
+
+    // 全屏模式下右侧面板不可见
+    const detailPanel = container.querySelector('.modal-info-panel') as HTMLElement;
+    expect(detailPanel.style.display).toBe('none');
+
+    // 按 Escape 键应当退出全屏，而不应直接关闭整个灯箱弹窗
+    const escEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    window.dispatchEvent(escEvent);
+    await nextTick();
+
+    expect(backdrop.classList.contains('is-fullscreen')).toBe(false);
+    expect(container.querySelector('.fullscreen-close-btn')).toBeNull();
+    expect(closed).toBe(false);
+
+    // 再次点击进入全屏，然后通过右上角 X 按钮退出
+    fullscreenBtn.click();
+    await nextTick();
+    expect(backdrop.classList.contains('is-fullscreen')).toBe(true);
+
+    const closeXBtn = container.querySelector('.fullscreen-close-btn') as HTMLButtonElement;
+    closeXBtn.click();
+    await nextTick();
+    expect(backdrop.classList.contains('is-fullscreen')).toBe(false);
+
+    // 非全屏状态下按 Escape 键应当关闭灯箱弹窗
+    const closeEscEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    window.dispatchEvent(closeEscEvent);
+    await nextTick();
+    expect(closed).toBe(true);
+
+    app.unmount();
+  });
+
+  it('全屏模式下支持滚轮对鼠标位置进行缩放', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const asset = createMockAsset(1, '测试鼠标缩放图片');
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: asset,
+          allAssets: [asset]
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const imagePanel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+    const fullscreenBtn = container.querySelector('.image-floating-toolbar [data-tip*="全屏"]') as HTMLButtonElement;
+
+    // 进入全屏模式
+    fullscreenBtn.click();
+    await nextTick();
+
+    // 模拟 getBoundingClientRect
+    imagePanel.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      right: 1000,
+      bottom: 800,
+      width: 1000,
+      height: 800,
+      x: 0,
+      y: 0,
+      toJSON: () => {}
+    });
+
+    const imageStage = container.querySelector('.image-stage') as HTMLDivElement;
+    expect(imageStage.style.transform).toContain('scale(1)');
+
+    // 针对偏右上的鼠标坐标 (clientX: 800, clientY: 200) 触发向下/向上滚动
+    const wheelEvent = new WheelEvent('wheel', {
+      clientX: 800,
+      clientY: 200,
+      deltaY: -100, // 放大
+      bubbles: true,
+      cancelable: true
+    });
+    imagePanel.dispatchEvent(wheelEvent);
+    await nextTick();
+
+    // 缩放后 scale 大于 1，且 translateX/translateY 产生了以 (800, 200) 为锚点的偏移
+    expect(imageStage.style.transform).not.toContain('scale(1)');
+    const transformStr = imageStage.style.transform;
+    const matchScale = transformStr.match(/scale\(([^)]+)\)/);
+    expect(matchScale).not.toBeNull();
+    const newScale = parseFloat(matchScale![1]);
+    expect(newScale).toBeGreaterThan(1);
+
+    // 验证 translateX 和 translateY 不是 0 (鼠标在偏离中心处，因此平移向量发生移动)
+    const matchTranslate = transformStr.match(/translate\(([^p]+)px,\s*([^p]+)px\)/);
+    expect(matchTranslate).not.toBeNull();
+    const transX = parseFloat(matchTranslate![1]);
+    const transY = parseFloat(matchTranslate![2]);
+    expect(transX).not.toBe(0);
+    expect(transY).not.toBe(0);
+
+    app.unmount();
+  });
 });

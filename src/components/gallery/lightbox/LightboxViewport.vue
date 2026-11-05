@@ -4,15 +4,19 @@ import type { MediaAsset } from '@/types/asset';
 import { 
   ZoomIn, 
   ZoomOut, 
+  RotateCcw,
   RotateCw, 
+  LocateFixed,
   Maximize2, 
+  Minimize2,
+  X,
   ChevronLeft, 
   ChevronRight,
   AlertCircle
 } from '@lucide/vue';
 import { getErrorHeadline } from '@/utils/apiError';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   activeItem: MediaAsset;
   batchAssets: MediaAsset[];
   currentIndex: number;
@@ -21,7 +25,10 @@ const props = defineProps<{
   translateY: number;
   rotation: number;
   isDragging: boolean;
-}>();
+  isFullscreen?: boolean;
+}>(), {
+  isFullscreen: false
+});
 
 const emit = defineEmits<{
   (e: 'prev'): void;
@@ -31,6 +38,8 @@ const emit = defineEmits<{
   (e: 'resetScale'): void;
   (e: 'resetView'): void;
   (e: 'rotateCw'): void;
+  (e: 'rotateCcw'): void;
+  (e: 'toggleFullscreen'): void;
   (e: 'wheel', event: WheelEvent): void;
   (e: 'pointerdown', event: PointerEvent): void;
   (e: 'mousedown', event: MouseEvent): void;
@@ -52,12 +61,24 @@ defineExpose({
   <div 
     ref="containerRef" 
     class="modal-image-panel" 
-    :class="{ 'is-dragging': isDragging }"
+    :class="{ 'is-dragging': isDragging, 'is-fullscreen': isFullscreen }"
     @wheel.prevent="emit('wheel', $event)"
     @pointerdown="emit('pointerdown', $event)"
     @mousedown="emit('mousedown', $event)"
     @dblclick="emit('dblclick', $event)"
   >
+    <!-- 全屏模式右上角退出按钮 -->
+    <button
+      v-if="isFullscreen"
+      type="button"
+      class="fullscreen-close-btn"
+      data-tip="退出全屏 (Esc)"
+      aria-label="退出全屏"
+      @click.stop="emit('toggleFullscreen')"
+    >
+      <X :size="18" />
+    </button>
+
     <!-- 失败状态大图视口展示 -->
     <div v-if="activeItem.status === 'failed' || !activeItem.url" class="viewport-failed-stage">
       <div class="failed-card-box">
@@ -126,12 +147,27 @@ defineExpose({
 
       <div class="tool-divider"></div>
 
-      <button class="tool-btn" data-tip="顺时针旋转 90°" @click="emit('rotateCw')">
+      <button class="tool-btn" data-tip="向左旋转 90°" @click="emit('rotateCcw')">
+        <RotateCcw :size="15" />
+      </button>
+
+      <button class="tool-btn" data-tip="向右旋转 90°" @click="emit('rotateCw')">
         <RotateCw :size="15" />
       </button>
 
+      <div class="tool-divider"></div>
+
       <button class="tool-btn" data-tip="重置视图 (100% 居中)" @click="emit('resetView')">
-        <Maximize2 :size="15" />
+        <LocateFixed :size="15" />
+      </button>
+
+      <button
+        class="tool-btn"
+        :data-tip="isFullscreen ? '退出全屏 (Esc)' : '全屏显示'"
+        @click="emit('toggleFullscreen')"
+      >
+        <Minimize2 v-if="isFullscreen" :size="15" />
+        <Maximize2 v-else :size="15" />
       </button>
     </div>
   </div>
@@ -169,6 +205,58 @@ defineExpose({
 
   &.is-dragging {
     cursor: grabbing;
+  }
+
+  &.is-fullscreen {
+    border-right: none;
+    border-radius: 0;
+
+    @media (max-width: 860px) {
+      flex: 1 1 auto;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      max-height: none;
+      border-bottom: none;
+    }
+  }
+}
+
+.fullscreen-close-btn {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.12), 0 2px 6px -1px rgba(15, 23, 42, 0.06);
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 50;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:hover {
+    background: #ffffff;
+    color: #0f172a;
+    transform: scale(1.08);
+  }
+
+  &:active {
+    transform: scale(0.94);
+  }
+
+  @media (max-width: 860px) {
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
   }
 }
 

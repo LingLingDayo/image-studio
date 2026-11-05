@@ -47,11 +47,46 @@ const {
   resetView,
   resetTransform,
   rotateCw,
+  rotateCcw,
   handleWheel,
   handlePointerDown,
   handleMouseDown,
   handleDoubleClick
 } = useViewportCanvas(panelRef);
+
+const isFullscreen = ref(false);
+
+async function toggleFullscreen() {
+  if (!isFullscreen.value) {
+    isFullscreen.value = true;
+    try {
+      if (document.fullscreenEnabled && !document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch {
+      // 允许在无原生全屏权限的环境下降级为 CSS 全屏
+    }
+  } else {
+    await exitFullscreen();
+  }
+}
+
+async function exitFullscreen() {
+  isFullscreen.value = false;
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    }
+  } catch {
+    // 忽略退出异常
+  }
+}
+
+function handleFullscreenChange() {
+  if (!document.fullscreenElement && isFullscreen.value) {
+    isFullscreen.value = false;
+  }
+}
 
 watch(() => props.item, (newItem) => {
   currentActiveItem.value = newItem;
@@ -124,14 +159,21 @@ async function handleDownload() {
   }
 }
 
+function handleClose() {
+  if (isFullscreen.value) {
+    exitFullscreen();
+  }
+  emit('close');
+}
+
 function handleReuse(item: MediaAsset) {
   emit('reuse', item);
-  emit('close');
+  handleClose();
 }
 
 function handleEditAsReference(item: MediaAsset) {
   emit('editAsReference', item);
-  emit('close');
+  handleClose();
 }
 
 function handleDelete(id: number) {
@@ -148,7 +190,11 @@ function handleKeyDown(e: KeyboardEvent) {
   if (!currentActiveItem.value || isTypingTarget(e.target)) return;
 
   if (e.key === 'Escape') {
-    emit('close');
+    if (isFullscreen.value) {
+      exitFullscreen();
+      return;
+    }
+    handleClose();
   } else if (e.key === 'ArrowLeft') {
     e.preventDefault();
     if (currentBatchAssets.value.length > 1) {
@@ -171,20 +217,30 @@ const isLightboxOpen = computed(() => currentActiveItem.value !== null);
 watch(isLightboxOpen, (open) => {
   if (open) {
     window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
   } else {
     window.removeEventListener('keydown', handleKeyDown);
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    exitFullscreen();
   }
 }, { immediate: true });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
+  document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  exitFullscreen();
 });
 </script>
 
 <template>
-  <div v-if="currentActiveItem" class="modal-backdrop" @click.self="emit('close')">
+  <div 
+    v-if="currentActiveItem" 
+    class="modal-backdrop" 
+    :class="{ 'is-fullscreen': isFullscreen }" 
+    @click.self="handleClose"
+  >
     <button
-      v-if="canSwitchWork"
+      v-if="canSwitchWork && !isFullscreen"
       type="button"
       class="lightbox-side-nav is-prev"
       data-tip="上一件作品"
@@ -195,7 +251,7 @@ onUnmounted(() => {
     </button>
 
     <button
-      v-if="canSwitchWork"
+      v-if="canSwitchWork && !isFullscreen"
       type="button"
       class="lightbox-side-nav is-next"
       data-tip="下一件作品"
@@ -206,7 +262,12 @@ onUnmounted(() => {
     </button>
 
     <div class="modal-card">
-      <button class="modal-close-btn" data-tip="关闭 (Esc)" @click="emit('close')">
+      <button 
+        v-if="!isFullscreen" 
+        class="modal-close-btn" 
+        data-tip="关闭 (Esc)" 
+        @click="handleClose"
+      >
         <X :size="18" />
       </button>
 
@@ -222,6 +283,7 @@ onUnmounted(() => {
           :translate-y="translateY"
           :rotation="rotation"
           :is-dragging="isDragging"
+          :is-fullscreen="isFullscreen"
           @prev="handlePrev"
           @next="handleNext"
           @zoom-in="zoomIn"
@@ -229,6 +291,8 @@ onUnmounted(() => {
           @reset-scale="resetScale"
           @reset-view="resetView"
           @rotate-cw="rotateCw"
+          @rotate-ccw="rotateCcw"
+          @toggle-fullscreen="toggleFullscreen"
           @wheel="handleWheel"
           @pointerdown="handlePointerDown"
           @mousedown="handleMouseDown"
@@ -237,6 +301,7 @@ onUnmounted(() => {
 
         <!-- 右侧信息与操作 -->
         <LightboxDetailPanel
+          v-show="!isFullscreen"
           :item="currentActiveItem"
           :rotation="rotation"
           @toggle-favorite="emit('toggleFavorite', $event)"
@@ -265,6 +330,30 @@ onUnmounted(() => {
   justify-content: center;
   padding: 24px;
   animation: fadeIn 0.2s ease;
+
+  &.is-fullscreen {
+    padding: 0;
+    background: #090d16;
+    backdrop-filter: none;
+
+    .modal-card {
+      max-width: 100vw;
+      width: 100vw;
+      height: 100vh;
+      min-height: 100vh;
+      max-height: 100vh;
+      border-radius: 0;
+      border: none;
+      box-shadow: none;
+      background: #090d16;
+    }
+
+    .modal-body {
+      grid-template-columns: 1fr;
+      width: 100%;
+      height: 100%;
+    }
+  }
 
   @media (max-width: 860px) {
     padding: 0;
