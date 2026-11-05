@@ -9,4 +9,6 @@ export { default as UiSizeInput } from './UiSizeInput.vue';
 export { default as Tooltip } from './Tooltip.vue';
 export { default as UiDialog } from './UiDialog.vue';
 export type { DialogType } from './UiDialog.vue';
+export { default as UiImageViewer } from './UiImageViewer.vue';
+export type { ViewerImageItem } from './UiImageViewer.vue';
 

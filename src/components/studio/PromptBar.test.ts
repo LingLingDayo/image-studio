@@ -330,4 +330,47 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
 
     app.unmount();
   });
+
+  it('点击参考图片缩略图时应触发 previewImage 事件，点击移除按钮触发 removeImage', async () => {
+    let previewed: any = null;
+    let removedId: string | null = null;
+
+    const mockRefImg = {
+      id: 'ref-1',
+      file: new File([''], 'ref.png', { type: 'image/png' }),
+      previewUrl: 'blob:http://localhost/ref-1'
+    };
+
+    const app = createApp({
+      render() {
+        return h(PromptBar as any, {
+          ...defaultProps,
+          referenceImages: [mockRefImg],
+          onPreviewImage: (img: any) => {
+            previewed = img;
+          },
+          onRemoveImage: (id: string) => {
+            removedId = id;
+          }
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const thumbnail = container.querySelector('.ref-thumbnail') as HTMLDivElement;
+    expect(thumbnail).not.toBeNull();
+    thumbnail.click();
+    await nextTick();
+    expect(previewed).toEqual(mockRefImg);
+
+    const deleteBtn = container.querySelector('.ref-delete-btn') as HTMLButtonElement;
+    expect(deleteBtn).not.toBeNull();
+    deleteBtn.click();
+    await nextTick();
+    expect(removedId).toBe('ref-1');
+
+    app.unmount();
+  });
 });

@@ -162,18 +162,25 @@ async function handleDownload() {
 function handleClose() {
   if (isFullscreen.value) {
     exitFullscreen();
+    return;
   }
   emit('close');
 }
 
 function handleReuse(item: MediaAsset) {
+  if (isFullscreen.value) {
+    exitFullscreen();
+  }
   emit('reuse', item);
-  handleClose();
+  emit('close');
 }
 
 function handleEditAsReference(item: MediaAsset) {
+  if (isFullscreen.value) {
+    exitFullscreen();
+  }
   emit('editAsReference', item);
-  handleClose();
+  emit('close');
 }
 
 function handleDelete(id: number) {

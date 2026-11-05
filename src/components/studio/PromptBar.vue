@@ -68,6 +68,7 @@ const emit = defineEmits<{
   (e: 'addImages', files: FileList | File[]): void;
   (e: 'removeImage', id: string): void;
   (e: 'clearImages'): void;
+  (e: 'previewImage', img: TaskReferenceImage, all: TaskReferenceImage[]): void;
   (e: 'generate'): void;
   (e: 'cancel'): void;
   (e: 'openConfigOptimizer'): void;
@@ -355,10 +356,12 @@ onUnmounted(() => {
           v-for="(img, idx) in referenceImages" 
           :key="img.id" 
           class="ref-thumbnail"
+          data-tip="点击预览大图"
+          @click="emit('previewImage', img, referenceImages)"
         >
           <img :src="img.previewUrl" :alt="'Ref ' + (idx + 1)" />
           <span class="ref-index">{{ idx + 1 }}</span>
-          <button class="ref-delete-btn" data-tip="移除此图" @click="emit('removeImage', img.id)">
+          <button class="ref-delete-btn" data-tip="移除此图" @click.stop="emit('removeImage', img.id)">
             <X :size="10" />
           </button>
         </div>
@@ -622,6 +625,13 @@ onUnmounted(() => {
   border: 1px solid rgba(226, 232, 240, 0.9);
   box-shadow: $shadow-xs;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: $shadow-sm;
+  }
 
   img {
     width: 100%;

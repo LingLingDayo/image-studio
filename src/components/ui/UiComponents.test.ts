@@ -10,6 +10,7 @@ import UiPagination from './UiPagination.vue';
 import UiSizeInput from './UiSizeInput.vue';
 import Tooltip from './Tooltip.vue';
 import UiDialog from './UiDialog.vue';
+import UiImageViewer from './UiImageViewer.vue';
 
 describe('UI Components (src/components/ui)', () => {
   let container: HTMLDivElement;
@@ -35,6 +36,7 @@ describe('UI Components (src/components/ui)', () => {
     expect(UiSizeInput).toBeDefined();
     expect(Tooltip).toBeDefined();
     expect(UiDialog).toBeDefined();
+    expect(UiImageViewer).toBeDefined();
   });
 
   it('should render UiSelect with full label and value in standard mode', async () => {
