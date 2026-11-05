@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from 'pinia';
 import PromptBar from './PromptBar.vue';
 import { useConfigStore } from '@/stores/configStore';
 import { useModelStore } from '@/stores/modelStore';
+import { PromptOptimizerService } from '@/core/services/PromptOptimizerService';
 
 describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
   let container: HTMLDivElement;
@@ -112,9 +113,61 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     const magicBtn = container.querySelector('.btn-magic') as HTMLButtonElement;
     expect(magicBtn).not.toBeNull();
     expect(magicBtn.disabled).toBe(false);
-    expect(magicBtn.getAttribute('data-tip')).toBe('使用大模型智能优化提示词 (AI 润色扩写细节)');
+    expect(magicBtn.getAttribute('data-tip')).toBe('使用大模型智能优化提示词 (精准描写与AI易读)');
     expect(magicBtn.querySelector('span')).toBeNull();
     expect(magicBtn.querySelector('svg')).not.toBeNull();
+
+    app.unmount();
+  });
+
+  it('正在进行提示词优化时，图标使用质感微光呼吸动效而不是旋转动效', async () => {
+    const configStore = useConfigStore();
+    configStore.updateOptimizerConfig({
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: 'sk-test-key',
+      model: 'gpt-4o-mini'
+    });
+
+    let resolveOptimizer: (value: string) => void = () => {};
+    const pendingPromise = new Promise<string>((resolve) => {
+      resolveOptimizer = resolve;
+    });
+    vi.spyOn(PromptOptimizerService, 'optimizePrompt').mockReturnValue(pendingPromise);
+
+    const app = createApp({
+      render() {
+        return h(PromptBar as any, {
+          ...defaultProps,
+          prompt: '一只可爱的猫咪'
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const magicBtn = container.querySelector('.btn-magic') as HTMLButtonElement;
+    const svgIconBefore = magicBtn.querySelector('svg');
+    expect(svgIconBefore?.classList.contains('magic-sparkle-active')).toBe(false);
+    expect(svgIconBefore?.classList.contains('spin-icon')).toBe(false);
+
+    // 触发优化
+    magicBtn.click();
+    await nextTick();
+
+    expect(magicBtn.classList.contains('is-optimizing')).toBe(true);
+    const svgIconDuring = magicBtn.querySelector('svg');
+    expect(svgIconDuring?.classList.contains('magic-sparkle-active')).toBe(true);
+    expect(svgIconDuring?.classList.contains('spin-icon')).toBe(false);
+
+    // 完成优化
+    resolveOptimizer('一只毛茸茸的英短银渐层幼猫，在温暖阳光下安静打盹');
+    await pendingPromise;
+    await nextTick();
+
+    expect(magicBtn.classList.contains('is-optimizing')).toBe(false);
+    const svgIconAfter = magicBtn.querySelector('svg');
+    expect(svgIconAfter?.classList.contains('magic-sparkle-active')).toBe(false);
 
     app.unmount();
   });

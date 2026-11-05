@@ -140,7 +140,7 @@ const optimizerTooltip = computed(() => {
   if (!props.prompt.trim()) {
     return '请先输入提示词后再进行 AI 优化';
   }
-  return '使用大模型智能优化提示词 (AI 润色扩写细节)';
+  return '使用大模型智能优化提示词 (精准描写与AI易读)';
 });
 
 async function handleOptimizePrompt() {
@@ -164,7 +164,7 @@ async function handleOptimizePrompt() {
       currentText
     );
     emit('update:prompt', enhanced);
-    emit('showToast', '提示词优化成功！已扩写画面细节', 'success');
+    emit('showToast', '提示词优化成功！已提升描写精准度与AI理解度', 'success');
   } catch (err: any) {
     emit('showToast', err.message || '提示词优化失败', 'error');
   } finally {
@@ -510,7 +510,7 @@ onUnmounted(() => {
             :aria-label="isOptimizing ? '优化中...' : 'AI 优化'"
             @click="handleOptimizePrompt"
           >
-            <Sparkles :size="15" :class="{ 'spin-icon': isOptimizing }" />
+            <Sparkles :size="15" :class="{ 'magic-sparkle-active': isOptimizing }" />
           </button>
 
           <input 
@@ -776,13 +776,14 @@ onUnmounted(() => {
   cursor: pointer;
   box-shadow: $shadow-xs;
   flex-shrink: 0;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
 
   &:hover:not(:disabled) {
     border-color: #818cf8;
     background: linear-gradient(135deg, #e0e7ff, #ede9fe);
     color: #4f46e5;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.18);
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.2);
     transform: translateY(-0.5px);
   }
 
@@ -792,9 +793,39 @@ onUnmounted(() => {
   }
 
   &.is-optimizing {
-    background: linear-gradient(135deg, #ede9fe, #f5f3ff);
+    background: linear-gradient(135deg, rgba(237, 233, 254, 0.95), rgba(245, 243, 255, 0.95));
     color: #7c3aed;
     border-color: #c4b5fd;
+    animation: magic-btn-glow 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    cursor: wait;
+  }
+}
+
+.magic-sparkle-active {
+  animation: magic-sparkle-glow 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  transform-origin: center center;
+  will-change: transform, filter, opacity;
+}
+
+@keyframes magic-sparkle-glow {
+  0%, 100% {
+    transform: scale(0.9);
+    opacity: 0.65;
+    filter: drop-shadow(0 0 2px rgba(124, 58, 237, 0.3));
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 1;
+    filter: drop-shadow(0 0 6px rgba(147, 51, 234, 0.8)) drop-shadow(0 0 12px rgba(124, 58, 237, 0.45));
+  }
+}
+
+@keyframes magic-btn-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.15), 0 2px 6px rgba(124, 58, 237, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(147, 51, 234, 0.22), 0 4px 14px rgba(124, 58, 237, 0.26);
   }
 }
 
