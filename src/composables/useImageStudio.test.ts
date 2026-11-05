@@ -352,5 +352,32 @@ describe('useImageStudio - reference aspect ratio option', () => {
     expect(studio.sizeWidth.value).toBeNull();
     expect(studio.sizeHeight.value).toBeNull();
   });
+
+  it('多张参考图时同参考图严格采用第一张参考图的比例，删除首张后切换至新的第一张', async () => {
+    const studio = useImageStudio();
+    studio.resolution.value = '1k';
+
+    const file1 = new File(['dummy1'], 'ref1.png', { type: 'image/png' });
+    const file2 = new File(['dummy2'], 'ref2.png', { type: 'image/png' });
+    studio.addReferenceImages([file1, file2]);
+    expect(studio.referenceImages.value.length).toBe(2);
+
+    // 第一张 16:9，第二张 4:3
+    studio.referenceImages.value[0].ratio = '16:9';
+    studio.referenceImages.value[1].ratio = '4:3';
+
+    studio.aspectRatio.value = 'reference';
+    // 必须与第一张 16:9 相同 (1024x576)
+    expect(studio.sizeWidth.value).toBe(1024);
+    expect(studio.sizeHeight.value).toBe(576);
+
+    // 删除第一张参考图
+    studio.removeReferenceImage(studio.referenceImages.value[0].id);
+    expect(studio.referenceImages.value.length).toBe(1);
+
+    // 现在第二张晋升为第一张 (4:3)，尺寸应自动同步为 1024x768
+    expect(studio.sizeWidth.value).toBe(1024);
+    expect(studio.sizeHeight.value).toBe(768);
+  });
 });
 

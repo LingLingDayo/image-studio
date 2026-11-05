@@ -1,4 +1,4 @@
-import { ref, computed, reactive } from 'vue';
+import { ref, computed, reactive, watch } from 'vue';
 import { useConfigStore } from '@/stores/configStore';
 import { useModelStore } from '@/stores/modelStore';
 import { useTaskStore } from '@/stores/taskStore';
@@ -38,9 +38,17 @@ export function useImageStudio() {
   const prompt = ref<string>('');
   const referenceImages = ref<TaskReferenceImage[]>([]);
 
+  // 首张参考图的比例（同参考图选项绑定首张参考图）
   const primaryReferenceRatio = computed<string | null>(() => {
     if (referenceImages.value.length === 0) return null;
     return referenceImages.value[0]?.ratio || null;
+  });
+
+  // 当首张参考图比例变化（如异步加载完成、或首图被删除切换至下一张）时，实时更新尺寸
+  watch(primaryReferenceRatio, (newRatio) => {
+    if (isReferenceRatio(sizeState.aspectRatio)) {
+      Object.assign(sizeState, applyAspectRatioChange(sizeState, sizeState.aspectRatio, newRatio));
+    }
   });
 
   const sizeState = reactive<ImageSizeState>({

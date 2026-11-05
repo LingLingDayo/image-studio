@@ -27,9 +27,14 @@ export const RESOLUTION_OPTIONS: { label: string; value: ResolutionTier }[] = [
   { label: '4K', value: '4k' }
 ];
 
-export const ASPECT_RATIO_OPTIONS: { label: string; value: string }[] = [
+/**
+ * 比例选项定义。
+ * - auto: 自动，由模型或具体尺寸决定。
+ * - reference: 同参考图，与上传的第一张参考图保持相同比例；若未上传参考图，则效果与 auto 自动一致。
+ */
+export const ASPECT_RATIO_OPTIONS: { label: string; value: string; description?: string }[] = [
   { label: '自动', value: 'auto' },
-  { label: '同参考图', value: 'reference' },
+  { label: '同参考图', value: 'reference', description: '与第一张参考图比例相同' },
   { label: '1:1', value: '1:1' },
   { label: '2:1', value: '2:1' },
   { label: '1:2', value: '1:2' },
@@ -63,6 +68,10 @@ export function isReferenceRatio(ratio?: string | null): boolean {
   return lower === 'reference' || lower === 'same_as_reference' || lower === 'match_reference' || lower === '同参考图';
 }
 
+/**
+ * 解析实际生效的宽高比。
+ * 如果设置为「同参考图」(reference)，在提供第一张参考图比例时生效为第一张参考图比例；若未提供参考图或未上传参考图，则回退为 'auto'。
+ */
 export function resolveEffectiveAspectRatio(
   aspectRatio?: string | null,
   referenceRatio?: string | null
