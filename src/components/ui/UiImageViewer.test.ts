@@ -160,4 +160,57 @@ describe('UiImageViewer (src/components/ui/UiImageViewer.vue)', () => {
 
     app.unmount();
   });
+
+  it('非受控模式下统一使用页面内全屏，且支持右上角退出按钮和 Escape 键退出全屏', async () => {
+    let exitFullscreenEmitted = false;
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, {
+          src: 'https://example.com/test.png',
+          onExitFullscreen: () => {
+            exitFullscreenEmitted = true;
+          }
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+    expect(panel.classList.contains('is-fullscreen')).toBe(false);
+    expect(container.querySelector('.fullscreen-close-btn')).toBeNull();
+
+    // 点击工具栏全屏按钮进入全屏
+    const fullscreenToggleBtn = container.querySelector('.image-floating-toolbar [data-tip*="全屏"]') as HTMLButtonElement;
+    fullscreenToggleBtn.click();
+    await nextTick();
+
+    expect(panel.classList.contains('is-fullscreen')).toBe(true);
+    const closeBtn = container.querySelector('.fullscreen-close-btn') as HTMLButtonElement;
+    expect(closeBtn).not.toBeNull();
+    expect(closeBtn.getAttribute('data-tip')).toContain('退出全屏');
+
+    // 按 Escape 键退出全屏
+    const escEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    window.dispatchEvent(escEvent);
+    await nextTick();
+
+    expect(panel.classList.contains('is-fullscreen')).toBe(false);
+    expect(container.querySelector('.fullscreen-close-btn')).toBeNull();
+    expect(exitFullscreenEmitted).toBe(true);
+
+    // 再次点击全屏，通过右上角 X 按钮退出
+    fullscreenToggleBtn.click();
+    await nextTick();
+    expect(panel.classList.contains('is-fullscreen')).toBe(true);
+
+    const closeBtn2 = container.querySelector('.fullscreen-close-btn') as HTMLButtonElement;
+    closeBtn2.click();
+    await nextTick();
+
+    expect(panel.classList.contains('is-fullscreen')).toBe(false);
+
+    app.unmount();
+  });
 });

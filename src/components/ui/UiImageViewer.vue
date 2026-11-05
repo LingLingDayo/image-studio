@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue';
 import { 
   ZoomIn, 
   ZoomOut, 
@@ -115,11 +115,20 @@ const currentActiveItem = computed<ViewerImageItem | null>(() => {
 const internalCanvas = useViewportCanvas(containerRef);
 
 // 判断当前各状态是否受控
+const instance = getCurrentInstance();
 const isScaleControlled = computed(() => props.scale !== undefined);
 const isTransformControlled = computed(() => props.translateX !== undefined && props.translateY !== undefined);
 const isRotationControlled = computed(() => props.rotation !== undefined);
 const isDraggingControlled = computed(() => props.isDragging !== undefined);
-const isFullscreenControlled = computed(() => props.isFullscreen !== undefined);
+const isFullscreenControlled = computed(() => {
+  if (!instance?.vnode.props) return false;
+  return (
+    'isFullscreen' in instance.vnode.props ||
+    'is-fullscreen' in instance.vnode.props ||
+    'onUpdate:isFullscreen' in instance.vnode.props ||
+    'onUpdate:is-fullscreen' in instance.vnode.props
+  );
+});
 
 const currentScale = computed(() => isScaleControlled.value ? (props.scale ?? 1) : internalCanvas.scale.value);
 const currentTranslateX = computed(() => isTransformControlled.value ? (props.translateX ?? 0) : internalCanvas.translateX.value);
@@ -131,48 +140,22 @@ const currentIsDragging = computed(() => isDraggingControlled.value ? (props.isD
 const internalFullscreen = ref(false);
 const activeFullscreen = computed(() => isFullscreenControlled.value ? (props.isFullscreen ?? false) : internalFullscreen.value);
 
-async function handleToggleFullscreen() {
+function handleToggleFullscreen() {
   emit('toggleFullscreen');
   if (isFullscreenControlled.value) {
     emit('update:isFullscreen', !props.isFullscreen);
     return;
   }
-
-  if (!internalFullscreen.value) {
-    internalFullscreen.value = true;
-    try {
-      if (document.fullscreenEnabled && !document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      }
-    } catch {
-      // 允许降级为 CSS 全屏
-    }
-  } else {
-    await handleExitFullscreen();
-  }
+  internalFullscreen.value = !internalFullscreen.value;
 }
 
-async function handleExitFullscreen() {
+function handleExitFullscreen() {
   emit('exitFullscreen');
   if (isFullscreenControlled.value) {
     emit('update:isFullscreen', false);
     return;
   }
   internalFullscreen.value = false;
-  try {
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-    }
-  } catch {
-    // 忽略退出异常
-  }
-}
-
-function handleFullscreenChange() {
-  if (!document.fullscreenElement && internalFullscreen.value) {
-    internalFullscreen.value = false;
-    emit('update:isFullscreen', false);
-  }
 }
 
 function handleKeyDown(e: KeyboardEvent) {
@@ -182,12 +165,10 @@ function handleKeyDown(e: KeyboardEvent) {
 }
 
 onMounted(() => {
-  document.addEventListener('fullscreenchange', handleFullscreenChange);
   window.addEventListener('keydown', handleKeyDown);
 });
 
 onUnmounted(() => {
-  document.removeEventListener('fullscreenchange', handleFullscreenChange);
   window.removeEventListener('keydown', handleKeyDown);
 });
 

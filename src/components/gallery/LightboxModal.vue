@@ -56,36 +56,12 @@ const {
 
 const isFullscreen = ref(false);
 
-async function toggleFullscreen() {
-  if (!isFullscreen.value) {
-    isFullscreen.value = true;
-    try {
-      if (document.fullscreenEnabled && !document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      }
-    } catch {
-      // 允许在无原生全屏权限的环境下降级为 CSS 全屏
-    }
-  } else {
-    await exitFullscreen();
-  }
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value;
 }
 
-async function exitFullscreen() {
+function exitFullscreen() {
   isFullscreen.value = false;
-  try {
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-    }
-  } catch {
-    // 忽略退出异常
-  }
-}
-
-function handleFullscreenChange() {
-  if (!document.fullscreenElement && isFullscreen.value) {
-    isFullscreen.value = false;
-  }
 }
 
 watch(() => props.item, (newItem) => {
@@ -224,17 +200,14 @@ const isLightboxOpen = computed(() => currentActiveItem.value !== null);
 watch(isLightboxOpen, (open) => {
   if (open) {
     window.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
   } else {
     window.removeEventListener('keydown', handleKeyDown);
-    document.removeEventListener('fullscreenchange', handleFullscreenChange);
     exitFullscreen();
   }
 }, { immediate: true });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
-  document.removeEventListener('fullscreenchange', handleFullscreenChange);
   exitFullscreen();
 });
 </script>
@@ -290,7 +263,7 @@ onUnmounted(() => {
           :translate-y="translateY"
           :rotation="rotation"
           :is-dragging="isDragging"
-          :is-fullscreen="isFullscreen"
+          v-model:is-fullscreen="isFullscreen"
           @prev="handlePrev"
           @next="handleNext"
           @zoom-in="zoomIn"
@@ -300,6 +273,7 @@ onUnmounted(() => {
           @rotate-cw="rotateCw"
           @rotate-ccw="rotateCcw"
           @toggle-fullscreen="toggleFullscreen"
+          @exit-fullscreen="exitFullscreen"
           @wheel="handleWheel"
           @pointerdown="handlePointerDown"
           @mousedown="handleMouseDown"

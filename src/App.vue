@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import AppHeader from '@/components/layout/AppHeader.vue';
 import { SettingsModal } from '@/components/settings';
 import PromptBar from '@/components/studio/PromptBar.vue';
@@ -173,6 +173,49 @@ function handleCloseRefPreview() {
   activePreviewRefBatch.value = [];
 }
 
+function handleRefPreviewKeyDown(e: KeyboardEvent) {
+  if (!activePreviewRefImage.value) return;
+
+  if (e.key === 'Escape') {
+    if (isRefPreviewFullscreen.value) {
+      isRefPreviewFullscreen.value = false;
+      return;
+    }
+    handleCloseRefPreview();
+  } else if (e.key === 'ArrowLeft') {
+    if (activePreviewRefBatch.value.length > 1) {
+      const list = activePreviewRefBatch.value;
+      const idx = list.findIndex(item => item.id === activePreviewRefImage.value?.id);
+      if (idx !== -1) {
+        const nextIdx = (idx - 1 + list.length) % list.length;
+        activePreviewRefImage.value = list[nextIdx] || null;
+      }
+    }
+  } else if (e.key === 'ArrowRight') {
+    if (activePreviewRefBatch.value.length > 1) {
+      const list = activePreviewRefBatch.value;
+      const idx = list.findIndex(item => item.id === activePreviewRefImage.value?.id);
+      if (idx !== -1) {
+        const nextIdx = (idx + 1) % list.length;
+        activePreviewRefImage.value = list[nextIdx] || null;
+      }
+    }
+  }
+}
+
+watch(activePreviewRefImage, (item) => {
+  if (item) {
+    window.addEventListener('keydown', handleRefPreviewKeyDown);
+  } else {
+    window.removeEventListener('keydown', handleRefPreviewKeyDown);
+    isRefPreviewFullscreen.value = false;
+  }
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleRefPreviewKeyDown);
+});
+
 function requestDeleteItem(id: number, closeLightbox = false) {
   pendingDelete.value = { kind: 'item', id, closeLightbox };
 }
@@ -283,9 +326,10 @@ async function confirmPendingDelete() {
     >
       <div class="modal-card ref-preview-modal-card">
         <button 
+          v-if="!isRefPreviewFullscreen"
           class="modal-close-btn" 
-          :data-tip="isRefPreviewFullscreen ? '退出全屏 (Esc)' : '关闭 (Esc)'" 
-          :aria-label="isRefPreviewFullscreen ? '退出全屏' : '关闭'"
+          data-tip="关闭 (Esc)" 
+          aria-label="关闭"
           @click="handleCloseRefPreview"
         >
           <X :size="18" />

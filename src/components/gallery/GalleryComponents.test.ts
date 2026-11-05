@@ -622,6 +622,8 @@ describe('LightboxModal 作品切换箭头', () => {
     const fullscreenCloseBtn = container.querySelector('.fullscreen-close-btn') as HTMLButtonElement;
     expect(fullscreenCloseBtn).not.toBeNull();
     expect(fullscreenCloseBtn.getAttribute('data-tip')).toContain('退出全屏');
+    // 全屏模式下原弹窗关闭按钮应隐藏，确保右上角仅有一个 X 按钮，不会出现两个 X 挨着
+    expect(container.querySelector('.modal-close-btn')).toBeNull();
 
     // 全屏模式下右侧面板不可见
     const detailPanel = container.querySelector('.modal-info-panel') as HTMLElement;
@@ -645,6 +647,7 @@ describe('LightboxModal 作品切换箭头', () => {
     closeXBtn.click();
     await nextTick();
     expect(backdrop.classList.contains('is-fullscreen')).toBe(false);
+    expect(container.querySelector('.modal-close-btn')).not.toBeNull();
 
     // 非全屏状态下按 Escape 键应当关闭灯箱弹窗
     const closeEscEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });

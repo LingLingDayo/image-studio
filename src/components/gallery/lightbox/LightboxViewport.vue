@@ -27,6 +27,8 @@ const emit = defineEmits<{
   (e: 'rotateCw'): void;
   (e: 'rotateCcw'): void;
   (e: 'toggleFullscreen'): void;
+  (e: 'exitFullscreen'): void;
+  (e: 'update:isFullscreen', isFullscreen: boolean): void;
   (e: 'wheel', event: WheelEvent): void;
   (e: 'pointerdown', event: PointerEvent): void;
   (e: 'mousedown', event: MouseEvent): void;
@@ -65,7 +67,8 @@ defineExpose({
     @rotate-cw="emit('rotateCw')"
     @rotate-ccw="emit('rotateCcw')"
     @toggle-fullscreen="emit('toggleFullscreen')"
-    @exit-fullscreen="emit('toggleFullscreen')"
+    @exit-fullscreen="emit('exitFullscreen')"
+    @update:is-fullscreen="emit('update:isFullscreen', $event)"
     @wheel="emit('wheel', $event)"
     @pointerdown="emit('pointerdown', $event)"
     @mousedown="emit('mousedown', $event)"
