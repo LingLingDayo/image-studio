@@ -9,6 +9,7 @@ import ArtworkCard from './card/ArtworkCard.vue';
 import LightboxViewport from './lightbox/LightboxViewport.vue';
 import LightboxDetailPanel from './lightbox/LightboxDetailPanel.vue';
 import { useGalleryStore } from '@/stores/galleryStore';
+import { useConfigStore } from '@/stores/configStore';
 import type { MediaAsset } from '@/types/asset';
 import type { GenerationTask } from '@/types/task';
 
@@ -725,6 +726,74 @@ describe('LightboxModal 作品切换箭头', () => {
     const transY = parseFloat(matchTranslate![2]);
     expect(transX).not.toBe(0);
     expect(transY).not.toBe(0);
+
+    app.unmount();
+  });
+
+  it('当通用设置中配置为整个电脑屏幕全屏(native)时，点击全屏触发原生 requestFullscreen', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const configStore = useConfigStore();
+    configStore.updateGeneralConfig({
+      previewFullscreenMode: 'native'
+    });
+
+    let requestFullscreenCalled = false;
+    let exitFullscreenCalled = false;
+
+    // 模拟 document 原生全屏 API
+    const originalRequestFullscreen = document.documentElement.requestFullscreen;
+    const originalExitFullscreen = document.exitFullscreen;
+    Object.defineProperty(document, 'fullscreenEnabled', { value: true, configurable: true });
+
+    document.documentElement.requestFullscreen = async () => {
+      requestFullscreenCalled = true;
+      Object.defineProperty(document, 'fullscreenElement', { value: document.documentElement, configurable: true });
+    };
+    document.exitFullscreen = async () => {
+      exitFullscreenCalled = true;
+      Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true });
+    };
+
+    const asset = createMockAsset(1, '测试原生全屏图片');
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: asset,
+          allAssets: [asset]
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const toolbar = container.querySelector('.image-floating-toolbar') as HTMLDivElement;
+    const fullscreenBtn = toolbar.querySelector('[data-tip*="全屏"]') as HTMLButtonElement;
+
+    // 点击进入全屏
+    fullscreenBtn.click();
+    await nextTick();
+
+    expect(requestFullscreenCalled).toBe(true);
+    const closeXBtn = container.querySelector('.fullscreen-close-btn') as HTMLButtonElement;
+    expect(closeXBtn).not.toBeNull();
+
+    // 点击退出全屏
+    closeXBtn.click();
+    await nextTick();
+    expect(exitFullscreenCalled).toBe(true);
+
+    // 恢复原型
+    if (originalRequestFullscreen) {
+      document.documentElement.requestFullscreen = originalRequestFullscreen;
+    }
+    if (originalExitFullscreen) {
+      document.exitFullscreen = originalExitFullscreen;
+    }
+    Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true });
 
     app.unmount();
   });

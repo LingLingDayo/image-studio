@@ -4,6 +4,7 @@ import {
   type ApiConfig,
   type OptimizerConfig,
   type GeneralConfig,
+  type PreviewFullscreenMode,
   DEFAULT_CONFIG,
   DEFAULT_OPTIMIZER_CONFIG,
   DEFAULT_GENERAL_CONFIG,
@@ -125,6 +126,10 @@ export const useConfigStore = defineStore('config', () => {
   const downloadImageFormat = ref<string>(
     localStorage.getItem('gpt_image_download_format') || DEFAULT_GENERAL_CONFIG.downloadImageFormat
   );
+  const previewFullscreenMode = ref<PreviewFullscreenMode>(
+    (localStorage.getItem('gpt_image_preview_fullscreen_mode') as PreviewFullscreenMode) ||
+      DEFAULT_GENERAL_CONFIG.previewFullscreenMode
+  );
 
   function updateGeneralConfig(newConfig: Partial<GeneralConfig>) {
     if (newConfig.clearPromptOnGenerate !== undefined) {
@@ -138,6 +143,10 @@ export const useConfigStore = defineStore('config', () => {
     if (newConfig.downloadImageFormat !== undefined) {
       downloadImageFormat.value = newConfig.downloadImageFormat.trim();
       localStorage.setItem('gpt_image_download_format', downloadImageFormat.value);
+    }
+    if (newConfig.previewFullscreenMode !== undefined) {
+      previewFullscreenMode.value = newConfig.previewFullscreenMode === 'native' ? 'native' : 'window';
+      localStorage.setItem('gpt_image_preview_fullscreen_mode', previewFullscreenMode.value);
     }
   }
 
@@ -173,6 +182,7 @@ export const useConfigStore = defineStore('config', () => {
     clearPromptOnGenerate,
     downloadFilenamePattern,
     downloadImageFormat,
+    previewFullscreenMode,
     updateGeneralConfig
   };
 });

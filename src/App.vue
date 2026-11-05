@@ -164,24 +164,64 @@ function handlePreviewReferenceImage(img: TaskReferenceImage, all: TaskReference
   activePreviewRefBatch.value = all;
 }
 
-function handleCloseRefPreview() {
-  if (isRefPreviewFullscreen.value) {
+async function exitRefPreviewFullscreen() {
+  isRefPreviewFullscreen.value = false;
+  if (configStore.previewFullscreenMode === 'native' && document.fullscreenElement) {
+    try {
+      await document.exitFullscreen();
+    } catch {
+      // 忽略退出异常
+    }
+  }
+}
+
+async function handleRefPreviewFullscreenChange(val: boolean) {
+  isRefPreviewFullscreen.value = val;
+  if (configStore.previewFullscreenMode === 'native') {
+    if (val) {
+      try {
+        if (document.fullscreenEnabled && !document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+        }
+      } catch {
+        // 允许降级
+      }
+    } else {
+      if (document.fullscreenElement) {
+        try {
+          await document.exitFullscreen();
+        } catch {
+          // 忽略退出异常
+        }
+      }
+    }
+  }
+}
+
+function handleRefFullscreenDomChange() {
+  if (!document.fullscreenElement && isRefPreviewFullscreen.value && configStore.previewFullscreenMode === 'native') {
     isRefPreviewFullscreen.value = false;
+  }
+}
+
+async function handleCloseRefPreview() {
+  if (isRefPreviewFullscreen.value) {
+    await exitRefPreviewFullscreen();
     return;
   }
   activePreviewRefImage.value = null;
   activePreviewRefBatch.value = [];
 }
 
-function handleRefPreviewKeyDown(e: KeyboardEvent) {
+async function handleRefPreviewKeyDown(e: KeyboardEvent) {
   if (!activePreviewRefImage.value) return;
 
   if (e.key === 'Escape') {
     if (isRefPreviewFullscreen.value) {
-      isRefPreviewFullscreen.value = false;
+      await exitRefPreviewFullscreen();
       return;
     }
-    handleCloseRefPreview();
+    await handleCloseRefPreview();
   } else if (e.key === 'ArrowLeft') {
     if (activePreviewRefBatch.value.length > 1) {
       const list = activePreviewRefBatch.value;
@@ -206,14 +246,18 @@ function handleRefPreviewKeyDown(e: KeyboardEvent) {
 watch(activePreviewRefImage, (item) => {
   if (item) {
     window.addEventListener('keydown', handleRefPreviewKeyDown);
+    document.addEventListener('fullscreenchange', handleRefFullscreenDomChange);
   } else {
     window.removeEventListener('keydown', handleRefPreviewKeyDown);
-    isRefPreviewFullscreen.value = false;
+    document.removeEventListener('fullscreenchange', handleRefFullscreenDomChange);
+    exitRefPreviewFullscreen();
   }
 });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleRefPreviewKeyDown);
+  document.removeEventListener('fullscreenchange', handleRefFullscreenDomChange);
+  exitRefPreviewFullscreen();
 });
 
 function requestDeleteItem(id: number, closeLightbox = false) {
@@ -341,9 +385,10 @@ async function confirmPendingDelete() {
             :alt="'参考图 ' + activePreviewRefImage.id"
             :images="activePreviewRefBatch.map((item) => ({ id: item.id, url: item.previewUrl }))"
             :current-index="activePreviewRefBatch.findIndex((item) => item.id === activePreviewRefImage?.id)"
-            v-model:is-fullscreen="isRefPreviewFullscreen"
+            :is-fullscreen="isRefPreviewFullscreen"
+            @update:is-fullscreen="handleRefPreviewFullscreenChange"
             @close="handleCloseRefPreview"
-            @exit-fullscreen="isRefPreviewFullscreen = false"
+            @exit-fullscreen="exitRefPreviewFullscreen"
             @update:current-index="(idx) => activePreviewRefImage = activePreviewRefBatch[idx] || null"
           />
         </div>

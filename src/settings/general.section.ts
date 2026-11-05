@@ -1,4 +1,4 @@
-import { Sliders, Download, Sparkles } from '@lucide/vue';
+import { Sliders, Download, Sparkles, Maximize2 } from '@lucide/vue';
 import { useConfigStore } from '@/stores/configStore';
 import { SETTING_WIDGET, type SettingSection } from '@/core/settings';
 import { SETTING_CATEGORY, SETTING_KEYS, SETTING_SECTION } from './keys';
@@ -21,6 +21,24 @@ export const generalSection: SettingSection = {
           type: SETTING_WIDGET.SWITCH,
           label: '开始生成后清空输入框',
           hint: '开启后，点击开始生成时将自动清空当前提示词输入框；默认保持输入内容以便二次微调。'
+        }
+      ]
+    },
+    {
+      id: 'general.preview',
+      title: '看图与视口',
+      icon: Maximize2,
+      layout: 'stack',
+      fields: [
+        {
+          key: SETTING_KEYS.previewFullscreenMode,
+          type: SETTING_WIDGET.SELECT,
+          label: '大图全屏展示模式',
+          hint: '页面内全屏仅铺满当前浏览器视口，不脱离窗口；整个电脑屏幕全屏将调用系统原生全屏铺满整个电脑显示器。',
+          options: [
+            { label: '页面内全屏 / 网页全屏 (推荐)', value: 'window' },
+            { label: '整个电脑屏幕全屏 (系统原生全屏)', value: 'native' }
+          ]
         }
       ]
     },
@@ -57,6 +75,7 @@ export const generalSection: SettingSection = {
     return {
       values: {
         [SETTING_KEYS.clearPromptOnGenerate]: store.clearPromptOnGenerate,
+        [SETTING_KEYS.previewFullscreenMode]: store.previewFullscreenMode,
         [SETTING_KEYS.downloadFilenamePattern]: store.downloadFilenamePattern,
         [SETTING_KEYS.downloadImageFormat]: store.downloadImageFormat
       }
@@ -66,6 +85,7 @@ export const generalSection: SettingSection = {
     const store = useConfigStore();
     store.updateGeneralConfig({
       clearPromptOnGenerate: Boolean(ctx.values[SETTING_KEYS.clearPromptOnGenerate]),
+      previewFullscreenMode: ctx.values[SETTING_KEYS.previewFullscreenMode] === 'native' ? 'native' : 'window',
       downloadFilenamePattern: String(ctx.values[SETTING_KEYS.downloadFilenamePattern] ?? '').trim() || '{prefix}_{date}_{time}_{id}',
       downloadImageFormat: String(ctx.values[SETTING_KEYS.downloadImageFormat] ?? 'auto').trim() || 'auto'
     });

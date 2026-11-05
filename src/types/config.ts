@@ -13,16 +13,20 @@ export interface OptimizerConfig {
   endpoint: string;
 }
 
+export type PreviewFullscreenMode = 'window' | 'native';
+
 export interface GeneralConfig {
   clearPromptOnGenerate: boolean;
   downloadFilenamePattern: string;
   downloadImageFormat: string;
+  previewFullscreenMode: PreviewFullscreenMode;
 }
 
 export const DEFAULT_GENERAL_CONFIG: GeneralConfig = {
   clearPromptOnGenerate: false,
   downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
-  downloadImageFormat: 'auto'
+  downloadImageFormat: 'auto',
+  previewFullscreenMode: 'window'
 };
 
 

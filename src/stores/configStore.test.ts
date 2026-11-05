@@ -33,7 +33,8 @@ describe('useConfigStore without ENV_BASE_URL', () => {
       DEFAULT_GENERAL_CONFIG: {
         clearPromptOnGenerate: false,
         downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
-        downloadImageFormat: 'auto'
+        downloadImageFormat: 'auto',
+        previewFullscreenMode: 'window'
       }
     }));
 
@@ -46,6 +47,7 @@ describe('useConfigStore without ENV_BASE_URL', () => {
     expect(store.clearPromptOnGenerate).toBe(false);
     expect(store.downloadFilenamePattern).toBe('{prefix}_{date}_{time}_{id}');
     expect(store.downloadImageFormat).toBe('auto');
+    expect(store.previewFullscreenMode).toBe('window');
   });
 
   it('should support custom apiKeyHint from environment', async () => {
@@ -73,7 +75,8 @@ describe('useConfigStore without ENV_BASE_URL', () => {
       DEFAULT_GENERAL_CONFIG: {
         clearPromptOnGenerate: false,
         downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
-        downloadImageFormat: 'auto'
+        downloadImageFormat: 'auto',
+        previewFullscreenMode: 'window'
       }
     }));
 
@@ -109,7 +112,8 @@ describe('useConfigStore without ENV_BASE_URL', () => {
       DEFAULT_GENERAL_CONFIG: {
         clearPromptOnGenerate: false,
         downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
-        downloadImageFormat: 'auto'
+        downloadImageFormat: 'auto',
+        previewFullscreenMode: 'window'
       }
     }));
 
@@ -145,7 +149,8 @@ describe('useConfigStore without ENV_BASE_URL', () => {
       DEFAULT_GENERAL_CONFIG: {
         clearPromptOnGenerate: false,
         downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
-        downloadImageFormat: 'auto'
+        downloadImageFormat: 'auto',
+        previewFullscreenMode: 'window'
       }
     }));
 
@@ -192,7 +197,8 @@ describe('useConfigStore without ENV_BASE_URL', () => {
       DEFAULT_GENERAL_CONFIG: {
         clearPromptOnGenerate: false,
         downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
-        downloadImageFormat: 'auto'
+        downloadImageFormat: 'auto',
+        previewFullscreenMode: 'window'
       }
     }));
 
@@ -230,7 +236,8 @@ describe('useConfigStore without ENV_BASE_URL', () => {
       DEFAULT_GENERAL_CONFIG: {
         clearPromptOnGenerate: false,
         downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
-        downloadImageFormat: 'auto'
+        downloadImageFormat: 'auto',
+        previewFullscreenMode: 'window'
       }
     }));
 
@@ -281,7 +288,8 @@ describe('useConfigStore without ENV_BASE_URL', () => {
       DEFAULT_GENERAL_CONFIG: {
         clearPromptOnGenerate: false,
         downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
-        downloadImageFormat: 'auto'
+        downloadImageFormat: 'auto',
+        previewFullscreenMode: 'window'
       }
     }));
 
@@ -291,19 +299,23 @@ describe('useConfigStore without ENV_BASE_URL', () => {
     expect(store.clearPromptOnGenerate).toBe(false);
     expect(store.downloadFilenamePattern).toBe('{prefix}_{date}_{time}_{id}');
     expect(store.downloadImageFormat).toBe('auto');
+    expect(store.previewFullscreenMode).toBe('window');
 
     store.updateGeneralConfig({
       clearPromptOnGenerate: true,
       downloadFilenamePattern: '{prefix}_{prompt}_{time}',
-      downloadImageFormat: 'png'
+      downloadImageFormat: 'png',
+      previewFullscreenMode: 'native'
     });
 
     expect(store.clearPromptOnGenerate).toBe(true);
     expect(store.downloadFilenamePattern).toBe('{prefix}_{prompt}_{time}');
     expect(store.downloadImageFormat).toBe('png');
+    expect(store.previewFullscreenMode).toBe('native');
     expect(localStorage.getItem('gpt_image_clear_prompt_on_generate')).toBe('true');
     expect(localStorage.getItem('gpt_image_download_filename_pattern')).toBe('{prefix}_{prompt}_{time}');
     expect(localStorage.getItem('gpt_image_download_format')).toBe('png');
+    expect(localStorage.getItem('gpt_image_preview_fullscreen_mode')).toBe('native');
   });
 });
 
@@ -337,7 +349,8 @@ describe('useConfigStore with ENV_BASE_URL', () => {
       DEFAULT_GENERAL_CONFIG: {
         clearPromptOnGenerate: false,
         downloadFilenamePattern: '{prefix}_{date}_{time}_{id}',
-        downloadImageFormat: 'auto'
+        downloadImageFormat: 'auto',
+        previewFullscreenMode: 'window'
       }
     }));
 

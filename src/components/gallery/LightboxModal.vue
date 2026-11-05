@@ -54,14 +54,41 @@ const {
   handleDoubleClick
 } = useViewportCanvas(panelRef);
 
+const configStore = useConfigStore();
 const isFullscreen = ref(false);
 
-function toggleFullscreen() {
-  isFullscreen.value = !isFullscreen.value;
+async function toggleFullscreen() {
+  if (!isFullscreen.value) {
+    isFullscreen.value = true;
+    if (configStore.previewFullscreenMode === 'native') {
+      try {
+        if (document.fullscreenEnabled && !document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+        }
+      } catch {
+        // 允许降级为纯 CSS 页面内全屏
+      }
+    }
+  } else {
+    await exitFullscreen();
+  }
 }
 
-function exitFullscreen() {
+async function exitFullscreen() {
   isFullscreen.value = false;
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    }
+  } catch {
+    // 忽略退出异常
+  }
+}
+
+function handleFullscreenChange() {
+  if (!document.fullscreenElement && isFullscreen.value && configStore.previewFullscreenMode === 'native') {
+    isFullscreen.value = false;
+  }
 }
 
 watch(() => props.item, (newItem) => {
@@ -113,8 +140,6 @@ function handleNextWork() {
     resetTransform();
   }
 }
-
-const configStore = useConfigStore();
 
 async function handleDownload() {
   const item = currentActiveItem.value;
@@ -200,14 +225,17 @@ const isLightboxOpen = computed(() => currentActiveItem.value !== null);
 watch(isLightboxOpen, (open) => {
   if (open) {
     window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
   } else {
     window.removeEventListener('keydown', handleKeyDown);
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
     exitFullscreen();
   }
 }, { immediate: true });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
+  document.removeEventListener('fullscreenchange', handleFullscreenChange);
   exitFullscreen();
 });
 </script>

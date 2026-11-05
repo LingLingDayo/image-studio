@@ -32,6 +32,14 @@ describe('general section schema', () => {
     const formatField = downloadGroup?.fields.find((f) => f.key === SETTING_KEYS.downloadImageFormat);
     expect(formatField).toBeDefined();
     expect(formatField?.type).toBe(SETTING_WIDGET.SELECT);
+
+    const previewGroup = generalSection.groups.find((g) => g.id === 'general.preview');
+    expect(previewGroup).toBeDefined();
+    const previewField = previewGroup?.fields.find((f) => f.key === SETTING_KEYS.previewFullscreenMode);
+    expect(previewField).toBeDefined();
+    expect(previewField?.type).toBe(SETTING_WIDGET.SELECT);
+    const options = Array.isArray(previewField?.options) ? previewField.options : [];
+    expect(options.some((opt) => opt.value === 'native')).toBe(true);
   });
 
   it('hydrates default values from store and commits changes', () => {
@@ -39,15 +47,18 @@ describe('general section schema', () => {
     expect(store.clearPromptOnGenerate).toBe(false);
     expect(store.downloadFilenamePattern).toBe('{prefix}_{date}_{time}_{id}');
     expect(store.downloadImageFormat).toBe('auto');
+    expect(store.previewFullscreenMode).toBe('window');
 
     const slice = generalSection.hydrate!();
     expect(slice.values[SETTING_KEYS.clearPromptOnGenerate]).toBe(false);
+    expect(slice.values[SETTING_KEYS.previewFullscreenMode]).toBe('window');
     expect(slice.values[SETTING_KEYS.downloadFilenamePattern]).toBe('{prefix}_{date}_{time}_{id}');
     expect(slice.values[SETTING_KEYS.downloadImageFormat]).toBe('auto');
 
     const ctx = createSettingsMutator(
       {
         [SETTING_KEYS.clearPromptOnGenerate]: true,
+        [SETTING_KEYS.previewFullscreenMode]: 'native',
         [SETTING_KEYS.downloadFilenamePattern]: '{type}_{prompt}_{time}',
         [SETTING_KEYS.downloadImageFormat]: 'webp'
       },
@@ -57,6 +68,7 @@ describe('general section schema', () => {
     generalSection.commit!(ctx);
 
     expect(store.clearPromptOnGenerate).toBe(true);
+    expect(store.previewFullscreenMode).toBe('native');
     expect(store.downloadFilenamePattern).toBe('{type}_{prompt}_{time}');
     expect(store.downloadImageFormat).toBe('webp');
   });

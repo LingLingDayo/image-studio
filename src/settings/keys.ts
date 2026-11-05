@@ -7,7 +7,8 @@ export const SETTING_KEYS = {
   optimizerEndpoint: 'optimizer.endpoint',
   clearPromptOnGenerate: 'general.clearPromptOnGenerate',
   downloadFilenamePattern: 'general.downloadFilenamePattern',
-  downloadImageFormat: 'general.downloadImageFormat'
+  downloadImageFormat: 'general.downloadImageFormat',
+  previewFullscreenMode: 'general.previewFullscreenMode'
 } as const;
 
 export const SETTING_RUNTIME = {
