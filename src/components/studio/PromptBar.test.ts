@@ -113,6 +113,8 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     expect(magicBtn).not.toBeNull();
     expect(magicBtn.disabled).toBe(false);
     expect(magicBtn.getAttribute('data-tip')).toBe('使用大模型智能优化提示词 (AI 润色扩写细节)');
+    expect(magicBtn.querySelector('span')).toBeNull();
+    expect(magicBtn.querySelector('svg')).not.toBeNull();
 
     app.unmount();
   });

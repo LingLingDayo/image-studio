@@ -507,10 +507,10 @@ onUnmounted(() => {
             :class="{ 'is-optimizing': isOptimizing }"
             :disabled="isOptimizing || !configStore.isOptimizerConfigured || !prompt.trim()"
             :data-tip="optimizerTooltip"
+            :aria-label="isOptimizing ? '优化中...' : 'AI 优化'"
             @click="handleOptimizePrompt"
           >
-            <Sparkles :size="14" />
-            <span>{{ isOptimizing ? '优化中...' : 'AI 优化' }}</span>
+            <Sparkles :size="15" :class="{ 'spin-icon': isOptimizing }" />
           </button>
 
           <input 
@@ -764,20 +764,18 @@ onUnmounted(() => {
 }
 
 .btn-magic {
+  width: 34px;
   height: 34px;
-  padding: 0 12px;
-  border-radius: 9999px;
+  border-radius: 50%;
   border: 1px solid rgba(147, 197, 253, 0.5);
   background: linear-gradient(135deg, rgba(238, 242, 255, 0.95), rgba(245, 243, 255, 0.95));
   color: #6366f1;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
   cursor: pointer;
   box-shadow: $shadow-xs;
-  font-size: 0.8rem;
-  font-weight: 600;
-  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover:not(:disabled) {
