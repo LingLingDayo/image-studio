@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, type Component } from 'vue';
-import { Minus, Plus } from '@lucide/vue';
 import { applyWheelStep, WHEEL_ADJUST_TIP } from '@/utils/wheelStep';
 
 const props = withDefaults(
@@ -33,23 +32,6 @@ const emit = defineEmits<{
   (e: 'update:modelValue', val: number): void;
   (e: 'change', val: number): void;
 }>();
-
-const canDecrease = computed(() => !props.disabled && props.modelValue > props.min);
-const canIncrease = computed(() => !props.disabled && props.modelValue < props.max);
-
-function handleDecrease() {
-  if (!canDecrease.value) return;
-  const newVal = Math.max(props.min, props.modelValue - props.step);
-  emit('update:modelValue', newVal);
-  emit('change', newVal);
-}
-
-function handleIncrease() {
-  if (!canIncrease.value) return;
-  const newVal = Math.min(props.max, props.modelValue + props.step);
-  emit('update:modelValue', newVal);
-  emit('change', newVal);
-}
 
 function handleInputChange(e: Event) {
   const target = e.target as HTMLInputElement;
@@ -100,16 +82,6 @@ function handleWheel(e: WheelEvent) {
       />
       <span v-if="label" class="stepper-label">{{ label }}</span>
 
-      <button 
-        type="button" 
-        class="step-btn step-minus" 
-        :disabled="!canDecrease"
-        data-tip="减少"
-        @click="handleDecrease"
-      >
-        <Minus :size="11" />
-      </button>
-
       <input 
         type="number" 
         :min="min"
@@ -132,16 +104,6 @@ function handleWheel(e: WheelEvent) {
         @keydown="handleKeyDown"
         @change="handleInputChange"
       />
-
-      <button 
-        type="button" 
-        class="step-btn step-plus" 
-        :disabled="!canIncrease"
-        data-tip="增加"
-        @click="handleIncrease"
-      >
-        <Plus :size="11" />
-      </button>
     </div>
   </div>
 </template>
@@ -169,7 +131,9 @@ function handleWheel(e: WheelEvent) {
   border: 1px solid rgba(226, 232, 240, 0.95);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
   border-radius: 9999px;
-  padding: 3px 6px 3px 10px;
+  padding: 3px 8px 3px 10px;
+  height: 26px;
+  box-sizing: border-box;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
@@ -210,38 +174,8 @@ function handleWheel(e: WheelEvent) {
   }
 }
 
-.step-btn {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: $text-secondary;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.12s ease;
-  padding: 0;
-
-  &:hover:not(:disabled) {
-    background: $accent-subtle;
-    color: $accent-primary;
-    transform: scale(1.1);
-  }
-
-  &:active:not(:disabled) {
-    transform: scale(0.92);
-  }
-
-  &:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-}
-
 .step-input {
-  width: 18px;
+  width: 20px;
   height: 18px;
   background: transparent;
   border: none;

@@ -298,7 +298,7 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
 }
 
 .dim-input {
-  width: 44px;
+  width: 34px;
   height: 18px;
   background: transparent;
   border: none;
