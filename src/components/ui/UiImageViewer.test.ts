@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createApp, h, nextTick, ref } from 'vue';
 import UiImageViewer from './UiImageViewer.vue';
 
@@ -212,5 +212,120 @@ describe('UiImageViewer (src/components/ui/UiImageViewer.vue)', () => {
     expect(panel.classList.contains('is-fullscreen')).toBe(false);
 
     app.unmount();
+  });
+
+  it('预览区域内鼠标移动激活工具栏，静止 4 秒后工具栏自动消失收起', async () => {
+    vi.useFakeTimers();
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, {
+          src: 'https://example.com/test.png'
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+    const toolbar = container.querySelector('.image-floating-toolbar') as HTMLDivElement;
+    expect(toolbar).not.toBeNull();
+    expect(toolbar.classList.contains('is-visible')).toBe(false);
+
+    // 鼠标移入并移动，工具栏显示
+    panel.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    panel.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(true);
+
+    // 鼠标静止 3.9 秒，工具栏仍应显示
+    vi.advanceTimersByTime(3900);
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(true);
+
+    // 鼠标静止满 4 秒后，工具栏消失收起
+    vi.advanceTimersByTime(100);
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(false);
+
+    // 鼠标再次移动，工具栏重新唤起并重新倒计时
+    panel.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(true);
+
+    // 再次静止 4 秒后收起
+    vi.advanceTimersByTime(4000);
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(false);
+
+    app.unmount();
+    vi.useRealTimers();
+  });
+
+  it('鼠标离开预览区域时立即收起工具栏', async () => {
+    vi.useFakeTimers();
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, {
+          src: 'https://example.com/test.png'
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+    const toolbar = container.querySelector('.image-floating-toolbar') as HTMLDivElement;
+
+    // 鼠标移动显示
+    panel.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(true);
+
+    // 鼠标移出预览区域，立即收起
+    panel.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false }));
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(false);
+
+    app.unmount();
+    vi.useRealTimers();
+  });
+
+  it('全屏模式下鼠标静止 4 秒同样会自动消失收起', async () => {
+    vi.useFakeTimers();
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, {
+          src: 'https://example.com/test.png',
+          isFullscreen: true
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+    expect(panel.classList.contains('is-fullscreen')).toBe(true);
+    const toolbar = container.querySelector('.image-floating-toolbar') as HTMLDivElement;
+
+    // 全屏下鼠标移动显示工具栏
+    panel.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(true);
+
+    // 全屏下鼠标静止 4 秒自动收起
+    vi.advanceTimersByTime(4000);
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(false);
+
+    // 全屏下鼠标再次移动重新显示
+    panel.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(true);
+
+    app.unmount();
+    vi.useRealTimers();
   });
 });

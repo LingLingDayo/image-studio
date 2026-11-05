@@ -47,12 +47,15 @@ const props = withDefaults(defineProps<{
   showToolbar?: boolean;
   showNavigation?: boolean;
   showClose?: boolean;
+  // 工具栏静止隐藏时间 (ms)，默认 4000ms (4s)
+  idleTimeout?: number;
 }>(), {
   currentIndex: 0,
   allowFullscreen: true,
   showToolbar: true,
   showNavigation: true,
-  showClose: true
+  showClose: true,
+  idleTimeout: 4000
 });
 
 const emit = defineEmits<{
@@ -140,7 +143,42 @@ const currentIsDragging = computed(() => isDraggingControlled.value ? (props.isD
 const internalFullscreen = ref(false);
 const activeFullscreen = computed(() => isFullscreenControlled.value ? (props.isFullscreen ?? false) : internalFullscreen.value);
 
+// 工具栏鼠标静止 4s 自动隐藏收起
+const isToolbarVisible = ref(false);
+let toolbarTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearToolbarTimer() {
+  if (toolbarTimer !== null) {
+    clearTimeout(toolbarTimer);
+    toolbarTimer = null;
+  }
+}
+
+function resetToolbarTimer() {
+  isToolbarVisible.value = true;
+  clearToolbarTimer();
+  if (props.idleTimeout > 0) {
+    toolbarTimer = setTimeout(() => {
+      isToolbarVisible.value = false;
+    }, props.idleTimeout);
+  }
+}
+
+function handleMouseEnter() {
+  resetToolbarTimer();
+}
+
+function handleMouseMove() {
+  resetToolbarTimer();
+}
+
+function handleMouseLeave() {
+  clearToolbarTimer();
+  isToolbarVisible.value = false;
+}
+
 function handleToggleFullscreen() {
+  resetToolbarTimer();
   emit('toggleFullscreen');
   if (isFullscreenControlled.value) {
     emit('update:isFullscreen', !props.isFullscreen);
@@ -150,6 +188,7 @@ function handleToggleFullscreen() {
 }
 
 function handleExitFullscreen() {
+  resetToolbarTimer();
   emit('exitFullscreen');
   if (isFullscreenControlled.value) {
     emit('update:isFullscreen', false);
@@ -169,11 +208,13 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  clearToolbarTimer();
   window.removeEventListener('keydown', handleKeyDown);
 });
 
 // 手势与工具栏操作
 function handleZoomIn() {
+  resetToolbarTimer();
   emit('zoomIn');
   if (!isScaleControlled.value) {
     internalCanvas.zoomIn();
@@ -181,6 +222,7 @@ function handleZoomIn() {
 }
 
 function handleZoomOut() {
+  resetToolbarTimer();
   emit('zoomOut');
   if (!isScaleControlled.value) {
     internalCanvas.zoomOut();
@@ -188,6 +230,7 @@ function handleZoomOut() {
 }
 
 function handleResetScale() {
+  resetToolbarTimer();
   emit('resetScale');
   if (!isScaleControlled.value) {
     internalCanvas.resetScale();
@@ -195,6 +238,7 @@ function handleResetScale() {
 }
 
 function handleResetView() {
+  resetToolbarTimer();
   emit('resetView');
   if (!isScaleControlled.value && !isTransformControlled.value) {
     internalCanvas.resetView();
@@ -202,6 +246,7 @@ function handleResetView() {
 }
 
 function handleRotateCw() {
+  resetToolbarTimer();
   emit('rotateCw');
   if (!isRotationControlled.value) {
     internalCanvas.rotateCw();
@@ -210,6 +255,7 @@ function handleRotateCw() {
 }
 
 function handleRotateCcw() {
+  resetToolbarTimer();
   emit('rotateCcw');
   if (!isRotationControlled.value) {
     internalCanvas.rotateCcw();
@@ -218,6 +264,7 @@ function handleRotateCcw() {
 }
 
 function onWheel(e: WheelEvent) {
+  resetToolbarTimer();
   emit('wheel', e);
   if (!isScaleControlled.value) {
     internalCanvas.handleWheel(e);
@@ -225,6 +272,7 @@ function onWheel(e: WheelEvent) {
 }
 
 function onPointerDown(e: PointerEvent) {
+  resetToolbarTimer();
   emit('pointerdown', e);
   if (!isDraggingControlled.value) {
     internalCanvas.handlePointerDown(e);
@@ -232,6 +280,7 @@ function onPointerDown(e: PointerEvent) {
 }
 
 function onMouseDown(e: MouseEvent) {
+  resetToolbarTimer();
   emit('mousedown', e);
   if (!isDraggingControlled.value) {
     internalCanvas.handleMouseDown(e);
@@ -239,6 +288,7 @@ function onMouseDown(e: MouseEvent) {
 }
 
 function onDoubleClick(e: MouseEvent) {
+  resetToolbarTimer();
   emit('dblclick', e);
   if (!isScaleControlled.value && !isTransformControlled.value) {
     internalCanvas.handleDoubleClick(e);
@@ -246,6 +296,7 @@ function onDoubleClick(e: MouseEvent) {
 }
 
 function handlePrev() {
+  resetToolbarTimer();
   emit('prev');
   if (normalizedImages.value.length > 1) {
     const nextIdx = (props.currentIndex - 1 + normalizedImages.value.length) % normalizedImages.value.length;
@@ -257,6 +308,7 @@ function handlePrev() {
 }
 
 function handleNext() {
+  resetToolbarTimer();
   emit('next');
   if (normalizedImages.value.length > 1) {
     const nextIdx = (props.currentIndex + 1) % normalizedImages.value.length;
@@ -274,13 +326,15 @@ const headlineText = computed(() => {
 defineExpose({
   containerRef,
   resetTransform: internalCanvas.resetTransform,
-  resetView: internalCanvas.resetView,
+  resetView: handleResetView,
   zoomIn: handleZoomIn,
   zoomOut: handleZoomOut,
   rotateCw: handleRotateCw,
   rotateCcw: handleRotateCcw,
   toggleFullscreen: handleToggleFullscreen,
-  exitFullscreen: handleExitFullscreen
+  exitFullscreen: handleExitFullscreen,
+  isToolbarVisible,
+  resetToolbarTimer
 });
 </script>
 
@@ -293,6 +347,9 @@ defineExpose({
     @pointerdown="onPointerDown"
     @mousedown="onMouseDown"
     @dblclick="onDoubleClick"
+    @mouseenter="handleMouseEnter"
+    @mousemove="handleMouseMove"
+    @mouseleave="handleMouseLeave"
   >
     <!-- 全屏模式右上角退出按钮：点击取消全屏 -->
     <button
@@ -359,12 +416,14 @@ defineExpose({
       </button>
     </div>
 
-    <!-- 浮动半透明工具栏 (hover 显示，仅在图片正常时呈现) -->
+    <!-- 浮动半透明工具栏 (鼠标移动显示/静止4s自动收起，仅在图片正常时呈现) -->
     <div 
       v-if="showToolbar && currentActiveItem && currentActiveItem.status !== 'failed' && currentActiveItem.url"
       class="image-floating-toolbar" 
-      @pointerdown.stop 
-      @mousedown.stop 
+      :class="{ 'is-visible': isToolbarVisible }"
+      @pointerdown.stop="resetToolbarTimer" 
+      @mousedown.stop="resetToolbarTimer" 
+      @focusin="resetToolbarTimer"
       @wheel.stop 
       @dblclick.stop
     >
@@ -651,6 +710,12 @@ defineExpose({
   pointer-events: none;
   transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 
+  &.is-visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    pointer-events: auto;
+  }
+
   .tool-btn {
     background: transparent;
     border: none;
@@ -701,12 +766,6 @@ defineExpose({
   }
 }
 
-.modal-image-panel:hover .image-floating-toolbar,
-.modal-image-panel:focus-within .image-floating-toolbar {
-  opacity: 1;
-  transform: translate(-50%, 0);
-  pointer-events: auto;
-}
 
 @media (max-width: 860px) {
   .lightbox-carousel-controls {
