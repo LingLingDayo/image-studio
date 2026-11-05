@@ -366,6 +366,10 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     await nextTick();
     expect(previewed).toEqual(mockRefImg);
 
+    // 验证不显示左下角序号与清空全部按钮
+    expect(container.querySelector('.ref-index')).toBeNull();
+    expect(container.querySelector('.ref-clear-all')).toBeNull();
+
     const deleteBtn = container.querySelector('.ref-delete-btn') as HTMLButtonElement;
     expect(deleteBtn).not.toBeNull();
     deleteBtn.click();

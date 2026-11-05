@@ -4,7 +4,6 @@ import {
   Paperclip,
   ArrowRight,
   X,
-  Trash2,
   UploadCloud,
   Sparkles,
   RotateCcw,
@@ -365,16 +364,10 @@ onUnmounted(() => {
           @click="emit('previewImage', img, referenceImages)"
         >
           <img :src="img.previewUrl" :alt="'Ref ' + (idx + 1)" />
-          <span class="ref-index">{{ idx + 1 }}</span>
           <button class="ref-delete-btn" data-tip="移除此图" @click.stop="emit('removeImage', img.id)">
             <X :size="10" />
           </button>
         </div>
-
-        <button class="ref-clear-all" data-tip="清空全部参考图" @click="emit('clearImages')">
-          <Trash2 :size="13" />
-          <span>清空</span>
-        </button>
       </div>
 
       <!-- 提示词输入区 -->
@@ -647,24 +640,16 @@ onUnmounted(() => {
   &:hover {
     transform: scale(1.05);
     box-shadow: $shadow-sm;
+
+    .ref-delete-btn {
+      transform: scale(calc(1 / 1.05));
+    }
   }
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-  }
-
-  .ref-index {
-    position: absolute;
-    bottom: 2px;
-    left: 2px;
-    background: $accent-primary;
-    color: #ffffff;
-    font-size: 0.65rem;
-    font-weight: 600;
-    padding: 1px 4px;
-    border-radius: 4px;
   }
 
   .ref-delete-btn {
@@ -682,32 +667,12 @@ onUnmounted(() => {
     justify-content: center;
     cursor: pointer;
     opacity: 0.8;
-    transition: opacity 0.15s ease;
+    transform-origin: center;
+    transition: opacity 0.15s ease, transform 0.15s ease;
 
     &:hover {
       opacity: 1;
     }
-  }
-}
-
-.ref-clear-all {
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  color: $text-muted;
-  padding: 4px 10px;
-  border-radius: $radius-sm;
-  font-size: 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  height: 32px;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background: $danger-subtle;
-    color: $danger;
-    border-color: #fca5a5;
   }
 }
 
