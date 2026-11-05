@@ -21,10 +21,10 @@ import {
   applyResolutionChange,
   applySizeAuto,
   applyWidthChange,
-  formatSizeParam,
   hydrateImageSizeFromSettings,
   isReferenceRatio,
   materializeSize,
+  resolveEffectiveGenerationSize,
   type ImageSizeState
 } from '@/utils/imageSize';
 import { splitPromptBatches } from '@/utils/promptBatches';
@@ -38,16 +38,27 @@ export function useImageStudio() {
   const prompt = ref<string>('');
   const referenceImages = ref<TaskReferenceImage[]>([]);
 
-  // 首张参考图的比例（同参考图选项绑定首张参考图）
+  // 首张参考图的比例与物理尺寸（同参考图选项绑定首张参考图）
   const primaryReferenceRatio = computed<string | null>(() => {
     if (referenceImages.value.length === 0) return null;
     return referenceImages.value[0]?.ratio || null;
   });
 
+  const primaryReferenceDims = computed<{ width: number; height: number } | null>(() => {
+    const first = referenceImages.value[0];
+    if (first?.width && first?.height) {
+      return { width: first.width, height: first.height };
+    }
+    return null;
+  });
+
   // 当首张参考图比例变化（如异步加载完成、或首图被删除切换至下一张）时，实时更新尺寸
   watch(primaryReferenceRatio, (newRatio) => {
     if (isReferenceRatio(sizeState.aspectRatio)) {
-      Object.assign(sizeState, applyAspectRatioChange(sizeState, sizeState.aspectRatio, newRatio));
+      Object.assign(
+        sizeState,
+        applyAspectRatioChange(sizeState, sizeState.aspectRatio, newRatio, primaryReferenceDims.value)
+      );
     }
   });
 
@@ -59,19 +70,23 @@ export function useImageStudio() {
   });
   const resolution = computed({
     get: () => sizeState.resolution,
-    set: (value: ResolutionTier) => Object.assign(sizeState, applyResolutionChange(sizeState, value, primaryReferenceRatio.value))
+    set: (value: ResolutionTier) =>
+      Object.assign(sizeState, applyResolutionChange(sizeState, value, primaryReferenceRatio.value, primaryReferenceDims.value))
   });
   const aspectRatio = computed({
     get: () => sizeState.aspectRatio,
-    set: (value: string) => Object.assign(sizeState, applyAspectRatioChange(sizeState, value, primaryReferenceRatio.value))
+    set: (value: string) =>
+      Object.assign(sizeState, applyAspectRatioChange(sizeState, value, primaryReferenceRatio.value, primaryReferenceDims.value))
   });
   const sizeWidth = computed({
     get: () => sizeState.width,
-    set: (value: number | null) => Object.assign(sizeState, applyWidthChange(sizeState, value, primaryReferenceRatio.value))
+    set: (value: number | null) =>
+      Object.assign(sizeState, applyWidthChange(sizeState, value, primaryReferenceRatio.value))
   });
   const sizeHeight = computed({
     get: () => sizeState.height,
-    set: (value: number | null) => Object.assign(sizeState, applyHeightChange(sizeState, value, primaryReferenceRatio.value))
+    set: (value: number | null) =>
+      Object.assign(sizeState, applyHeightChange(sizeState, value, primaryReferenceRatio.value))
   });
   const quality = ref<ModelQuality>(modelStore.activeModel.defaultParams.quality);
   const format = ref<ModelFormat>(modelStore.activeModel.defaultParams.format);
@@ -141,7 +156,24 @@ export function useImageStudio() {
     const isEditMode = referenceImages.value.length > 0;
     const sharedRefs = isEditMode ? [...referenceImages.value] : [];
     const outputFormat = transparent.value ? resolveTransparentOutputFormat(format.value) : format.value;
-    const size = formatSizeParam(sizeState);
+
+    // 确保首张参考图真实尺寸已就绪（避免直接点击生成时尺寸未决）
+    const firstRef = referenceImages.value[0];
+    if (firstRef && (!firstRef.ratio || !firstRef.width || !firstRef.height)) {
+      try {
+        const dims = await calculateImageDimensions(firstRef.previewUrl);
+        firstRef.width = dims.width;
+        firstRef.height = dims.height;
+        firstRef.ratio = dims.ratioStr;
+      } catch (e) {}
+    }
+
+    // 解析生成时实际生效的尺寸与分辨率（同参考图且未设尺寸时自动使用满足分辨率上限的最大尺寸）
+    const { size: effectiveSize, resolution: effectiveResolution } = resolveEffectiveGenerationSize({
+      sizeState,
+      referenceImages: referenceImages.value,
+      primaryReferenceRatio: primaryReferenceRatio.value
+    });
 
     const tasks: GenerationTask[] = [];
     for (const batchPrompt of batches) {
@@ -149,8 +181,8 @@ export function useImageStudio() {
         model: modelStore.activeModel.id,
         prompt: batchPrompt,
         type: isEditMode ? 'i2i' : 't2i',
-        size,
-        resolution: sizeState.resolution,
+        size: effectiveSize,
+        resolution: effectiveResolution,
         aspectRatio: sizeState.aspectRatio,
         quality: quality.value,
         format: outputFormat,
@@ -251,8 +283,19 @@ export function useImageStudio() {
     Object.assign(sizeState, applySizeAuto(sizeState));
   }
 
-  function materializeImageSize() {
-    Object.assign(sizeState, materializeSize(sizeState, primaryReferenceRatio.value));
+  async function materializeImageSize() {
+    const firstRef = referenceImages.value[0];
+    if (firstRef && (!firstRef.ratio || !firstRef.width || !firstRef.height)) {
+      try {
+        const dims = await calculateImageDimensions(firstRef.previewUrl);
+        firstRef.width = dims.width;
+        firstRef.height = dims.height;
+        firstRef.ratio = dims.ratioStr;
+      } catch (e) {}
+    }
+    const refDims = firstRef?.width && firstRef?.height ? { width: firstRef.width, height: firstRef.height } : primaryReferenceDims.value;
+    const refRatio = firstRef?.ratio || primaryReferenceRatio.value;
+    Object.assign(sizeState, materializeSize(sizeState, refRatio, refDims));
   }
 
   async function reuseItem(item: MediaAsset | ArtworkBatch | GenerationTask | TaskGenerationParams) {

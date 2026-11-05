@@ -138,15 +138,43 @@ export function bumpResolutionIfNeeded(
   return neededIndex > currentIndex ? needed : current;
 }
 
+export function calcMaxSizeFromDimensions(
+  resolutionOrCap: ResolutionTier | number,
+  width: number,
+  height: number
+): { width: number; height: number } {
+  const cap = typeof resolutionOrCap === 'number'
+    ? resolutionOrCap
+    : (resolutionCap(resolutionOrCap) || 1024);
+  const w = sanitizeDim(width);
+  const h = sanitizeDim(height);
+  if (w >= h) {
+    const resW = cap;
+    const resH = sanitizeDim((cap * h) / w);
+    return { width: resW, height: Math.min(resH, cap) };
+  } else {
+    const resH = cap;
+    const resW = sanitizeDim((cap * w) / h);
+    return { width: Math.min(resW, cap), height: resH };
+  }
+}
+
 export function calcMaxSize(
   resolution: ResolutionTier,
   aspectRatio: string,
-  referenceRatio?: string | null
+  referenceRatio?: string | null,
+  referenceDimensions?: { width?: number; height?: number } | null
 ): { width: number; height: number } | null {
   const cap = resolutionCap(resolution);
+  if (cap == null) return null;
+
+  if (isReferenceRatio(aspectRatio) && referenceDimensions?.width && referenceDimensions?.height) {
+    return calcMaxSizeFromDimensions(cap, referenceDimensions.width, referenceDimensions.height);
+  }
+
   const effectiveRatio = resolveEffectiveAspectRatio(aspectRatio, referenceRatio);
   const ratio = parseRatio(effectiveRatio);
-  if (cap == null || !ratio) return null;
+  if (!ratio) return null;
 
   if (ratio.w >= ratio.h) {
     const width = cap;
@@ -208,10 +236,11 @@ function scaleToFitCap(
 export function applyResolutionChange(
   state: ImageSizeState,
   next: ResolutionTier,
-  referenceRatio?: string | null
+  referenceRatio?: string | null,
+  referenceDimensions?: { width?: number; height?: number } | null
 ): ImageSizeState {
   const nextState: ImageSizeState = { ...state, resolution: next };
-  const maxSize = calcMaxSize(next, state.aspectRatio, referenceRatio);
+  const maxSize = calcMaxSize(next, state.aspectRatio, referenceRatio, referenceDimensions);
   if (maxSize) {
     return { ...nextState, width: maxSize.width, height: maxSize.height };
   }
@@ -227,7 +256,8 @@ export function applyResolutionChange(
 export function applyAspectRatioChange(
   state: ImageSizeState,
   next: string,
-  referenceRatio?: string | null
+  referenceRatio?: string | null,
+  referenceDimensions?: { width?: number; height?: number } | null
 ): ImageSizeState {
   const nextState: ImageSizeState = { ...state, aspectRatio: next };
   const effectiveRatio = resolveEffectiveAspectRatio(next, referenceRatio);
@@ -238,7 +268,7 @@ export function applyAspectRatioChange(
     return nextState;
   }
 
-  const maxSize = calcMaxSize(state.resolution, effectiveRatio);
+  const maxSize = calcMaxSize(state.resolution, effectiveRatio, referenceRatio, referenceDimensions);
   if (maxSize) {
     return { ...nextState, width: maxSize.width, height: maxSize.height };
   }
@@ -328,11 +358,21 @@ export function applySizeAuto(state: ImageSizeState): ImageSizeState {
 
 export function materializeSize(
   state: ImageSizeState,
-  referenceRatio?: string | null
+  referenceRatio?: string | null,
+  referenceDimensions?: { width?: number; height?: number } | null
 ): ImageSizeState {
   if (hasConcreteSize(state)) return state;
 
-  const maxSize = calcMaxSize(state.resolution, state.aspectRatio, referenceRatio);
+  if (isReferenceRatio(state.aspectRatio) && referenceDimensions?.width && referenceDimensions?.height) {
+    const tier = state.resolution !== 'auto'
+      ? state.resolution
+      : inferResolutionTier(Math.max(referenceDimensions.width, referenceDimensions.height));
+    const cap = RESOLUTION_PIXELS[tier];
+    const maxSize = calcMaxSizeFromDimensions(cap, referenceDimensions.width, referenceDimensions.height);
+    return { ...state, width: maxSize.width, height: maxSize.height };
+  }
+
+  const maxSize = calcMaxSize(state.resolution, state.aspectRatio, referenceRatio, referenceDimensions);
   if (maxSize) {
     return { ...state, width: maxSize.width, height: maxSize.height };
   }
@@ -351,6 +391,66 @@ export function materializeSize(
   }
 
   return { ...state, width: 1024, height: 1024 };
+}
+
+export interface ResolveGenerationSizeInput {
+  sizeState: ImageSizeState;
+  referenceImages?: { width?: number; height?: number; ratio?: string }[];
+  primaryReferenceRatio?: string | null;
+}
+
+/**
+ * 解析生成时实际生效的尺寸与分辨率。
+ * 当用户设置了分辨率与比例（特别是同参考图且上传了参考图），但未设置具体尺寸时，
+ * 自动使用满足该分辨率上限的最大尺寸。
+ */
+export function resolveEffectiveGenerationSize(input: ResolveGenerationSizeInput): {
+  size: string;
+  resolution: ResolutionTier;
+} {
+  const { sizeState, referenceImages, primaryReferenceRatio } = input;
+
+  // 1. 若用户已手动设置了具体宽高，直接使用
+  if (hasConcreteSize(sizeState)) {
+    return {
+      size: formatSizeParam(sizeState),
+      resolution: sizeState.resolution
+    };
+  }
+
+  // 2. 若比例为「同参考图」，且上传了参考图
+  const firstRef = referenceImages?.[0];
+  if (isReferenceRatio(sizeState.aspectRatio) && firstRef) {
+    const refDims = firstRef.width && firstRef.height ? { width: firstRef.width, height: firstRef.height } : null;
+    const refRatio = firstRef.ratio || primaryReferenceRatio || null;
+    const materialized = materializeSize(sizeState, refRatio, refDims);
+    if (hasConcreteSize(materialized)) {
+      const tier = sizeState.resolution !== 'auto'
+        ? sizeState.resolution
+        : inferResolutionTier(Math.max(materialized.width as number, materialized.height as number));
+      return {
+        size: formatSizeParam(materialized),
+        resolution: tier
+      };
+    }
+  }
+
+  // 3. 若用户设置了确定的分辨率（非 auto）和确定的预设比例（非 auto）
+  if (sizeState.resolution !== 'auto' && sizeState.aspectRatio !== 'auto' && !isReferenceRatio(sizeState.aspectRatio)) {
+    const maxSize = calcMaxSize(sizeState.resolution, sizeState.aspectRatio);
+    if (maxSize) {
+      return {
+        size: `${maxSize.width}x${maxSize.height}`,
+        resolution: sizeState.resolution
+      };
+    }
+  }
+
+  // 4. 其余情况回退为原始设定
+  return {
+    size: formatSizeParam(sizeState),
+    resolution: sizeState.resolution
+  };
 }
 
 export function formatSizeParam(state: Pick<ImageSizeState, 'width' | 'height'>): string {

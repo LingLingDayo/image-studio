@@ -9,6 +9,7 @@ import {
   applyWidthChange,
   buildSizePromptHint,
   calcMaxSize,
+  calcMaxSizeFromDimensions,
   createDefaultImageSizeState,
   formatQualityLabel,
   formatSizeParam,
@@ -21,6 +22,7 @@ import {
   parseRatio,
   parseSizeString,
   resolveEffectiveAspectRatio,
+  resolveEffectiveGenerationSize,
   formatDisplayRatio,
   formatActualRatio,
   formatResolutionSetting,
@@ -445,6 +447,77 @@ describe('imageSize (imageSize.ts)', () => {
     // 4. buildSizePromptHint 携带参考图实际比例提示
     expect(buildSizePromptHint(state({ resolution: '1k', aspectRatio: 'reference' }), '16:9')).toBe('1K分辨率，16:9比例');
     expect(buildSizePromptHint(state({ aspectRatio: 'reference' }), '16:9')).toBe('16:9比例');
+  });
+
+  it('should compute max size from concrete reference dimensions satisfying resolution cap', () => {
+    // 1K 上限 (1024)
+    expect(calcMaxSizeFromDimensions('1k', 1920, 1080)).toEqual({ width: 1024, height: 576 });
+    expect(calcMaxSizeFromDimensions(1024, 1080, 1920)).toEqual({ width: 576, height: 1024 });
+
+    // 2K 上限 (2048)
+    expect(calcMaxSizeFromDimensions('2k', 1920, 1080)).toEqual({ width: 2048, height: 1152 });
+
+    // 4K 上限 (4096)
+    expect(calcMaxSizeFromDimensions('4k', 1920, 1080)).toEqual({ width: 4096, height: 2304 });
+
+    // 点开尺寸 (materializeSize) 时满足分辨率上限的最大尺寸
+    expect(
+      materializeSize(state({ resolution: '2k', aspectRatio: 'reference' }), '16:9', { width: 1920, height: 1080 })
+    ).toEqual({
+      resolution: '2k',
+      aspectRatio: 'reference',
+      width: 2048,
+      height: 1152
+    });
+
+    expect(
+      materializeSize(state({ resolution: '1k', aspectRatio: 'reference' }), '16:9', { width: 1920, height: 1080 })
+    ).toEqual({
+      resolution: '1k',
+      aspectRatio: 'reference',
+      width: 1024,
+      height: 576
+    });
+
+    // 自动分辨率时根据原图推断 2K 上限
+    expect(
+      materializeSize(state({ resolution: 'auto', aspectRatio: 'reference' }), '16:9', { width: 1920, height: 1080 })
+    ).toEqual({
+      resolution: 'auto',
+      aspectRatio: 'reference',
+      width: 2048,
+      height: 1152
+    });
+  });
+
+  it('should resolve effective generation size using max size satisfying resolution cap', () => {
+    // 1. 同参考图 + 上传参考图 (1920x1080) + 2K 分辨率 + 未设置尺寸 => 自动使用 2048x1152 与 2K
+    const res2k = resolveEffectiveGenerationSize({
+      sizeState: state({ resolution: '2k', aspectRatio: 'reference' }),
+      referenceImages: [{ width: 1920, height: 1080, ratio: '16:9' }]
+    });
+    expect(res2k).toEqual({ size: '2048x1152', resolution: '2k' });
+
+    // 2. 同参考图 + 上传参考图 (1920x1080) + 1K 分辨率 + 未设置尺寸 => 自动使用 1024x576 与 1K
+    const res1k = resolveEffectiveGenerationSize({
+      sizeState: state({ resolution: '1k', aspectRatio: 'reference' }),
+      referenceImages: [{ width: 1920, height: 1080, ratio: '16:9' }]
+    });
+    expect(res1k).toEqual({ size: '1024x576', resolution: '1k' });
+
+    // 3. 用户手动已设置尺寸 (如 800x600) => 尊重用户设置的尺寸
+    const manual = resolveEffectiveGenerationSize({
+      sizeState: state({ resolution: '2k', aspectRatio: 'reference', width: 800, height: 600 }),
+      referenceImages: [{ width: 1920, height: 1080, ratio: '16:9' }]
+    });
+    expect(manual).toEqual({ size: '800x600', resolution: '2k' });
+
+    // 4. 无参考图时保持 auto
+    const noRef = resolveEffectiveGenerationSize({
+      sizeState: state({ resolution: '2k', aspectRatio: 'reference' }),
+      referenceImages: []
+    });
+    expect(noRef).toEqual({ size: 'auto', resolution: '2k' });
   });
 });
 

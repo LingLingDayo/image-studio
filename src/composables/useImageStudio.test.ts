@@ -379,5 +379,46 @@ describe('useImageStudio - reference aspect ratio option', () => {
     expect(studio.sizeWidth.value).toBe(1024);
     expect(studio.sizeHeight.value).toBe(768);
   });
+
+  it('未设置尺寸时，点开尺寸(materialize)或直接生成，均自动使用满足分辨率上限的最大尺寸', async () => {
+    const { useConfigStore } = await import('@/stores/configStore');
+    const configStore = useConfigStore();
+    configStore.updateConfig({
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-test'
+    });
+
+    const studio = useImageStudio();
+    studio.resolution.value = '2k';
+    studio.aspectRatio.value = 'reference';
+    studio.setSizeAuto(); // 确保此时未设置尺寸 (auto)
+
+    expect(studio.sizeWidth.value).toBeNull();
+    expect(studio.sizeHeight.value).toBeNull();
+
+    // 上传 1920x1080 (16:9) 参考图
+    const refFile = new File(['dummy'], 'ref.png', { type: 'image/png' });
+    studio.addReferenceImages([refFile]);
+    studio.referenceImages.value[0].width = 1920;
+    studio.referenceImages.value[0].height = 1080;
+    studio.referenceImages.value[0].ratio = '16:9';
+
+    // 重新置为 auto 状态以模拟未设置尺寸直接点击生成的场景
+    studio.setSizeAuto();
+    expect(studio.sizeWidth.value).toBeNull();
+    expect(studio.sizeHeight.value).toBeNull();
+
+    // 1. 测试直接生成: 自动使用 2K 上限下的最大尺寸 2048x1152
+    studio.prompt.value = '测试画面描述';
+    const tasks = await studio.generate();
+    expect(tasks.length).toBe(1);
+    expect(tasks[0].params.size).toBe('2048x1152');
+    expect(tasks[0].params.resolution).toBe('2k');
+
+    // 2. 测试点开尺寸 (materializeImageSize): 自动填充 2048 与 1152
+    await studio.materializeImageSize();
+    expect(studio.sizeWidth.value).toBe(2048);
+    expect(studio.sizeHeight.value).toBe(1152);
+  });
 });
 
