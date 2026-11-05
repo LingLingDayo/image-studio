@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createApp, h, nextTick, ref } from 'vue';
-import { Cpu } from '@lucide/vue';
+import { Cpu, Scaling } from '@lucide/vue';
 import UiSelect from './UiSelect.vue';
 import UiStepper from './UiStepper.vue';
 import UiInput from './UiInput.vue';
@@ -235,6 +235,126 @@ describe('UI Components (src/components/ui)', () => {
     expect(container.querySelector('.step-input')?.getAttribute('data-tip')).toBe(
       '当前 2 个批次，每批生成 2 张，共 4 张'
     );
+
+    app.unmount();
+  });
+
+  it('should render UiSizeInput in auto mode as a unified clickable trigger button', async () => {
+    let materialized = 0;
+    const app = createApp({
+      render() {
+        return h(UiSizeInput, {
+          width: null,
+          height: null,
+          label: '尺寸',
+          icon: Scaling,
+          onMaterialize: () => {
+            materialized++;
+          }
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const triggerBtn = container.querySelector('.size-auto-trigger') as HTMLButtonElement;
+    expect(triggerBtn).not.toBeNull();
+    expect(triggerBtn.tagName).toBe('BUTTON');
+    expect(triggerBtn.getAttribute('data-tip')).toBe('设置具体宽高');
+
+    const labelSpan = container.querySelector('.size-label') as HTMLSpanElement;
+    expect(labelSpan).not.toBeNull();
+    expect(labelSpan.textContent).toBe('尺寸');
+
+    const autoSpan = container.querySelector('.auto-value') as HTMLSpanElement;
+    expect(autoSpan).not.toBeNull();
+    expect(autoSpan.textContent).toBe('自动');
+
+    // 点击左侧标签文本，应能触发 materialize
+    labelSpan.click();
+    expect(materialized).toBe(1);
+
+    // 点击右侧自动文本，应能触发 materialize
+    autoSpan.click();
+    expect(materialized).toBe(2);
+
+    // 点击按钮容器任意空白位置，应能触发 materialize
+    triggerBtn.click();
+    expect(materialized).toBe(3);
+
+    app.unmount();
+  });
+
+  it('should not emit materialize on UiSizeInput when disabled in auto mode', async () => {
+    let materialized = 0;
+    const app = createApp({
+      render() {
+        return h(UiSizeInput, {
+          width: null,
+          height: null,
+          disabled: true,
+          label: '尺寸',
+          onMaterialize: () => {
+            materialized++;
+          }
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const triggerBtn = container.querySelector('.size-auto-trigger') as HTMLButtonElement;
+    expect(triggerBtn.disabled).toBe(true);
+
+    triggerBtn.click();
+    expect(materialized).toBe(0);
+
+    app.unmount();
+  });
+
+  it('should render concrete size inputs and clear to auto mode', async () => {
+    const width = ref<number | null>(1024);
+    const height = ref<number | null>(768);
+    let cleared = false;
+
+    const app = createApp({
+      render() {
+        return h(UiSizeInput, {
+          width: width.value,
+          height: height.value,
+          label: '尺寸',
+          onClear: () => {
+            cleared = true;
+            width.value = null;
+            height.value = null;
+          }
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    expect(container.querySelector('.size-auto-trigger')).toBeNull();
+    const editingBox = container.querySelector('.size-controls.is-editing');
+    expect(editingBox).not.toBeNull();
+
+    const dimInputs = container.querySelectorAll('.dim-input') as NodeListOf<HTMLInputElement>;
+    expect(dimInputs.length).toBe(2);
+    expect(dimInputs[0].value).toBe('1024');
+    expect(dimInputs[1].value).toBe('768');
+
+    const resetBtn = container.querySelector('.reset-btn') as HTMLButtonElement;
+    expect(resetBtn).not.toBeNull();
+    resetBtn.click();
+
+    expect(cleared).toBe(true);
+    await nextTick();
+
+    // 清除后应回到自动按钮模式
+    expect(container.querySelector('.size-auto-trigger')).not.toBeNull();
 
     app.unmount();
   });

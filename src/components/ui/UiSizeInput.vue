@@ -41,7 +41,10 @@ watch(
   ([width]) => {
     if (shouldFocusWidth.value && width != null) {
       shouldFocusWidth.value = false;
-      nextTick(() => widthInputRef.value?.focus());
+      nextTick(() => {
+        widthInputRef.value?.focus();
+        widthInputRef.value?.select();
+      });
     }
   }
 );
@@ -98,7 +101,28 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
     class="ui-size-input"
     :class="{ 'is-disabled': disabled, 'is-auto': isAuto, 'has-icon': Boolean(icon) }"
   >
-    <div class="size-controls">
+    <!-- 自动状态：整个胶囊按钮均可点击，点击任何位置均触发自定义宽高编辑 -->
+    <button
+      v-if="isAuto"
+      type="button"
+      class="size-controls size-auto-trigger"
+      :disabled="disabled"
+      data-tip="设置具体宽高"
+      @click="handleMaterialize"
+    >
+      <component
+        v-if="icon"
+        :is="icon"
+        class="size-icon"
+        :size="13"
+        aria-hidden="true"
+      />
+      <span v-if="label" class="size-label">{{ label }}</span>
+      <span class="auto-value">自动</span>
+    </button>
+
+    <!-- 具体尺寸编辑状态：提供宽度、高度数字输入与设为自动清除按钮 -->
+    <div v-else class="size-controls is-editing">
       <component
         v-if="icon"
         :is="icon"
@@ -108,50 +132,37 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
       />
       <span v-if="label" class="size-label">{{ label }}</span>
 
-      <button
-        v-if="isAuto"
-        type="button"
-        class="auto-value"
+      <input
+        ref="widthInputRef"
+        type="text"
+        inputmode="numeric"
+        class="dim-input"
+        :value="width ?? ''"
         :disabled="disabled"
-        data-tip="设置具体宽高"
-        @click="handleMaterialize"
+        :data-tip="widthTip"
+        @change="handleWidthChange"
+        @wheel.prevent="handleDimWheel('width', $event)"
+      />
+      <span class="times">×</span>
+      <input
+        type="text"
+        inputmode="numeric"
+        class="dim-input"
+        :value="height ?? ''"
+        :disabled="disabled"
+        :data-tip="heightTip"
+        @change="handleHeightChange"
+        @wheel.prevent="handleDimWheel('height', $event)"
+      />
+      <button
+        type="button"
+        class="reset-btn"
+        :disabled="disabled"
+        data-tip="设为自动"
+        @click="emit('clear')"
       >
-        自动
+        <X :size="11" />
       </button>
-
-      <template v-else>
-        <input
-          ref="widthInputRef"
-          type="text"
-          inputmode="numeric"
-          class="dim-input"
-          :value="width ?? ''"
-          :disabled="disabled"
-          :data-tip="widthTip"
-          @change="handleWidthChange"
-          @wheel.prevent="handleDimWheel('width', $event)"
-        />
-        <span class="times">×</span>
-        <input
-          type="text"
-          inputmode="numeric"
-          class="dim-input"
-          :value="height ?? ''"
-          :disabled="disabled"
-          :data-tip="heightTip"
-          @change="handleHeightChange"
-          @wheel.prevent="handleDimWheel('height', $event)"
-        />
-        <button
-          type="button"
-          class="reset-btn"
-          :disabled="disabled"
-          data-tip="设为自动"
-          @click="emit('clear')"
-        >
-          <X :size="11" />
-        </button>
-      </template>
     </div>
   </div>
 </template>
@@ -182,6 +193,9 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
   padding: 3px 8px 3px 10px;
   min-height: 28px;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: inherit;
+  color: inherit;
+  line-height: 1;
 
   &:hover {
     border-color: #93c5fd;
@@ -191,6 +205,23 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
 
   &:focus-within {
     background: #ffffff;
+    border-color: $accent-primary;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+}
+
+.size-auto-trigger {
+  padding: 3px 10px;
+  cursor: pointer;
+  outline: none;
+  text-align: left;
+
+  &:disabled {
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  &:focus-visible {
     border-color: $accent-primary;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
   }
@@ -222,15 +253,14 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
 }
 
 .auto-value {
-  background: transparent;
-  border: none;
-  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 2px;
   font-family: inherit;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: $text-main;
-  cursor: pointer;
-  line-height: 1;
+  line-height: 1.25;
 }
 
 .dim-input {
