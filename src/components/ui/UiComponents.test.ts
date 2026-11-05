@@ -44,6 +44,7 @@ describe('UI Components (src/components/ui)', () => {
         return h(UiSelect, {
           modelValue: selected.value,
           label: '分辨率',
+          variant: 'default',
           options: [
             { label: '1024x1024', value: '1024x1024' },
             { label: '512x512', value: '512x512' }
@@ -64,6 +65,42 @@ describe('UI Components (src/components/ui)', () => {
     expect(container.querySelector('.select-value')?.textContent).toContain('1024x1024');
     expect(container.querySelector('.select-arrow')).not.toBeNull();
     expect(trigger?.getAttribute('data-tip')).toBe('分辨率: 1024x1024');
+
+    app.unmount();
+  });
+
+  it('should hide arrow by default in pill variant and honor showArrow prop', async () => {
+    const app = createApp({
+      render() {
+        return h('div', [
+          h(UiSelect, {
+            modelValue: '1',
+            variant: 'pill',
+            options: [{ label: 'Pill Default', value: '1' }]
+          }),
+          h(UiSelect, {
+            modelValue: '2',
+            variant: 'pill',
+            showArrow: true,
+            options: [{ label: 'Pill Force Arrow', value: '2' }]
+          }),
+          h(UiSelect, {
+            modelValue: '3',
+            variant: 'default',
+            showArrow: false,
+            options: [{ label: 'Default Hide Arrow', value: '3' }]
+          })
+        ]);
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const selects = container.querySelectorAll('.ui-select');
+    expect(selects[0].querySelector('.select-arrow')).toBeNull();
+    expect(selects[1].querySelector('.select-arrow')).not.toBeNull();
+    expect(selects[2].querySelector('.select-arrow')).toBeNull();
 
     app.unmount();
   });

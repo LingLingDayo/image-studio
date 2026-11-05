@@ -23,6 +23,7 @@ const props = withDefaults(
     block?: boolean;
     icon?: Component;
     maxWidth?: number | string;
+    showArrow?: boolean;
   }>(),
   {
     label: '',
@@ -32,7 +33,8 @@ const props = withDefaults(
     size: 'sm',
     disabled: false,
     block: false,
-    maxWidth: undefined
+    maxWidth: undefined,
+    showArrow: undefined
   }
 );
 
@@ -79,6 +81,13 @@ const rootStyle = computed(() => {
   }
   const value = typeof props.maxWidth === 'number' ? `${props.maxWidth}px` : props.maxWidth;
   return { maxWidth: value };
+});
+
+const shouldShowArrow = computed(() => {
+  if (typeof props.showArrow === 'boolean') {
+    return props.showArrow;
+  }
+  return props.variant !== 'pill';
 });
 
 // 点击外部关闭
@@ -212,7 +221,11 @@ function handleKeyDown(e: KeyboardEvent) {
       <span class="select-value" :class="{ 'is-placeholder': !currentOption }">
         {{ currentDisplayLabel }}
       </span>
-      <ChevronDown class="select-arrow" :class="{ 'is-rotated': isOpen }" />
+      <ChevronDown
+        v-if="shouldShowArrow"
+        class="select-arrow"
+        :class="{ 'is-rotated': isOpen }"
+      />
     </button>
 
     <transition name="dropdown">
