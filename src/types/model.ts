@@ -124,7 +124,7 @@ export const GPT_IMAGE_2_PROFILE: ModelProfile = {
     resolution: 'auto',
     aspectRatio: 'auto',
     quality: 'medium',
-    format: 'png',
+    format: 'jpeg',
     transparent: false,
     count: 1
   }

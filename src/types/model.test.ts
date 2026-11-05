@@ -24,7 +24,7 @@ describe('Model Profile Specification (model.ts)', () => {
     expect(GPT_IMAGE_2_PROFILE.defaultParams.resolution).toBe('auto');
     expect(GPT_IMAGE_2_PROFILE.defaultParams.aspectRatio).toBe('auto');
     expect(GPT_IMAGE_2_PROFILE.defaultParams.quality).toBe('medium');
-    expect(GPT_IMAGE_2_PROFILE.defaultParams.format).toBe('png');
+    expect(GPT_IMAGE_2_PROFILE.defaultParams.format).toBe('jpeg');
     expect(GPT_IMAGE_2_PROFILE.defaultParams.count).toBe(1);
   });
 

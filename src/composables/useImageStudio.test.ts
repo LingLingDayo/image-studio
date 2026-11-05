@@ -12,6 +12,11 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
     setActivePinia(createPinia());
   });
 
+  it('初始化时 format 默认应为 jpeg', () => {
+    const studio = useImageStudio();
+    expect(studio.format.value).toBe('jpeg');
+  });
+
   it('应该正确从 MediaAsset 中恢复生图设定参数，而非实际结果尺寸', async () => {
     const studio = useImageStudio();
 

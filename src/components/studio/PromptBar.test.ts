@@ -29,7 +29,7 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     sizeWidth: null,
     sizeHeight: null,
     quality: 'standard' as const,
-    format: 'png' as const,
+    format: 'jpeg' as const,
     transparent: false,
     count: 1,
     referenceImages: [],
