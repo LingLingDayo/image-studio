@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import AppHeader from '@/components/layout/AppHeader.vue';
 import { SettingsModal } from '@/components/settings';
 import PromptBar from '@/components/studio/PromptBar.vue';
+import ReferencePreviewModal from '@/components/studio/ReferencePreviewModal.vue';
 import GalleryGrid from '@/components/gallery/GalleryGrid.vue';
 import LightboxModal from '@/components/gallery/LightboxModal.vue';
-import { Tooltip, UiDialog, UiImageViewer } from '@/components/ui';
-import { X } from '@lucide/vue';
+import { Tooltip, UiDialog } from '@/components/ui';
 import { useGalleryStore } from '@/stores/galleryStore';
 import { useConfigStore } from '@/stores/configStore';
 import { useImageStudio } from '@/composables/useImageStudio';
@@ -19,7 +19,6 @@ const activeLightboxItem = ref<MediaAsset | null>(null);
 const activeLightboxBatch = ref<MediaAsset[]>([]);
 const activePreviewRefImage = ref<TaskReferenceImage | null>(null);
 const activePreviewRefBatch = ref<TaskReferenceImage[]>([]);
-const isRefPreviewFullscreen = ref(false);
 const toasts = ref<Array<{ id: number; message: string; type: 'success' | 'error' | 'info' }>>([]);
 const pendingDelete = ref<
   | { kind: 'item'; id: number; closeLightbox: boolean }
@@ -174,101 +173,10 @@ function handlePreviewReferenceImage(img: TaskReferenceImage, all: TaskReference
   activePreviewRefBatch.value = all;
 }
 
-async function exitRefPreviewFullscreen() {
-  isRefPreviewFullscreen.value = false;
-  if (configStore.previewFullscreenMode === 'native' && document.fullscreenElement) {
-    try {
-      await document.exitFullscreen();
-    } catch {
-      // 忽略退出异常
-    }
-  }
-}
-
-async function handleRefPreviewFullscreenChange(val: boolean) {
-  isRefPreviewFullscreen.value = val;
-  if (configStore.previewFullscreenMode === 'native') {
-    if (val) {
-      try {
-        if (document.fullscreenEnabled && !document.fullscreenElement) {
-          await document.documentElement.requestFullscreen();
-        }
-      } catch {
-        // 允许降级
-      }
-    } else {
-      if (document.fullscreenElement) {
-        try {
-          await document.exitFullscreen();
-        } catch {
-          // 忽略退出异常
-        }
-      }
-    }
-  }
-}
-
-function handleRefFullscreenDomChange() {
-  if (!document.fullscreenElement && isRefPreviewFullscreen.value && configStore.previewFullscreenMode === 'native') {
-    isRefPreviewFullscreen.value = false;
-  }
-}
-
-async function handleCloseRefPreview() {
-  if (isRefPreviewFullscreen.value) {
-    await exitRefPreviewFullscreen();
-    return;
-  }
+function handleCloseRefPreview() {
   activePreviewRefImage.value = null;
   activePreviewRefBatch.value = [];
 }
-
-async function handleRefPreviewKeyDown(e: KeyboardEvent) {
-  if (!activePreviewRefImage.value) return;
-
-  if (e.key === 'Escape') {
-    if (isRefPreviewFullscreen.value) {
-      await exitRefPreviewFullscreen();
-      return;
-    }
-    await handleCloseRefPreview();
-  } else if (e.key === 'ArrowLeft') {
-    if (activePreviewRefBatch.value.length > 1) {
-      const list = activePreviewRefBatch.value;
-      const idx = list.findIndex(item => item.id === activePreviewRefImage.value?.id);
-      if (idx !== -1) {
-        const nextIdx = (idx - 1 + list.length) % list.length;
-        activePreviewRefImage.value = list[nextIdx] || null;
-      }
-    }
-  } else if (e.key === 'ArrowRight') {
-    if (activePreviewRefBatch.value.length > 1) {
-      const list = activePreviewRefBatch.value;
-      const idx = list.findIndex(item => item.id === activePreviewRefImage.value?.id);
-      if (idx !== -1) {
-        const nextIdx = (idx + 1) % list.length;
-        activePreviewRefImage.value = list[nextIdx] || null;
-      }
-    }
-  }
-}
-
-watch(activePreviewRefImage, (item) => {
-  if (item) {
-    window.addEventListener('keydown', handleRefPreviewKeyDown);
-    document.addEventListener('fullscreenchange', handleRefFullscreenDomChange);
-  } else {
-    window.removeEventListener('keydown', handleRefPreviewKeyDown);
-    document.removeEventListener('fullscreenchange', handleRefFullscreenDomChange);
-    exitRefPreviewFullscreen();
-  }
-});
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleRefPreviewKeyDown);
-  document.removeEventListener('fullscreenchange', handleRefFullscreenDomChange);
-  exitRefPreviewFullscreen();
-});
 
 function requestDeleteItem(id: number, closeLightbox = false) {
   pendingDelete.value = { kind: 'item', id, closeLightbox };
@@ -373,39 +281,12 @@ async function confirmPendingDelete() {
       @show-toast="showToast"
     />
 
-    <!-- 参考图独立预览弹窗 (复用通用图片预览器 UiImageViewer) -->
-    <div 
-      v-if="activePreviewRefImage" 
-      class="modal-backdrop ref-preview-backdrop"
-      :class="{ 'is-fullscreen': isRefPreviewFullscreen }"
-      @click.self="handleCloseRefPreview"
-    >
-      <div class="modal-card ref-preview-modal-card">
-        <button 
-          v-if="!isRefPreviewFullscreen"
-          class="modal-close-btn" 
-          data-tip="关闭 (Esc)" 
-          aria-label="关闭"
-          @click="handleCloseRefPreview"
-        >
-          <X :size="18" />
-        </button>
-
-        <div class="modal-body ref-preview-body">
-          <UiImageViewer
-            :src="activePreviewRefImage.previewUrl"
-            :alt="'参考图 ' + activePreviewRefImage.id"
-            :images="activePreviewRefBatch.map((item) => ({ id: item.id, url: item.previewUrl }))"
-            :current-index="activePreviewRefBatch.findIndex((item) => item.id === activePreviewRefImage?.id)"
-            :is-fullscreen="isRefPreviewFullscreen"
-            @update:is-fullscreen="handleRefPreviewFullscreenChange"
-            @close="handleCloseRefPreview"
-            @exit-fullscreen="exitRefPreviewFullscreen"
-            @update:current-index="(idx) => activePreviewRefImage = activePreviewRefBatch[idx] || null"
-          />
-        </div>
-      </div>
-    </div>
+    <ReferencePreviewModal
+      v-if="activePreviewRefImage"
+      v-model:item="activePreviewRefImage"
+      :images="activePreviewRefBatch"
+      @close="handleCloseRefPreview"
+    />
 
     <!-- 删除确认弹窗（回车确认） -->
     <UiDialog
@@ -512,80 +393,4 @@ async function confirmPendingDelete() {
   }
 }
 
-.ref-preview-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(8px);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  animation: fadeIn 0.2s ease;
-
-  &.is-fullscreen {
-    padding: 0;
-    background: #090d16;
-    backdrop-filter: none;
-
-    .ref-preview-modal-card {
-      max-width: 100vw;
-      width: 100vw;
-      height: 100vh;
-      border-radius: 0;
-      border: none;
-      box-shadow: none;
-      background: #090d16;
-    }
-  }
-}
-
-.ref-preview-modal-card {
-  max-width: 960px;
-  width: 90vw;
-  height: 82vh;
-  min-height: min(480px, 90vh);
-  max-height: 90vh;
-  background: $bg-surface;
-  border: 1px solid $border-color;
-  border-radius: $radius-xl;
-  box-shadow: $shadow-float;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-
-  .modal-close-btn {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    background: $bg-surface-subtle;
-    border: 1px solid $border-color;
-    color: $text-secondary;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 10;
-    transition: all 0.15s ease;
-
-    &:hover {
-      background: #e2e8f0;
-      color: $text-main;
-    }
-  }
-}
-
-.ref-preview-body {
-  flex: 1;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  display: flex;
-  overflow: hidden;
-}
 </style>

@@ -256,6 +256,62 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     app.unmount();
   });
 
+  it('优化中编辑输入会中止请求，迟到结果不覆盖新的描述', async () => {
+    useConfigStore().updateOptimizerConfig({ baseUrl: 'https://api.example.com', apiKey: 'test-key', model: 'model-a' });
+    let resolveOptimizer!: (prompt: string) => void;
+    const pending = new Promise<string>((resolve) => { resolveOptimizer = resolve; });
+    const service = vi.spyOn(PromptOptimizerService, 'optimizePrompt').mockReturnValue(pending);
+    service.mockClear();
+    const prompt = ref('原始描述');
+    const toast = vi.fn();
+    const app = createApp(() => h(PromptBar, {
+      ...defaultProps, quality: 'medium', prompt: prompt.value,
+      'onUpdate:prompt': (value: string) => { prompt.value = value; }, onShowToast: toast
+    }));
+    app.mount(container);
+    try {
+      (container.querySelector('.btn-magic') as HTMLButtonElement).click();
+      await nextTick();
+      prompt.value = '手动编辑后的描述';
+      await nextTick();
+      expect(service.mock.calls[0][3]?.aborted).toBe(true);
+      resolveOptimizer('过期优化结果');
+      await pending;
+      await nextTick();
+      expect(prompt.value).toBe('手动编辑后的描述');
+      expect(toast).not.toHaveBeenCalled();
+    } finally {
+      app.unmount();
+      service.mockRestore();
+    }
+  });
+
+  it('卸载提示词输入区时中止优化，迟到响应不再通知或修改输入', async () => {
+    useConfigStore().updateOptimizerConfig({ baseUrl: 'https://api.example.com', apiKey: 'test-key', model: 'model-a' });
+    let resolveOptimizer!: (prompt: string) => void;
+    const pending = new Promise<string>((resolve) => { resolveOptimizer = resolve; });
+    const service = vi.spyOn(PromptOptimizerService, 'optimizePrompt').mockReturnValue(pending);
+    service.mockClear();
+    const update = vi.fn();
+    const toast = vi.fn();
+    const app = createApp(() => h(PromptBar, {
+      ...defaultProps, quality: 'medium', prompt: '原始描述', 'onUpdate:prompt': update, onShowToast: toast
+    }));
+    app.mount(container);
+    (container.querySelector('.btn-magic') as HTMLButtonElement).click();
+    await nextTick();
+    app.unmount();
+    try {
+      expect(service.mock.calls[0][3]?.aborted).toBe(true);
+      resolveOptimizer('迟到响应');
+      await pending;
+      await nextTick();
+      expect(update).not.toHaveBeenCalled();
+      expect(toast).not.toHaveBeenCalled();
+    } finally {
+      service.mockRestore();
+    }
+  });
   it('应在参数栏展示模型切换且默认选中 gpt-image-2.6-flare', async () => {
     const app = createApp({
       render() {

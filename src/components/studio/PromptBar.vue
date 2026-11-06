@@ -30,7 +30,7 @@ import {
 import type { TaskReferenceImage } from '@/types/task';
 import { useModelStore } from '@/stores/modelStore';
 import { useConfigStore } from '@/stores/configStore';
-import { PromptOptimizerService } from '@/core/services/PromptOptimizerService';
+import { usePromptOptimizer } from '@/composables/usePromptOptimizer';
 import { UiSelect, UiSizeInput, UiStepper } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import {
@@ -115,49 +115,26 @@ function handleModelSelectOpen() {
   void modelStore.refreshAvailableModels({ adjustSelection: false });
 }
 
-const isOptimizing = ref(false);
-const previousPrompt = ref<string | null>(null);
-const optimizedPrompt = ref<string | null>(null);
-
-const canUndoOptimization = computed(() => {
-  return (
-    previousPrompt.value !== null &&
-    optimizedPrompt.value !== null &&
-    props.prompt === optimizedPrompt.value
-  );
-});
-
-const canRedoOptimization = computed(() => {
-  return (
-    previousPrompt.value !== null &&
-    optimizedPrompt.value !== null &&
-    props.prompt === previousPrompt.value
-  );
-});
-
-function handleUndoOptimization(): boolean {
-  if (canUndoOptimization.value && previousPrompt.value !== null) {
-    emit('update:prompt', previousPrompt.value);
-    nextTick(() => {
+const {
+  isOptimizing,
+  tooltip: optimizerTooltip,
+  optimize: handleOptimizePrompt,
+  undo: handleUndoOptimization,
+  redo: handleRedoOptimization,
+  reset: resetOptimization
+} = usePromptOptimizer({
+  getPrompt: () => props.prompt,
+  setPrompt: (prompt) => emit('update:prompt', prompt),
+  getConfig: () => configStore.optimizerConfig,
+  isConfigured: () => configStore.isOptimizerConfigured,
+  onMessage: (message, type) => emit('showToast', message, type),
+  onRestored: () => {
+    void nextTick(() => {
       syncTextareaHeight();
       textareaRef.value?.focus();
     });
-    return true;
   }
-  return false;
-}
-
-function handleRedoOptimization(): boolean {
-  if (canRedoOptimization.value && optimizedPrompt.value !== null) {
-    emit('update:prompt', optimizedPrompt.value);
-    nextTick(() => {
-      syncTextareaHeight();
-      textareaRef.value?.focus();
-    });
-    return true;
-  }
-  return false;
-}
+});
 
 const promptBatches = computed(() => splitPromptBatches(props.prompt));
 const isBatchPromptMode = computed(() => promptBatches.value.length > 1);
@@ -167,57 +144,9 @@ const countTip = computed(() => {
   return formatPromptBatchCountTip(promptBatches.value.length, props.count);
 });
 
-const optimizerTooltip = computed(() => {
-  if (!configStore.isOptimizerConfigured) {
-    return '请先在「设置 -> 提示词优化」中配置 API Key';
-  }
-  if (isOptimizing.value) {
-    return '优化中...';
-  }
-  if (!props.prompt.trim()) {
-    return '请先输入提示词后再进行 AI 优化';
-  }
-  return '使用大模型智能优化提示词 (精准描写与AI易读)';
-});
-
-async function handleOptimizePrompt() {
-  if (!configStore.isOptimizerConfigured) {
-    emit('showToast', '请先在「设置 -> 提示词优化」中配置 API Key', 'info');
-    return;
-  }
-
-  const currentText = props.prompt.trim();
-  if (!currentText) {
-    emit('showToast', '请先输入提示词后再进行优化', 'info');
-    return;
-  }
-
-  isOptimizing.value = true;
-  const originalPrompt = props.prompt;
-  previousPrompt.value = originalPrompt;
-  optimizedPrompt.value = null;
-
-  try {
-    const enhanced = await PromptOptimizerService.optimizePrompt(
-      configStore.optimizerConfig,
-      currentText
-    );
-    optimizedPrompt.value = enhanced;
-    emit('update:prompt', enhanced);
-    emit('showToast', '提示词优化成功！已提升描写精准度与AI理解度', 'success');
-  } catch (err: any) {
-    previousPrompt.value = null;
-    optimizedPrompt.value = null;
-    emit('showToast', err.message || '提示词优化失败', 'error');
-  } finally {
-    isOptimizing.value = false;
-  }
-}
-
 function handleGenerateClick() {
   if (!props.prompt.trim()) return;
-  previousPrompt.value = null;
-  optimizedPrompt.value = null;
+  resetOptimization();
   emit('generate');
 }
 
@@ -321,6 +250,7 @@ function handleDrop(e: DragEvent) {
 }
 
 function handleKeyDown(e: KeyboardEvent) {
+  if (e.isComposing) return;
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
     handleGenerateClick();
@@ -348,13 +278,13 @@ function handleKeyDown(e: KeyboardEvent) {
 }
 
 function handleGlobalKeyDown(e: KeyboardEvent) {
-  if (e.defaultPrevented) return;
+  if (e.defaultPrevented || e.isComposing) return;
 
   const activeEl = document.activeElement;
   if (
     activeEl &&
     activeEl !== textareaRef.value &&
-    (activeEl.tagName === 'INPUT' ||
+    (activeEl instanceof HTMLElement && activeEl.isContentEditable || activeEl.tagName === 'INPUT' ||
       activeEl.tagName === 'SELECT' ||
       (activeEl.tagName === 'TEXTAREA' && activeEl !== textareaRef.value))
   ) {
@@ -378,19 +308,7 @@ function handleGlobalKeyDown(e: KeyboardEvent) {
 
 watch(
   () => props.prompt,
-  async (newVal) => {
-    if (!newVal || !newVal.trim()) {
-      previousPrompt.value = null;
-      optimizedPrompt.value = null;
-    } else if (
-      optimizedPrompt.value !== null &&
-      newVal !== optimizedPrompt.value &&
-      newVal !== previousPrompt.value
-    ) {
-      // 提示词被外部或用户直接编辑，清除优化撤销历史
-      previousPrompt.value = null;
-      optimizedPrompt.value = null;
-    }
+  async () => {
     await nextTick();
     syncTextareaHeight();
   }
@@ -399,10 +317,7 @@ watch(
 watch(
   () => props.isGenerating,
   (generating) => {
-    if (generating) {
-      previousPrompt.value = null;
-      optimizedPrompt.value = null;
-    }
+    if (generating) resetOptimization();
   }
 );
 
