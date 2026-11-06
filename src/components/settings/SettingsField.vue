@@ -46,6 +46,11 @@ const loading = computed(() => {
 function handleChange(next: SettingValue): void {
   void props.session.change(props.field, next);
 }
+
+function handleRefresh(): void {
+  const action = props.field.refreshAction;
+  if (action) void props.session.change(action, null);
+}
 </script>
 
 <template>
@@ -60,6 +65,7 @@ function handleChange(next: SettingValue): void {
     :options="options"
     :loading="loading"
     @change="handleChange"
+    @refresh="handleRefresh"
   />
   <div v-else class="unknown-widget">未知设置控件：{{ field.type }}</div>
 </template>

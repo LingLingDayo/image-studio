@@ -1,6 +1,7 @@
 import { SETTING_WIDGET, widgetRegistry } from '@/core/settings';
 import SettingInput from './widgets/SettingInput.vue';
 import SettingSelect from './widgets/SettingSelect.vue';
+import SettingCombobox from './widgets/SettingCombobox.vue';
 import SettingSwitch from './widgets/SettingSwitch.vue';
 import SettingAction from './widgets/SettingAction.vue';
 import SettingStatus from './widgets/SettingStatus.vue';
@@ -17,6 +18,7 @@ export function registerSettingWidgets(): void {
   widgetRegistry.register(SETTING_WIDGET.TEXT, SettingInput);
   widgetRegistry.register(SETTING_WIDGET.PASSWORD, SettingInput);
   widgetRegistry.register(SETTING_WIDGET.SELECT, SettingSelect);
+  widgetRegistry.register(SETTING_WIDGET.COMBOBOX, SettingCombobox);
   widgetRegistry.register(SETTING_WIDGET.SWITCH, SettingSwitch);
   widgetRegistry.register(SETTING_WIDGET.ACTION, SettingAction);
   widgetRegistry.register(SETTING_WIDGET.STATUS, SettingStatus);

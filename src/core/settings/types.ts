@@ -18,6 +18,7 @@ export const SETTING_WIDGET = {
   TEXT: 'text',
   PASSWORD: 'password',
   SELECT: 'select',
+  COMBOBOX: 'combobox',
   SWITCH: 'switch',
   ACTION: 'action',
   STATUS: 'status',
@@ -82,6 +83,7 @@ export interface SettingField {
   visibleWhen?: SettingPredicate;
   disabledWhen?: SettingPredicate;
   onChange?: SettingChangeHandler;
+  refreshAction?: SettingField;
   /** 透传给具体 Widget 的扩展属性 */
   props?: Record<string, unknown>;
   /** type=custom 时渲染的逃生舱组件 */

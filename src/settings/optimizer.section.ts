@@ -146,62 +146,40 @@ export const optimizerSection: SettingSection = {
     },
     {
       id: 'optimizer.models',
-      title: '优化模型',
       layout: 'stack',
-      headerActionId: 'optimizer.fetchModels',
       fields: [
         {
-          id: 'optimizer.fetchModels',
-          key: 'optimizer.fetchModels',
-          type: SETTING_WIDGET.ACTION,
-          label: '获取可用模型',
-          persist: false,
-          icon: RefreshCw,
+          key: SETTING_KEYS.optimizerModel,
+          type: SETTING_WIDGET.COMBOBOX,
+          label: '优化模型',
+          placeholder: '输入或选择模型名称',
           props: {
             loadingRuntimeKey: SETTING_RUNTIME.optimizerIsFetching,
-            loadingLabel: '获取中...'
+            statusRuntimeKey: SETTING_RUNTIME.optimizerFetchStatus
           },
-          disabledWhen: {
-            or: [
-              { runtime: SETTING_RUNTIME.optimizerIsFetching, truthy: true },
-              { field: SETTING_KEYS.optimizerBaseUrl, falsy: true },
-              { field: SETTING_KEYS.optimizerApiKey, falsy: true }
-            ]
+          hint(ctx) {
+            const status = ctx.runtime[SETTING_RUNTIME.optimizerFetchStatus] as OptimizerFetchStatus | undefined;
+            return status?.type === 'error' ? status.message : '';
           },
-          onChange: fetchOptimizerModels
-        },
-        {
-          id: 'optimizer.fetchStatus',
-          key: SETTING_RUNTIME.optimizerFetchStatus,
-          type: SETTING_WIDGET.STATUS,
-          label: '',
-          persist: false,
-          visibleWhen: {
-            not: { runtime: `${SETTING_RUNTIME.optimizerFetchStatus}.type`, eq: 'idle' }
-          }
-        },
-        {
-          id: 'optimizer.model.select',
-          key: SETTING_KEYS.optimizerModel,
-          type: SETTING_WIDGET.SELECT,
-          label: '模型名称',
-          visibleWhen: { runtime: SETTING_RUNTIME.optimizerModels, truthy: true },
           options: (ctx) => {
             const models = (ctx.runtime[SETTING_RUNTIME.optimizerModels] as string[] | undefined) ?? [];
-            const current = String(ctx.values[SETTING_KEYS.optimizerModel] ?? '').trim();
-            const options = current && !models.includes(current) ? [current, ...models] : models;
-            return options.map((model) => ({ label: model, value: model }));
+            return models.map((model) => ({ label: model, value: model }));
+          },
+          refreshAction: {
+            key: 'optimizer.fetchModels',
+            type: SETTING_WIDGET.ACTION,
+            label: '获取模型列表',
+            persist: false,
+            icon: RefreshCw,
+            disabledWhen: {
+              or: [
+                { runtime: SETTING_RUNTIME.optimizerIsFetching, truthy: true },
+                { field: SETTING_KEYS.optimizerBaseUrl, falsy: true },
+                { field: SETTING_KEYS.optimizerApiKey, falsy: true }
+              ]
+            },
+            onChange: fetchOptimizerModels
           }
-        },
-        {
-          id: 'optimizer.model.text',
-          key: SETTING_KEYS.optimizerModel,
-          type: SETTING_WIDGET.TEXT,
-          label: '模型名称',
-          placeholder: '输入服务支持的模型名称',
-          hint: '可手动填写，也可先填写接口凭据再获取模型列表。',
-          props: { mono: true },
-          visibleWhen: { not: { runtime: SETTING_RUNTIME.optimizerModels, truthy: true } }
         }
       ]
     },

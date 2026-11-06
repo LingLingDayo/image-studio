@@ -6,6 +6,7 @@ import {
   isFieldDisabled,
   isGroupVisible,
   listVisibleFields,
+  SETTING_WIDGET,
   type SettingSelectOption
 } from '@/core/settings';
 import { SETTING_KEYS, SETTING_RUNTIME } from './keys';
@@ -102,23 +103,24 @@ describe('optimizer section schema', () => {
     }
   );
 
-  it('switches model widget to select and includes the manually entered model', () => {
+  it('始终使用同一个可自定义输入的模型下拉框，刷新动作内嵌且不单独呈现', () => {
     const ctx = createDraft('custom-model');
-    const modelsGroup = optimizerSection.groups.find((group) => group.id === 'optimizer.models')!;
-    const visibleIds = () => listVisibleFields(modelsGroup.fields, ctx).map((field) => field.id ?? field.key);
-
-    expect(visibleIds()).toContain('optimizer.model.text');
-    expect(visibleIds()).not.toContain('optimizer.model.select');
-
+    const group = optimizerSection.groups.find((group) => group.id === 'optimizer.models')!;
+    const model = group.fields[0];
+    expect(group.title).toBeUndefined();
+    expect(group.headerActionId).toBeUndefined();
+    expect(listVisibleFields(group.fields, ctx)).toHaveLength(1);
+    expect(model.type).toBe(SETTING_WIDGET.COMBOBOX);
+    expect(model.refreshAction?.persist).toBe(false);
     ctx.setRuntime(SETTING_RUNTIME.optimizerModels, ['model-a']);
-    expect(visibleIds()).toContain('optimizer.model.select');
-    expect(visibleIds()).not.toContain('optimizer.model.text');
-
-    const select = modelsGroup.fields.find((field) => field.id === 'optimizer.model.select')!;
-    const options = typeof select.options === 'function' ? select.options(ctx) : select.options;
-    expect(options?.map((option: SettingSelectOption) => option.value)).toEqual(['custom-model', 'model-a']);
+    expect(listVisibleFields(group.fields, ctx)).toEqual([model]);
+    const options = typeof model.options === 'function' ? model.options(ctx) : model.options;
+    expect(options?.map((option: SettingSelectOption) => option.value)).toEqual(['model-a']);
+    ctx.setRuntime(SETTING_RUNTIME.optimizerFetchStatus, { type: 'success', message: '已获取模型' });
+    expect(typeof model.hint === 'function' ? model.hint(ctx) : model.hint).toBe('');
+    ctx.setRuntime(SETTING_RUNTIME.optimizerFetchStatus, { type: 'error', message: '获取失败' });
+    expect(typeof model.hint === 'function' ? model.hint(ctx) : model.hint).toBe('获取失败');
   });
-
   it('selects the first model only when the user has not chosen one', async () => {
     vi.mocked(PromptOptimizerService.fetchModels).mockResolvedValueOnce(['model-a', 'model-b']);
     const ctx = createDraft();
@@ -188,7 +190,7 @@ describe('optimizer section schema', () => {
   it('disables fetching without both credentials and rejects malformed URLs', async () => {
     const ctx = createDraft();
     ctx.setValue(SETTING_KEYS.optimizerBaseUrl, '');
-    expect(isFieldDisabled(findField('optimizer.fetchModels'), ctx)).toBe(true);
+    expect(isFieldDisabled(findField(SETTING_KEYS.optimizerModel).refreshAction!, ctx)).toBe(true);
     ctx.setValue(SETTING_KEYS.optimizerBaseUrl, 'not-a-url');
     await fetchOptimizerModels(null, ctx);
     expect(PromptOptimizerService.fetchModels).not.toHaveBeenCalled();

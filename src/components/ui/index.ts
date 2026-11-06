@@ -1,3 +1,5 @@
+export { default as UiCombobox } from './UiCombobox.vue';
+export type { ComboboxOption } from './UiCombobox.vue';
 export { default as UiSelect } from './UiSelect.vue';
 export type { SelectOption } from './UiSelect.vue';
 export { default as UiStepper } from './UiStepper.vue';

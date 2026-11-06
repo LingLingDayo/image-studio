@@ -5,6 +5,7 @@ import SettingsNav from './SettingsNav.vue';
 import SettingsPane from './SettingsPane.vue';
 import SettingsGroup from './SettingsGroup.vue';
 import SettingsField from './SettingsField.vue';
+import { PromptOptimizerService } from '@/core/services/PromptOptimizerService';
 
 vi.mock('@/core/services/PromptOptimizerService', () => ({
   PromptOptimizerService: {
@@ -40,6 +41,7 @@ describe('Settings components', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
+    vi.mocked(PromptOptimizerService.fetchModels).mockReset();
     setActivePinia(createPinia());
     localStorage.clear();
     container = document.createElement('div');
@@ -97,7 +99,8 @@ describe('Settings components', () => {
   it('shows optional optimizer model setup before credentials are filled', async () => {
     const app = await mountModal('optimizer');
 
-    expect(groupTitles()).toContain('优化模型');
+    expect(container.querySelector('.ui-combobox input')).not.toBeNull();
+    expect(groupTitles()).not.toContain('优化模型');
     expect(container.querySelector('details')?.hasAttribute('open')).toBe(false);
 
     const labels = [...container.querySelectorAll('.input-label')];
@@ -109,14 +112,89 @@ describe('Settings components', () => {
     input!.dispatchEvent(new Event('input', { bubbles: true }));
     await nextTick();
 
-    expect(groupTitles()).toContain('优化模型');
-    expect(container.textContent).toContain('获取可用模型');
-    expect(container.textContent).toContain('模型名称');
+    expect(container.querySelector('.ui-combobox input')).not.toBeNull();
+    expect(groupTitles()).not.toContain('优化模型');
+    expect(container.querySelector('.combobox-refresh')?.getAttribute('aria-label')).toBe('获取模型列表');
+    expect(container.textContent).not.toContain('获取可用模型');
+    expect(container.textContent).toContain('优化模型');
     expect(container.textContent).toContain('调用端点');
 
     app.unmount();
   });
 
+  it('内嵌刷新获取列表，不覆盖正在输入的模型，也不显示成功提示条', async () => {
+    let resolveModels!: (models: string[]) => void;
+    vi.mocked(PromptOptimizerService.fetchModels).mockReturnValueOnce(new Promise((resolve) => { resolveModels = resolve; }));
+    const app = await mountModal('optimizer');
+    try {
+      const refresh = container.querySelector('.combobox-refresh') as HTMLButtonElement;
+      const input = container.querySelector('.ui-combobox input') as HTMLInputElement;
+      expect(refresh.disabled).toBe(true);
+      expect(input.disabled).toBe(false);
+      const fill = (label: string, value: string) => {
+        const node = [...container.querySelectorAll('.input-label')].find((item) => item.textContent?.includes(label));
+        const field = node?.parentElement?.querySelector('input') as HTMLInputElement;
+        field.value = value;
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      fill('接口地址', 'https://api.example.com');
+      fill('API Key', 'test-key');
+      await nextTick();
+      refresh.click();
+      await nextTick();
+      expect(refresh.disabled).toBe(true);
+      expect(refresh.getAttribute('aria-busy')).toBe('true');
+      input.value = 'custom-model';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      resolveModels(['remote-model']);
+      await vi.waitFor(() => expect(refresh.disabled).toBe(false));
+      expect(input.value).toBe('custom-model');
+      expect(container.textContent).not.toContain('已获取');
+      expect(container.querySelector('.setting-status')).toBeNull();
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+      await nextTick();
+      expect(container.querySelector('[role="listbox"]')).not.toBeNull();
+    } finally {
+      app.unmount();
+    }
+  });
+
+  it('未获取列表也能保存自定义模型名称', async () => {
+    localStorage.setItem('gpt_optimizer_base_url', 'https://api.example.com');
+    localStorage.setItem('gpt_optimizer_api_key', 'test-key');
+    const app = await mountModal('optimizer');
+    try {
+      const input = container.querySelector('.ui-combobox input') as HTMLInputElement;
+      input.value = 'custom-provider-model';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await nextTick();
+      const save = [...container.querySelectorAll('button')].find((button) => button.textContent?.trim() === '保存设置')!;
+      save.click();
+      await nextTick();
+      expect(localStorage.getItem('gpt_optimizer_model')).toBe('custom-provider-model');
+      expect(PromptOptimizerService.fetchModels).not.toHaveBeenCalled();
+    } finally {
+      app.unmount();
+    }
+  });
+  it('刷新失败只显示错误说明，仍然允许手动输入模型', async () => {
+    localStorage.setItem('gpt_optimizer_base_url', 'https://api.example.com');
+    localStorage.setItem('gpt_optimizer_api_key', 'test-key');
+    vi.mocked(PromptOptimizerService.fetchModels).mockRejectedValueOnce(new Error('模型获取失败，请重试'));
+    const app = await mountModal('optimizer');
+    try {
+      (container.querySelector('.combobox-refresh') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(container.querySelector('[role="alert"]')?.textContent).toContain('模型获取失败'));
+      const input = container.querySelector('.ui-combobox input') as HTMLInputElement;
+      expect(input.disabled).toBe(false);
+      input.value = 'manual-model';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await nextTick();
+      expect(input.value).toBe('manual-model');
+    } finally {
+      app.unmount();
+    }
+  });
   it('enables save for changes and explains incomplete image credentials', async () => {
     const app = await mountModal('image');
 
