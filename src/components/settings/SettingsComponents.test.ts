@@ -67,7 +67,7 @@ describe('Settings components', () => {
     setActivePinia(pinia);
     const app = createApp({
       render() {
-        return h(SettingsModal as any, { isOpen: true, initialTab });
+        return h(SettingsModal, { isOpen: true, initialTab });
       }
     });
     app.use(pinia);
@@ -87,20 +87,21 @@ describe('Settings components', () => {
     const navLabels = [...container.querySelectorAll('.nav-label')].map((el) => el.textContent);
     expect(navLabels).toContain('生图服务');
     expect(navLabels).toContain('提示词优化');
-    expect(groupTitles().some((title) => title.includes('接口凭据'))).toBe(true);
-    expect(container.textContent).toContain('生图 API Base URL');
-    expect(container.textContent).toContain('生图 API Key');
+    expect(container.querySelector('.pane-heading h4')?.textContent).toBe('生图服务');
+    expect(container.textContent).toContain('接口地址');
+    expect(container.textContent).toContain('API Key');
 
     app.unmount();
   });
 
-  it('reveals optimizer model group after api key is filled', async () => {
+  it('shows optional optimizer model setup before credentials are filled', async () => {
     const app = await mountModal('optimizer');
 
-    expect(groupTitles().some((title) => title.includes('模型与调用端点'))).toBe(false);
+    expect(groupTitles()).toContain('优化模型');
+    expect(container.querySelector('details')?.hasAttribute('open')).toBe(false);
 
     const labels = [...container.querySelectorAll('.input-label')];
-    const keyLabel = labels.find((el) => el.textContent?.includes('优化 API Key'));
+    const keyLabel = labels.find((el) => el.textContent?.includes('API Key'));
     const input = keyLabel?.parentElement?.querySelector('input') as HTMLInputElement | null;
     expect(input).not.toBeNull();
 
@@ -108,7 +109,7 @@ describe('Settings components', () => {
     input!.dispatchEvent(new Event('input', { bubbles: true }));
     await nextTick();
 
-    expect(groupTitles().some((title) => title.includes('模型与调用端点'))).toBe(true);
+    expect(groupTitles()).toContain('优化模型');
     expect(container.textContent).toContain('获取可用模型');
     expect(container.textContent).toContain('模型名称');
     expect(container.textContent).toContain('调用端点');
@@ -116,7 +117,7 @@ describe('Settings components', () => {
     app.unmount();
   });
 
-  it('disables save until required image credentials exist', async () => {
+  it('enables save for changes and explains incomplete image credentials', async () => {
     const app = await mountModal('image');
 
     const saveBtn = [...container.querySelectorAll('button')].find((btn) =>
@@ -133,8 +134,13 @@ describe('Settings components', () => {
       input!.dispatchEvent(new Event('input', { bubbles: true }));
     };
 
-    fill('生图 API Base URL', 'https://api.example.com');
-    fill('生图 API Key', 'sk-1');
+    fill('接口地址', 'https://api.example.com');
+    await nextTick();
+    expect(saveBtn?.disabled).toBe(false);
+    saveBtn?.click();
+    await nextTick();
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('请填写生图接口地址与 API Key');
+    fill('API Key', 'sk-1');
     await nextTick();
 
     expect(saveBtn?.disabled).toBe(false);
@@ -151,12 +157,13 @@ describe('Settings components', () => {
     expect(navLabels).toContain('通用设置');
 
     expect(container.textContent).toContain('开始生成后清空输入框');
-    expect(container.textContent).toContain('自定义下载文件名格式');
-    expect(container.textContent).toContain('自定义下载文件格式');
+    expect(container.textContent).toContain('下载文件名');
+    expect(container.textContent).toContain('下载格式');
 
     const switchEl = container.querySelector('.ui-switch-wrapper');
     expect(switchEl).not.toBeNull();
     expect(switchEl?.getAttribute('role')).toBe('switch');
+    expect(switchEl?.getAttribute('aria-label')).toBe('开始生成后清空输入框');
 
     app.unmount();
   });

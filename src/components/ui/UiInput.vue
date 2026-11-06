@@ -5,6 +5,7 @@ import { Eye, EyeOff, X } from '@lucide/vue';
 const props = withDefaults(
   defineProps<{
     modelValue: string | number;
+    id?: string;
     type?: string;
     placeholder?: string;
     label?: string;
@@ -74,7 +75,7 @@ function handleClear() {
       { 'is-disabled': disabled, 'has-label': !!label }
     ]"
   >
-    <label v-if="label" class="input-label">
+    <label v-if="label" :for="id" class="input-label">
       <slot name="label-prefix"></slot>
       <span>{{ label }}</span>
       <span v-if="required" class="required-star">*</span>
@@ -86,6 +87,9 @@ function handleClear() {
       </div>
 
       <input
+        :id="id"
+        :aria-required="required || undefined"
+        :aria-describedby="id && (hint || $slots.hint) ? id + '-hint' : undefined"
         :type="computedType"
         :value="modelValue"
         :placeholder="placeholder"
@@ -104,6 +108,7 @@ function handleClear() {
           type="button"
           class="suffix-action-btn"
           data-tip="清空"
+          aria-label="清空"
           @click="handleClear"
         >
           <X :size="13" />
@@ -115,6 +120,8 @@ function handleClear() {
           type="button"
           class="suffix-action-btn"
           :data-tip="isPasswordVisible ? '隐藏密码' : '显示密码'"
+          :aria-label="isPasswordVisible ? '隐藏密码' : '显示密码'"
+          :disabled="disabled"
           @click="isPasswordVisible = !isPasswordVisible"
         >
           <Eye v-if="!isPasswordVisible" :size="15" />
@@ -125,7 +132,7 @@ function handleClear() {
       </div>
     </div>
 
-    <div v-if="hint || $slots.hint" class="input-hint">
+    <div v-if="hint || $slots.hint" :id="id ? id + '-hint' : undefined" class="input-hint">
       <slot name="hint">{{ hint }}</slot>
     </div>
   </div>

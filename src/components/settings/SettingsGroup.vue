@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { ChevronDown } from '@lucide/vue';
 import type { SettingsSession } from '@/composables/useSettingsSession';
 import { fieldId, isFieldVisible, listVisibleFields, type SettingGroup } from '@/core/settings';
 import SettingsField from './SettingsField.vue';
@@ -26,14 +27,15 @@ const isSubcard = computed(() => props.group.layout === 'subcard');
 </script>
 
 <template>
-  <section class="settings-group" :class="{ 'is-subcard': isSubcard }">
-    <div v-if="group.title || headerField" class="group-header">
+  <component :is="group.collapsible ? 'details' : 'section'" class="settings-group" :class="{ 'is-subcard': isSubcard }">
+    <component :is="group.collapsible ? 'summary' : 'div'" v-if="group.title || headerField" class="group-header">
       <div class="group-title">
         <component v-if="group.icon" :is="group.icon" :size="14" />
         <span v-if="group.title">{{ group.title }}</span>
       </div>
       <SettingsField v-if="headerField" :field="headerField" :session="session" />
-    </div>
+      <ChevronDown v-if="group.collapsible" :size="14" class="collapse-icon" />
+    </component>
 
     <p v-if="group.description" class="group-description">{{ group.description }}</p>
 
@@ -45,7 +47,7 @@ const isSubcard = computed(() => props.group.layout === 'subcard');
         :session="session"
       />
     </div>
-  </section>
+  </component>
 </template>
 
 <style scoped lang="scss">
@@ -69,6 +71,40 @@ const isSubcard = computed(() => props.group.layout === 'subcard');
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+summary.group-header {
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 0;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $border-focus;
+    outline-offset: 2px;
+    border-radius: $radius-sm;
+  }
+}
+
+.collapse-icon {
+  color: $text-muted;
+}
+
+details[open] .collapse-icon {
+  transform: rotate(180deg);
+}
+
+details.settings-group {
+  display: block;
+  border-top: 1px solid $border-color;
+
+  .group-description,
+  .group-fields {
+    margin-top: 12px;
+  }
 }
 
 .group-title {

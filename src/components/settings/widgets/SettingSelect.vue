@@ -23,8 +23,9 @@ const selectValue = computed(() => {
     </label>
     <UiSelect
       :model-value="selectValue"
+      :aria-label="field.label"
       :options="options"
-      placement="bottom"
+      placement="auto"
       variant="default"
       size="md"
       block

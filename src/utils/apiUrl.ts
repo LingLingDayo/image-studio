@@ -10,3 +10,14 @@ export function normalizeEndpointUrl(baseUrl: string, path: string): string {
   }
   return `${base}${cleanPath}`;
 }
+
+export function isHttpUrl(value: string): boolean {
+  try {
+    const normalized = value.trim();
+    if (!/^https?:\/\//i.test(normalized)) return false;
+    const url = new URL(normalized);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}

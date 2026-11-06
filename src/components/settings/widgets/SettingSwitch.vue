@@ -20,6 +20,7 @@ const checked = computed(() => Boolean(props.value));
     </div>
     <UiSwitch
       :model-value="checked"
+      :aria-label="field.label"
       :disabled="disabled"
       size="md"
       @update:model-value="emit('change', $event)"

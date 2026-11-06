@@ -94,6 +94,7 @@ export interface SettingGroup {
   description?: string;
   icon?: Component;
   layout?: 'stack' | 'subcard';
+  collapsible?: boolean;
   visibleWhen?: SettingPredicate;
   /** 渲染到分组标题右侧的字段 id（通常是 action） */
   headerActionId?: string;

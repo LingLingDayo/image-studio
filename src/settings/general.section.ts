@@ -7,7 +7,7 @@ export const generalSection: SettingSection = {
   id: SETTING_SECTION.general,
   category: SETTING_CATEGORY.general,
   title: '通用设置',
-  description: '配置应用交互偏好与文件下载导出规则',
+  description: '调整生成、预览和下载偏好。默认设置即可使用。',
   icon: Sliders,
   groups: [
     {
@@ -20,30 +20,31 @@ export const generalSection: SettingSection = {
           key: SETTING_KEYS.clearPromptOnGenerate,
           type: SETTING_WIDGET.SWITCH,
           label: '开始生成后清空输入框',
-          hint: '开启后，点击开始生成时将自动清空当前提示词输入框；默认保持输入内容以便二次微调。'
+          hint: '默认保留提示词，方便继续微调。'
         }
       ]
     },
     {
       id: 'general.preview',
-      title: '看图与视口',
+      title: '图片预览',
       icon: Maximize2,
       layout: 'stack',
       fields: [
         {
           key: SETTING_KEYS.previewFullscreenMode,
           type: SETTING_WIDGET.SELECT,
-          label: '大图全屏展示模式',
-          hint: '页面内全屏仅铺满当前浏览器视口，不脱离窗口；整个电脑屏幕全屏将调用系统原生全屏铺满整个电脑显示器。',
+          label: '全屏方式',
+          hint: '默认铺满浏览器页面；浏览器全屏会隐藏浏览器界面。',
           options: [
-            { label: '页面内全屏 / 网页全屏 (推荐)', value: 'window' },
-            { label: '整个电脑屏幕全屏 (系统原生全屏)', value: 'native' }
+            { label: '页面内全屏（默认）', value: 'window' },
+            { label: '浏览器全屏', value: 'native' }
           ]
         }
       ]
     },
     {
       id: 'general.download',
+      collapsible: true,
       title: '下载与导出',
       icon: Download,
       layout: 'stack',
@@ -51,15 +52,15 @@ export const generalSection: SettingSection = {
         {
           key: SETTING_KEYS.downloadFilenamePattern,
           type: SETTING_WIDGET.TEXT,
-          label: '自定义下载文件名格式',
+          label: '下载文件名',
           placeholder: '{prefix}_{date}_{time}_{id}',
           hint: '支持变量：{prefix} (文生图/图生图)、{date} (年月日)、{time} (时分秒)、{id} (时间戳后四位)、{prompt} (提示词)'
         },
         {
           key: SETTING_KEYS.downloadImageFormat,
           type: SETTING_WIDGET.SELECT,
-          label: '自定义下载文件格式',
-          hint: '导出下载时的文件格式；选择跟随原图则保持与生成时的格式一致',
+          label: '下载格式',
+          hint: '默认保留生成时的文件格式。',
           options: [
             { label: '跟随原图格式 (默认)', value: 'auto' },
             { label: 'PNG 格式 (.png)', value: 'png' },
