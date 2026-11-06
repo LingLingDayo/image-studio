@@ -30,17 +30,16 @@ class AssetRepository {
         resolve(request.result);
       };
 
-      request.onupgradeneeded = (e) => {
+      request.onupgradeneeded = () => {
         const db = request.result;
-        const oldVersion = e.oldVersion || 0;
-        if (oldVersion > 0 && oldVersion < 4 && db.objectStoreNames.contains(ASSET_STORE)) {
-          db.deleteObjectStore(ASSET_STORE);
-        }
-        if (!db.objectStoreNames.contains(ASSET_STORE)) {
-          const store = db.createObjectStore(ASSET_STORE, { keyPath: 'id', autoIncrement: true });
-          store.createIndex('timestamp', 'timestamp', { unique: false });
-          store.createIndex('isFavorite', 'isFavorite', { unique: false });
-          store.createIndex('model', 'model', { unique: false });
+        // 升级只补齐结构，不重建作品库，以保留旧作品及尚未识别的历史字段。
+        const store = db.objectStoreNames.contains(ASSET_STORE)
+          ? request.transaction!.objectStore(ASSET_STORE)
+          : db.createObjectStore(ASSET_STORE, { keyPath: 'id', autoIncrement: true });
+        for (const name of ['timestamp', 'isFavorite', 'model']) {
+          if (!store.indexNames.contains(name)) {
+            store.createIndex(name, name, { unique: false });
+          }
         }
       };
     });

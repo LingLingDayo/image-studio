@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { IDBFactory } from 'fake-indexeddb';
 import { reactive } from 'vue';
 import { assetRepository } from './AssetRepository';
 import { dataUrlToBlob } from './imageBlob';
@@ -117,5 +118,99 @@ describe('AssetRepository (AssetRepository.ts)', () => {
     const all = await assetRepository.getAll();
     expect(all[0].isFavorite).toBe(true);
     expect(all[0].referenceImages).toEqual(['blob:ref1']);
+  });
+});
+
+describe('AssetRepository database upgrades', () => {
+  beforeEach(() => {
+    vi.stubGlobal('indexedDB', new IDBFactory());
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function openDatabase(version?: number, onUpgrade?: (db: IDBDatabase) => void): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      const request = version === undefined
+        ? indexedDB.open('ImageStudioDB')
+        : indexedDB.open('ImageStudioDB', version);
+      request.onupgradeneeded = () => onUpgrade?.(request.result);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  it.each([1, 2, 3])('preserves version %s records and existing indexes while adding missing indexes', async (version) => {
+    const imageBytes = await PNG_BLOB.arrayBuffer();
+    const legacyRecord = {
+      id: 42,
+      url: '',
+      imageBytes,
+      imageMime: 'image/png',
+      prompt: 'existing artwork',
+      model: 'gpt-image-2',
+      size: '1024x1024',
+      quality: 'medium',
+      duration: '2.0s',
+      timestamp: 1000,
+      isFavorite: true,
+      legacyLabel: 'keep unknown metadata'
+    };
+    const oldDB = await openDatabase(version, (db) => {
+      const store = db.createObjectStore('assets', { keyPath: 'id', autoIncrement: true });
+      store.createIndex('timestamp', 'timestamp', { unique: false });
+      store.createIndex('legacyPrompt', 'prompt', { unique: false });
+      store.add(legacyRecord);
+    });
+    oldDB.close();
+
+    const { assetRepository: upgradedRepository } = await import('./AssetRepository');
+    const all = await upgradedRepository.getAll();
+    expect(all).toHaveLength(1);
+    expect(all[0]).toMatchObject({ id: 42, prompt: 'existing artwork', isFavorite: true });
+    expect(all[0].blob.type).toBe('image/png');
+    expect(new Uint8Array(await all[0].blob.arrayBuffer())).toEqual(new Uint8Array(imageBytes));
+
+    const upgradedDB = await openDatabase();
+    expect(upgradedDB.version).toBe(4);
+    const store = upgradedDB.transaction('assets', 'readonly').objectStore('assets');
+    expect([...store.indexNames]).toEqual(['isFavorite', 'legacyPrompt', 'model', 'timestamp']);
+    expect(store.index('timestamp').keyPath).toBe('timestamp');
+    const rawRecord = await new Promise<Record<string, unknown>>((resolve, reject) => {
+      const request = store.get(42);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    expect(rawRecord).toMatchObject({ id: 42, legacyLabel: 'keep unknown metadata' });
+    expect(new Uint8Array(rawRecord.imageBytes as ArrayBuffer)).toEqual(new Uint8Array(imageBytes));
+    upgradedDB.close();
+
+    const saved = await upgradedRepository.save(createAsset({ prompt: 'new artwork', timestamp: 2000 }));
+    expect(saved.id).toBeGreaterThan(42);
+    expect(await upgradedRepository.updateFavorite(42, false)).toBe(true);
+    const reloaded = await upgradedRepository.getAll();
+    expect(reloaded).toHaveLength(2);
+    expect(reloaded.find((asset) => asset.id === 42)?.isFavorite).toBe(false);
+  });
+
+  it('keeps an existing version 4 database readable and writable without rebuilding it', async () => {
+    const { blob: _blob, ...metadata } = createAsset({ prompt: 'existing version 4', moderation: 'low' });
+    const existingDB = await openDatabase(4, (db) => {
+      const store = db.createObjectStore('assets', { keyPath: 'id', autoIncrement: true });
+      store.createIndex('timestamp', 'timestamp', { unique: false });
+      store.createIndex('isFavorite', 'isFavorite', { unique: false });
+      store.createIndex('model', 'model', { unique: false });
+      store.add({ ...metadata, id: 7, imageBytes: new ArrayBuffer(8), imageMime: 'image/png' });
+    });
+    existingDB.close();
+
+    const { assetRepository: currentRepository } = await import('./AssetRepository');
+    const all = await currentRepository.getAll();
+    expect(all).toHaveLength(1);
+    expect(all[0]).toMatchObject({ id: 7, prompt: 'existing version 4', moderation: 'low' });
+    await currentRepository.save(createAsset({ prompt: 'new version 4', moderation: 'auto' }));
+    expect(await currentRepository.getAll()).toHaveLength(2);
   });
 });
