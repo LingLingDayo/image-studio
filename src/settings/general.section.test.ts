@@ -16,6 +16,11 @@ describe('general section schema', () => {
     expect(generalSection.category).toBe(SETTING_CATEGORY.general);
     expect(generalSection.title).toBe('通用设置');
 
+    const backupGroup = generalSection.groups.find((group) => group.id === 'general.backup');
+    expect(backupGroup?.collapsible).toBe(true);
+    expect(backupGroup?.fields[0].type).toBe(SETTING_WIDGET.CUSTOM);
+    expect(backupGroup?.fields[0].persist).toBe(false);
+
     const interactionGroup = generalSection.groups.find((g) => g.id === 'general.interaction');
     expect(interactionGroup).toBeDefined();
     const switchField = interactionGroup?.fields.find((f) => f.key === SETTING_KEYS.clearPromptOnGenerate);

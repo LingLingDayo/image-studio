@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { reactive } from 'vue';
+import { Blob as NativeBlob } from 'node:buffer';
 import { assetRepository } from './AssetRepository';
 import { dataUrlToBlob } from './imageBlob';
 import type { MediaAsset } from '@/types/asset';
@@ -257,5 +258,192 @@ describe('AssetRepository database upgrades', () => {
     expect(all[0]).toMatchObject({ id: 7, prompt: 'existing version 4', moderation: 'low' });
     await currentRepository.save(createAsset({ prompt: 'new version 4', moderation: 'auto' }));
     expect(await currentRepository.getAll()).toHaveLength(2);
+  });
+});
+
+describe('AssetRepository 合并与事务安全', () => {
+  beforeEach(async () => {
+    await assetRepository.clearAll();
+  });
+
+  it('同长度的新图片也会替换像素，不能只按文件大小判断', async () => {
+    const first = new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])], { type: 'image/png' });
+    const second = new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4])], { type: 'image/jpeg' });
+    const saved = await assetRepository.save(createAsset({ blob: first }));
+    await assetRepository.update({ ...saved, blob: second });
+    const [loaded] = await assetRepository.getAll();
+    expect(new Uint8Array(await loaded.blob.arrayBuffer())).toEqual(new Uint8Array(await second.arrayBuffer()));
+    expect(loaded.format).toBe('jpeg');
+    expect(loaded.targetFormat).toBe('png');
+  });
+
+  it('合并生成本站新id，跳过原库和本次导入中的重复作品', async () => {
+    const existing = await assetRepository.save(createAsset({ prompt: 'old', timestamp: 1000 }));
+    const imported: MediaAsset = { ...createAsset({ prompt: 'new', timestamp: 2000 }), id: existing.id };
+    const result = await assetRepository.mergeAssets([existing, imported, imported]);
+    expect(result).toEqual({ added: 1, skipped: 2 });
+    const all = await assetRepository.getAll();
+    expect(all).toHaveLength(2);
+    expect(all.find((asset) => asset.id === existing.id)?.prompt).toBe('old');
+    expect(all.find((asset) => asset.prompt === 'new')?.id).not.toBe(existing.id);
+  });
+
+  it('批量写入中途失败时回滚整个导入，不影响原作品', async () => {
+    await assetRepository.save(createAsset({ prompt: 'original', timestamp: 1000 }));
+    const originalAdd = IDBObjectStore.prototype.add;
+    let added = 0;
+    const spy = vi.spyOn(IDBObjectStore.prototype, 'add').mockImplementation(function (this: IDBObjectStore, value: unknown, key?: IDBValidKey) {
+      if (++added === 2) throw new DOMException('forced failure', 'DataCloneError');
+      return originalAdd.call(this, value, key);
+    });
+    try {
+      await expect(assetRepository.mergeAssets([
+        createAsset({ prompt: 'first', timestamp: 2000 }),
+        createAsset({ prompt: 'second', timestamp: 3000 })
+      ])).rejects.toThrow();
+    } finally {
+      spy.mockRestore();
+    }
+    const all = await assetRepository.getAll();
+    expect(all.map((asset) => asset.prompt)).toEqual(['original']);
+  });
+});
+
+describe('AssetRepository 旧本地图片与未知记录', () => {
+  beforeEach(() => {
+    vi.stubGlobal('indexedDB', new IDBFactory());
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function withDatabase<T>(run: (db: IDBDatabase, finish: (result: T) => void, fail: (error: unknown) => void) => void): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const open = indexedDB.open('ImageStudioDB', 4);
+      open.onupgradeneeded = () => {
+        const store = open.result.createObjectStore('assets', { keyPath: 'id', autoIncrement: true });
+        for (const name of ['timestamp', 'isFavorite', 'model']) store.createIndex(name, name);
+      };
+      open.onsuccess = () => run(open.result, (result) => { open.result.close(); resolve(result); }, reject);
+      open.onerror = () => reject(open.error);
+    });
+  }
+
+  function seed(records: unknown[]): Promise<void> {
+    return withDatabase((db, finish, fail) => {
+      const tx = db.transaction('assets', 'readwrite');
+      for (const record of records) tx.objectStore('assets').add(record);
+      tx.oncomplete = () => finish(undefined);
+      tx.onabort = () => fail(tx.error);
+    });
+  }
+
+  function raw(id: number): Promise<Record<string, unknown>> {
+    return withDatabase((db, finish, fail) => {
+      const tx = db.transaction('assets', 'readonly');
+      const request = tx.objectStore('assets').get(id);
+      tx.oncomplete = () => finish(request.result);
+      tx.onabort = () => fail(tx.error);
+    });
+  }
+
+  it('兼容本地DataURL和合法旧Blob，不访问网络且不改原始记录', async () => {
+    vi.stubGlobal('Blob', NativeBlob);
+    const legacyBlob = new Blob([await PNG_BLOB.arrayBuffer()], { type: 'image/png' });
+    const { blob: _blob, ...metadata } = createAsset({ timestamp: 1000 });
+    await seed([
+      { ...metadata, id: 41, url: `data:image/png;base64,${PNG_B64}`, legacyLabel: 'keep-data-url' },
+      { ...metadata, id: 42, blob: legacyBlob, legacyLabel: 'keep-blob' }
+    ]);
+    const network = vi.fn();
+    vi.stubGlobal('fetch', network);
+    const { assetRepository: repository } = await import('./AssetRepository');
+    const snapshot = await repository.getSnapshot();
+    expect(snapshot.unsupportedCount).toBe(0);
+    expect(snapshot.assets).toHaveLength(2);
+    expect(snapshot.assets.every((asset) => asset.blob.type === 'image/png' && asset.url === '')).toBe(true);
+    expect(network).not.toHaveBeenCalled();
+    expect((await raw(41)).url).toBe(`data:image/png;base64,${PNG_B64}`);
+    expect((await raw(42)).legacyLabel).toBe('keep-blob');
+  });
+
+  it('未识别远程旧记录保持原样，并向备份提供明确计数', async () => {
+    const { blob: _blob, ...metadata } = createAsset();
+    await seed([{ ...metadata, id: 8, url: 'https://old.example.com/private.png', custom: 'preserve' }]);
+    const network = vi.fn();
+    vi.stubGlobal('fetch', network);
+    const { assetRepository: repository } = await import('./AssetRepository');
+    expect(await repository.getSnapshot()).toMatchObject({ assets: [], unsupportedCount: 1 });
+    expect(await raw(8)).toMatchObject({ url: 'https://old.example.com/private.png', custom: 'preserve' });
+    expect(network).not.toHaveBeenCalled();
+  });
+
+  it('旧DataURL作品更新时准备像素后写回，保留额外元数据', async () => {
+    const { blob: _blob, ...metadata } = createAsset();
+    await seed([{ ...metadata, id: 42, url: `data:image/png;base64,${PNG_B64}`, custom: 'preserve' }]);
+    const { assetRepository: repository } = await import('./AssetRepository');
+    const [asset] = await repository.getAll();
+    await expect(repository.update({ ...asset, isFavorite: true })).resolves.toBe(true);
+    const updated = await raw(42);
+    expect(updated).toMatchObject({ id: 42, isFavorite: true, custom: 'preserve', url: '' });
+    expect(updated.imageBytes).toBeInstanceOf(ArrayBuffer);
+    expect((await repository.getAll())[0].blob.size).toBe(PNG_BLOB.size);
+  });
+
+  it('空Blob元数据更新不能清掉旧DataURL的唯一图像数据', async () => {
+    const { blob: _blob, ...metadata } = createAsset();
+    await seed([{ ...metadata, id: 42, url: `data:image/png;base64,${PNG_B64}` }]);
+    const { assetRepository: repository } = await import('./AssetRepository');
+    const [asset] = await repository.getAll();
+    await repository.update({ ...asset, blob: new Blob([]), isFavorite: true });
+    expect((await repository.getAll())[0].blob.size).toBe(PNG_BLOB.size);
+  });
+});
+
+describe('AssetRepository 删除事务完成前回滚', () => {
+  beforeEach(async () => { await assetRepository.clearAll(); });
+
+  it('delete请求成功后事务abort，仍保留作品与可用显示URL', async () => {
+    const saved = await assetRepository.save(createAsset({ prompt: 'keep on abort' }));
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    const original = IDBObjectStore.prototype.delete;
+    const failingDelete = vi.spyOn(IDBObjectStore.prototype, 'delete').mockImplementation(function (this: IDBObjectStore, key: IDBValidKey | IDBKeyRange) {
+      const request = original.call(this, key);
+      request.addEventListener('success', () => this.transaction.abort());
+      return request;
+    });
+    try {
+      await expect(assetRepository.delete(saved.id!)).rejects.toThrow();
+      expect(revoke).not.toHaveBeenCalledWith(saved.url);
+    } finally {
+      failingDelete.mockRestore();
+      revoke.mockRestore();
+    }
+    const all = await assetRepository.getAll();
+    expect(all).toHaveLength(1);
+    expect(all[0].prompt).toBe('keep on abort');
+  });
+
+  it('clear请求成功后事务abort，仍保留所有作品与显示URL', async () => {
+    const first = await assetRepository.save(createAsset({ prompt: 'first' }));
+    const second = await assetRepository.save(createAsset({ prompt: 'second' }));
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    const original = IDBObjectStore.prototype.clear;
+    const failingClear = vi.spyOn(IDBObjectStore.prototype, 'clear').mockImplementation(function (this: IDBObjectStore) {
+      const request = original.call(this);
+      request.addEventListener('success', () => this.transaction.abort());
+      return request;
+    });
+    try {
+      await expect(assetRepository.clearAll()).rejects.toThrow();
+      expect(revoke).not.toHaveBeenCalledWith(first.url);
+      expect(revoke).not.toHaveBeenCalledWith(second.url);
+    } finally {
+      failingClear.mockRestore();
+      revoke.mockRestore();
+    }
+    expect(await assetRepository.getAll()).toHaveLength(2);
   });
 });

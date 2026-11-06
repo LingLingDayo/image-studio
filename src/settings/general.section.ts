@@ -1,5 +1,6 @@
 import { Sliders, Download, Sparkles, Maximize2 } from '@lucide/vue';
 import { useConfigStore } from '@/stores/configStore';
+import BackupSettings from '@/components/settings/BackupSettings.vue';
 import { SETTING_WIDGET, type SettingSection } from '@/core/settings';
 import { SETTING_CATEGORY, SETTING_KEYS, SETTING_SECTION } from './keys';
 
@@ -67,6 +68,21 @@ export const generalSection: SettingSection = {
             { label: 'JPEG 格式 (.jpg)', value: 'jpeg' },
             { label: 'WEBP 格式 (.webp)', value: 'webp' }
           ]
+        }
+      ]
+    },
+    {
+      id: 'general.backup',
+      title: '作品备份',
+      icon: Download,
+      collapsible: true,
+      fields: [
+        {
+          key: 'general.backup',
+          label: '',
+          type: SETTING_WIDGET.CUSTOM,
+          component: BackupSettings,
+          persist: false
         }
       ]
     }
