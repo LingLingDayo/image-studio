@@ -1,46 +1,45 @@
 # GPT Image Studio
 
-独立的纯前端生图工作台，兼容 OpenAI Images API。作品只存在当前浏览器 IndexedDB，删除即从本地抹掉。
+一个简约、轻量的生图工作台：输入描述，按需添加参考图，生成并整理作品。基于 Vue 3、TypeScript 和 Pinia，浏览器直接调用 OpenAI Images 兼容接口，无需工作台后端。
 
-## 快速开始
+## 可以做什么
 
-```bash
-cp .env.example .env.development.local
-# 按需填写 VITE_IMAGE_API_BASE_URL / VITE_IMAGE_API_KEY
-npm install
+- **生成与编辑**：文生图、参考图编辑，支持上传、拖入或粘贴参考图。
+- **生成参数**：选择模型、尺寸、质量、格式和背景；具体能力取决于所接入的服务。
+- **管理作品**：查看大图、搜索、收藏、下载，以及复用提示词和生成参数。
+- **可选优化**：单独配置语言模型，辅助优化提示词；不配置也能正常生图。
+
+## 三步开始创作
+
+1. 打开右上角 **设置 → 生图服务**，填写接口地址和 API Key，保存。地址可带或不带 `/v1`。
+2. 在底部输入画面描述；需要编辑已有图片时，再添加参考图。
+3. 点击生成，在作品区查看结果；满意后下载到本机。
+
+首次使用不必调整全部参数。批量生成时，用 **连续两个空行** 分隔不同提示词；数量表示每段提示词生成的张数。生成进度为估算值，不是服务端实际完成比例。
+
+## 本地开发
+
+需要 Node.js（建议 22.12+ LTS 或 24 LTS）和 npm。当前锁定的 Vite 要求 Node.js `^20.19.0 || >=22.12.0`。
+
+```powershell
+# 当前版本存在 peer 依赖冲突，临时沿用锁文件安装，详见开发指南
+npm ci --legacy-peer-deps
 npm run dev
 ```
 
-未配置环境变量时，在页面右上角设置里填写 OpenAI 兼容的 Base URL 与 API Key。
+默认地址为 [http://localhost:3000](http://localhost:3000)。个人使用可直接在界面填写凭据，无需创建环境文件。部署者需要预设接口时，参见 [配置与部署](docs/configuration.md)。
 
-## 配置
+## 数据与隐私
 
-全部通过环境变量覆盖，源码不含特定部署域名。
+- 作品及其生成参数保存在当前浏览器的 **IndexedDB**；接口凭据和偏好保存在 **localStorage**，不是加密保险箱。
+- 生图时，提示词、参考图和 API Key 会发往你配置的生图服务；优化提示词时会调用单独配置的优化服务。工作台没有云端作品同步。
+- 删除作品无法恢复。清理站点数据、切换浏览器或更换域名/端口，不会自动保留或迁移作品，请及时下载重要图片。
+- 不要将真实 API Key 写入公开部署的 `VITE_*` 环境变量：构建后它会进入可被访问的前端资源。
 
-| 变量 | 作用 | 默认 |
-| :--- | :--- | :--- |
-| `VITE_IMAGE_API_BASE_URL` | 接口 Base URL。配置后界面设置弹窗自动隐藏该输入框，请求时自动带上 | 空，未配置时需在界面填写 |
-| `VITE_IMAGE_API_KEY` | 开发/构建时预填的令牌 | 空 |
-| `VITE_IMAGE_API_KEY_HINT` | 设置弹窗中关于 API Key 的提示引导文案 | `令牌只保存在本机浏览器，不会上传到工作台服务器` |
-| `BIND_HOST` | 容器端口绑定地址 | `127.0.0.1`（仅本机） |
-| `HOST_PORT` | 宿主机端口 | `3000` |
-| `NGINX_FRAME_ANCESTORS` | 允许嵌入本页的 iframe 父来源 | `*`（任意站点） |
+## 文档
 
-说明：
+- [配置与部署](docs/configuration.md)：环境变量、Docker、接口连接与常见问题。
+- [开发指南](docs/development.md)：代码组织、测试验证、当前工程约束。
+- [优化评估](docs/improvements.md)：本轮调整与后续优先级。
 
-- 想对公网直接暴露：`.env` 里设 `BIND_HOST=0.0.0.0`
-- 只给本机 Tunnel / 反代：保持 `BIND_HOST=127.0.0.1`
-- 作为其它后台（如 sub2api 自定义菜单）的 iframe：把 `NGINX_FRAME_ANCESTORS` 设成该后台的 origin，例如 `https://gateway.example.com`
-- `VITE_*` 只在 `npm run dev` / `npm run build` 时注入。不要把真实 Key 打进公开生产包
-
-## Docker
-
-先本地构建静态资源，再启动 Nginx 容器（镜像内不跑 Node）：
-
-```bash
-cp .env.example .env
-npm run build
-docker compose up -d --build
-```
-
-默认监听 `http://127.0.0.1:3000`。
+采用 [MIT 许可证](LICENSE)。
