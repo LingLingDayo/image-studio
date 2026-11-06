@@ -53,7 +53,17 @@ Copy-Item .env.example .env.development.local
 
 环境示例不绑定特定模型，优化模板留空时使用内置默认值。模型名称请填写接入服务实际支持的名称，或在设置中主动获取模型列表。
 
-优先使用 `/v1/chat/completions` 兼容接口。界面也提供 `/v1/messages`、`/v1/responses` 路径，具体是否兼容取决于服务的请求与响应格式，不保证仅切换路径就能适配所有厂商原生 API。
+选择服务实际支持的协议，不要仅因模型名称中出现某厂商就切换端点：
+
+| 协议 | 请求与认证 |
+| :--- | :--- |
+| `/v1/chat/completions`（默认） | OpenAI 兼容 `messages`；Bearer 认证，保留原有兼容聊天请求字段 |
+| `/v1/responses` | 原生 `input`，`store:false`，解析 `output` 中的文本；Bearer 认证 |
+| `/v1/messages` | Anthropic `messages` 与 `max_tokens`；`x-api-key` 和 `anthropic-version` 认证 |
+
+模型列表也按所选协议使用对应认证；修改端点时清除旧列表，旧请求不能覆盖新状态。未知端点会明确报错，不会猜测协议。Messages 沿用既有 `2023-06-01` 版本头，未自动迁移厂商版本。原生协议的合同测试已覆盖，但服务是否接受该模型、密钥和版本仍由所接服务决定；数据留存同样受服务政策影响。
+
+参考：[OpenAI Responses 迁移指南](https://developers.openai.com/api/docs/guides/migrate-to-responses)、[Responses 请求定义](https://developers.openai.com/api/reference/resources/responses/methods/create)、[Anthropic API 说明](https://platform.claude.com/docs/en/api/overview)。
 
 模板包含 `{prompt}` 时会替换所有该占位符；没有占位符时，会把用户提示词附加在模板后。建议保留占位符，使指令结构清晰。
 
@@ -68,12 +78,12 @@ Copy-Item .env.example .env.development.local
 ```powershell
 Copy-Item .env.example .env
 # 编辑 .env；公开部署请留空两个 VITE_*_API_KEY
-npm ci --legacy-peer-deps
+npm ci
 npm run build
 docker compose up -d --build
 ```
 
-当前安装命令的临时兼容参数见 [开发指南](development.md#当前依赖兼容问题)。这里的 build 用于生成部署产物，不用于日常修改验证。
+工具链版本已协调，使用标准锁文件安装；这里的 build 用于生成部署产物，不用于日常修改验证。
 
 默认访问 [http://127.0.0.1:3000](http://127.0.0.1:3000)。部署前端配置变更时，重新执行资源构建与 Compose 启动命令。停止本项目容器：
 
@@ -108,7 +118,7 @@ docker compose down
 
 **换域名、浏览器后找不到作品**
 
-作品按浏览器及站点 origin 隔离，协议、域名或端口改变都会成为不同站点。当前没有云同步或完整作品库导入导出，迁移前请下载重要图片。
+作品按浏览器及站点 origin 隔离，协议、域名或端口改变都会成为不同站点。工作台没有云同步；迁移前在设置 → 通用设置 → 作品备份导出 JSON，确认保存后，在新站点选择并预览该备份，点击合并导入。恢复不会覆盖原作品，重复作品会跳过。
 
 **刷新页面后任务消失**
 
@@ -116,4 +126,11 @@ docker compose down
 
 **升级早期版本前需要注意什么**
 
-当前本地数据库版本为 4。升级时保留既有作品存储与原始记录，只补齐缺失索引，不再主动清空旧作品。未知历史记录格式不保证可展示，也无法恢复以前版本已删除的数据；升级前仍应备份重要图片。
+当前本地数据库仍为版本 4。升级只补齐缺失索引，不清空旧作品；可识别的旧 Blob 或本地 Data URL 在内存中兼容，不会自动访问旧远程地址。未知格式不强行转换，备份发现无法识别的记录会阻止不完整导出并提示保留站点数据；无法恢复以前已删除的数据。
+
+## 作品备份与恢复限制
+
+- 备份覆盖现有作品字段、图片、参考图与生成参数，不包含接口密钥、偏好和任务历史，也不是所有未知旧字段的原始数据库镜像。
+- JSON 文件最多 128 MiB、1000 张作品；单图最多 32 MiB，图像及参考图数据累计最多 80 MiB。仅支持 PNG、JPEG、WebP 与可移植的本地参考图 Data URL，不自动下载远程参考图。
+- 导入先校验与预览，再明确确认合并；备份 ID 不覆盖本站 ID。已有收藏和作品不被重复导入覆盖，事务失败不会留下半批新作品。
+- 备份与导入立即生效，无需再点保存设置。导出提示代表已生成文件并发起下载，请确认浏览器确实保存了文件再清理旧站点。

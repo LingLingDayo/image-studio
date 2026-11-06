@@ -10,18 +10,15 @@
 
 Node.js 建议使用 22.12+ LTS 或 24 LTS；锁定的 Vite 8.2.2 声明要求 `^20.19.0 || >=22.12.0`。
 
-## 当前依赖兼容问题
+## 工具链与依赖安装
 
-仓库锁定 `@vitejs/plugin-vue@5.2.4` 与 `vite@8.2.2`，但该 Vue 插件的 peer 范围只有 Vite 5/6。直接执行 `npm ci` 会产生 `ERESOLVE`。
-
-在协调工具链版本前，可临时使用锁文件安装：
+已将 Vue 插件协调到 `@vitejs/plugin-vue@6.0.10`，其 peer 范围支持现有 Vite 8.2.2。使用提交的锁文件进行标准安装，不再需要 `--legacy-peer-deps` 或 `--force`：
 
 ```powershell
-npm ci --legacy-peer-deps
+npm ci
 ```
 
-该参数跳过 peer 校验，**不是解决兼容性问题**，仍需运行测试、类型检查和开发界面验证。不要使用 `--force`，也不要随意重写锁文件。后续应经依赖变更审批，将 Vite 与 Vue 插件调整到明确相容的版本，并一起验证工具链。
-
+不要随意重写锁文件或批量升级无关依赖。项目的 GitHub Actions 质量检查使用 Windows、Node.js 22，执行标准依赖安装、类型检查与测试；流水线配置已加入仓库，实际远端执行仍需推送后确认。
 ## 常用命令
 
 ```powershell
@@ -35,10 +32,10 @@ npm test
 npm test -- src/components/settings src/settings
 
 # Vue 与 TypeScript 类型检查，不输出构建文件
-npm exec vue-tsc -- --noEmit
+npm run typecheck
 ```
 
-目前项目没有 lint 脚本或 ESLint 配置，不能把测试或类型检查当作 lint，也不能声称 lint 已通过。增加 lint 工具需要单独确认依赖和规则，避免混入无关格式改动。
+目前项目没有 lint 脚本或 ESLint 配置，不能把测试或类型检查当作 lint，也不能声称 lint 已通过。本轮已申请新增 ESLint 相关开发依赖，尚未获得批准，因此没有擅自安装或声称 lint 通过。批准后再接入，以问题检查为主，不夹带全库格式化。
 
 普通功能修改不以 build 代替验证；优先补充回归测试，运行相关测试与类型检查。生产部署才运行 `npm run build`，见 [配置与部署](configuration.md#docker-部署)。
 
@@ -49,19 +46,19 @@ src/
 ├─ App.vue                应用装配、跨区域事件与弹窗协调
 ├─ components/
 │  ├─ layout/             顶部导航与筛选
-│  ├─ studio/             提示词与生成参数输入
+│  ├─ studio/             提示词、生成参数与独立参考图预览
 │  ├─ gallery/            作品卡片、任务卡片、大图预览
-│  ├─ settings/           设置弹窗、导航、分组与字段控件
+│  ├─ settings/           设置分区控件与本地备份界面
 │  └─ ui/                 可复用基础控件
-├─ composables/           工作台、设置会话与图片视口交互
+├─ composables/           工作台、优化会话、设置草稿与视口交互
 ├─ stores/                配置、模型、任务、作品的共享状态
 ├─ settings/              具体设置分区定义与默认目录装配
 ├─ core/
 │  ├─ providers/          API 协议适配
 │  ├─ pipeline/           图像生成与结果处理
 │  ├─ scheduler/          任务生命周期、取消与进度估算
-│  ├─ storage/            IndexedDB 与本地图片资源管理
-│  ├─ services/           提示词优化服务
+│  ├─ storage/            IndexedDB、图片资源与备份合并
+│  ├─ services/           优化服务及 Chat / Responses / Messages 协议适配
 │  └─ settings/           设置 schema、条件计算与控件注册
 ├─ types/                 领域类型、模型能力与默认配置
 ├─ utils/                 尺寸、错误、下载等共享纯逻辑
@@ -90,8 +87,10 @@ src/
 4. 关键节点使用中文分步 Git 提交；临时脚本、日志和截图放 `.temp/`，不提交。废弃临时文件移入 `.temp/trash/`，不物理删除。
 5. 停止本次启动的开发服务或容器，确认端口释放。
 
-## 后续工程改进优先级
+## 维护重点
 
-- **先修工具链**：协调 Vite/Vue 插件版本，恢复标准 `npm ci`，再讨论增加 lint 和 CI。
-- **先稳定用户数据**：本轮已取消升级时重建作品库；未知历史格式的迁移、完整备份与恢复能力仍需另行设计。
-- **按职责逐步拆分**：只有组件确实承担多种独立职责时才抽取模块，不为了文件变小而机械拆分。
+- 保持标准 `npm ci`、类型检查与测试可以独立执行；lint 依赖批准后再补齐。
+- 提示词优化协议适配位于 `core/services/optimizer`，模型列表按所选协议使用对应认证。不要在 UI 中拼接厂商请求。
+- 备份仅覆盖现有作品字段、图片与本地参考图，不导出配置；合并导入的异步准备放在事务外，事务完成后才报告成功，禁止先清空原库。
+- 最近 30 个成功/取消任务保留历史；活跃与失败待处理任务不自动驱逐。移除失败任务同时释放历史引用，不撤销输入区拥有的预览 URL。
+- `ReferencePreviewModal` 独占预览交互；`usePromptOptimizer` 独占优化、撤销/重做与异步请求版本，组件负责展示和事件协调。
