@@ -193,6 +193,25 @@ describe('useGalleryStore Pagination', () => {
     expect(store.batches[0].height).toBe(1080);
   });
 
+  it.each(['auto', 'low'])('should preserve %s moderation when grouping assets into a batch', (moderation) => {
+    const store = useGalleryStore();
+    store.items = [
+      { ...createMockAsset(1), batchId: 'moderation_batch', moderation },
+      { ...createMockAsset(2), batchId: 'moderation_batch', moderation }
+    ];
+
+    expect(store.batches).toHaveLength(1);
+    expect(store.batches[0].assets).toHaveLength(2);
+    expect(store.batches[0].moderation).toBe(moderation);
+  });
+
+  it('should leave moderation unset for legacy assets without the field', () => {
+    const store = useGalleryStore();
+    store.items = [createMockAsset(1)];
+
+    expect(store.batches[0].moderation).toBeUndefined();
+  });
+
   it('should persist favorite status and restore after reload', async () => {
     const store = useGalleryStore();
     const mock = createMockAsset(1, 'Cyberpunk test');

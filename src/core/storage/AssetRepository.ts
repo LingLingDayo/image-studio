@@ -64,6 +64,7 @@ class AssetRepository {
       quality: asset.quality || '',
       format: asset.format,
       transparent: asset.transparent,
+      moderation: asset.moderation,
       duration: asset.duration || '',
       timestamp: asset.timestamp || Date.now(),
       isFavorite: Boolean(asset.isFavorite),

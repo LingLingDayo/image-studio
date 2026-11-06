@@ -62,6 +62,7 @@ export const useGalleryStore = defineStore('gallery', () => {
           quality: item.quality,
           format: item.format,
           transparent: item.transparent,
+          moderation: item.moderation,
           duration: item.duration,
           timestamp: item.timestamp,
           isFavorite: Boolean(item.isFavorite),

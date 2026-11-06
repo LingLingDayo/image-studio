@@ -43,6 +43,24 @@ describe('AssetRepository (AssetRepository.ts)', () => {
     expect(all[0].url.startsWith('blob:')).toBe(true);
   });
 
+  it.each(['auto', 'low'])('should preserve %s moderation when saving and reloading an asset', async (moderation) => {
+    const saved = await assetRepository.save(createAsset({ moderation }));
+    expect(saved.moderation).toBe(moderation);
+
+    const all = await assetRepository.getAll();
+    expect(all).toHaveLength(1);
+    expect(all[0].moderation).toBe(moderation);
+  });
+
+  it('should update moderation without dropping the existing image pixels', async () => {
+    const saved = await assetRepository.save(createAsset({ moderation: 'low' }));
+    await assetRepository.update({ ...saved, moderation: 'auto' });
+
+    const all = await assetRepository.getAll();
+    expect(all[0].moderation).toBe('auto');
+    expect(all[0].blob?.size).toBe(PNG_BLOB.size);
+  });
+
   it('should update asset favorite flag without dropping the blob', async () => {
     const saved = await assetRepository.save(createAsset({ prompt: 'favorite test' }));
     saved.isFavorite = true;
