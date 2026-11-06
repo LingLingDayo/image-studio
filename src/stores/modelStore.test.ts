@@ -3,6 +3,19 @@ import { setActivePinia, createPinia } from 'pinia';
 import { useModelStore } from './modelStore';
 import { useConfigStore } from './configStore';
 
+function deferredModelResponse() {
+  let resolve!: (models: string[]) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<{ ok: boolean; text: () => Promise<string> }>((res, rej) => {
+    resolve = (models) => res({
+      ok: true,
+      text: async () => JSON.stringify({ data: models.map((id) => ({ id })) })
+    });
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 describe('useModelStore', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -163,5 +176,151 @@ describe('useModelStore', () => {
 
     expect(store.activeModelId).toBe('gpt-image-2.6-flare');
     expect(store.availableModels).toEqual(['gpt-image-2.6-flare']);
+  });
+
+  it('shares concurrent requests for the same credentials while honoring selection adjustment', async () => {
+    const configStore = useConfigStore();
+    configStore.updateConfig({ baseUrl: 'https://api.example.com', apiKey: 'sk-test' });
+    const response = deferredModelResponse();
+    const fetchMock = vi.fn().mockReturnValue(response.promise);
+    globalThis.fetch = fetchMock;
+    const store = useModelStore();
+
+    const first = store.refreshAvailableModels({ adjustSelection: false });
+    const second = store.refreshAvailableModels({ adjustSelection: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    response.resolve(['gpt-image-2']);
+    await Promise.all([first, second]);
+    expect(store.availableModels).toEqual(['gpt-image-2']);
+    expect(store.activeModelId).toBe('gpt-image-2');
+    expect(store.isFetchingModels).toBe(false);
+  });
+
+  it.each(['baseUrl', 'apiKey'] as const)(
+    'starts a fresh request after %s changes and ignores the old response',
+    async (credential) => {
+      const configStore = useConfigStore();
+      configStore.updateConfig({ baseUrl: 'https://old.example.com', apiKey: 'sk-old' });
+      const oldResponse = deferredModelResponse();
+      const newResponse = deferredModelResponse();
+      const fetchMock = vi.fn()
+        .mockReturnValueOnce(oldResponse.promise)
+        .mockReturnValueOnce(newResponse.promise);
+      globalThis.fetch = fetchMock;
+      const store = useModelStore();
+      const initialModel = store.activeModelId;
+      const oldRequest = store.refreshAvailableModels({ adjustSelection: true });
+
+      configStore.updateConfig(credential === 'baseUrl'
+        ? { baseUrl: 'https://new.example.com' }
+        : { apiKey: 'sk-new' });
+      const newRequest = store.refreshAvailableModels({ adjustSelection: true });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      oldResponse.resolve(['gpt-image-2']);
+      await oldRequest;
+      expect(store.availableModels).toEqual([initialModel]);
+      expect(store.activeModelId).toBe(initialModel);
+      expect(store.isFetchingModels).toBe(true);
+
+      newResponse.resolve(['custom-image-new']);
+      await newRequest;
+      expect(store.availableModels).toEqual(['custom-image-new']);
+      expect(store.activeModelId).toBe('custom-image-new');
+      expect(configStore.model).toBe('custom-image-new');
+      expect(store.isFetchingModels).toBe(false);
+    }
+  );
+
+  it('does not overwrite a newer result or clear a third request when an older request finishes', async () => {
+    const configStore = useConfigStore();
+    configStore.updateConfig({ baseUrl: 'https://old.example.com', apiKey: 'sk-old' });
+    const oldResponse = deferredModelResponse();
+    const newResponse = deferredModelResponse();
+    const thirdResponse = deferredModelResponse();
+    const fetchMock = vi.fn()
+      .mockReturnValueOnce(oldResponse.promise)
+      .mockReturnValueOnce(newResponse.promise)
+      .mockReturnValueOnce(thirdResponse.promise);
+    globalThis.fetch = fetchMock;
+    const store = useModelStore();
+    const oldRequest = store.refreshAvailableModels({ adjustSelection: true });
+
+    configStore.updateConfig({ apiKey: 'sk-new' });
+    const newRequest = store.refreshAvailableModels({ adjustSelection: true });
+    newResponse.resolve(['custom-image-new']);
+    await newRequest;
+    const thirdRequest = store.refreshAvailableModels();
+
+    oldResponse.resolve(['gpt-image-2']);
+    await oldRequest;
+    expect(store.availableModels).toEqual(['custom-image-new']);
+    expect(store.activeModelId).toBe('custom-image-new');
+    expect(store.isFetchingModels).toBe(true);
+
+    const sharedThirdRequest = store.refreshAvailableModels();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    thirdResponse.resolve(['custom-image-new', 'custom-image-latest']);
+    await Promise.all([thirdRequest, sharedThirdRequest]);
+    expect(store.availableModels).toEqual(['custom-image-new', 'custom-image-latest']);
+    expect(store.isFetchingModels).toBe(false);
+  });
+
+  it('ignores stale errors without stopping a newer request', async () => {
+    const configStore = useConfigStore();
+    configStore.updateConfig({ baseUrl: 'https://api.example.com', apiKey: 'sk-old' });
+    const oldResponse = deferredModelResponse();
+    const newResponse = deferredModelResponse();
+    globalThis.fetch = vi.fn()
+      .mockReturnValueOnce(oldResponse.promise)
+      .mockReturnValueOnce(newResponse.promise);
+    const store = useModelStore();
+    const oldRequest = store.refreshAvailableModels();
+
+    configStore.updateConfig({ apiKey: 'sk-new' });
+    const newRequest = store.refreshAvailableModels();
+    oldResponse.reject(new Error('old request failed'));
+    await oldRequest;
+    expect(store.isFetchingModels).toBe(true);
+
+    newResponse.resolve(['gpt-image-2']);
+    await newRequest;
+    expect(store.availableModels).toEqual(['gpt-image-2']);
+    expect(store.isFetchingModels).toBe(false);
+  });
+
+  it('invalidates pending work immediately when credentials are removed', async () => {
+    const configStore = useConfigStore();
+    configStore.updateConfig({ baseUrl: 'https://api.example.com', apiKey: 'sk-test' });
+    const response = deferredModelResponse();
+    globalThis.fetch = vi.fn().mockReturnValue(response.promise);
+    const store = useModelStore();
+    const initialModel = store.activeModelId;
+    const request = store.refreshAvailableModels({ adjustSelection: true });
+
+    configStore.updateConfig({ apiKey: '' });
+    expect(store.isFetchingModels).toBe(false);
+    response.resolve(['gpt-image-2']);
+    await request;
+    expect(store.availableModels).toEqual([initialModel]);
+    expect(store.activeModelId).toBe(initialModel);
+  });
+
+  it('discards pending work even if credentials change back before it finishes', async () => {
+    const configStore = useConfigStore();
+    configStore.updateConfig({ baseUrl: 'https://api.example.com', apiKey: 'sk-test' });
+    const response = deferredModelResponse();
+    globalThis.fetch = vi.fn().mockReturnValue(response.promise);
+    const store = useModelStore();
+    const initialModel = store.activeModelId;
+    const request = store.refreshAvailableModels({ adjustSelection: true });
+
+    configStore.updateConfig({ apiKey: 'sk-other' });
+    configStore.updateConfig({ apiKey: 'sk-test' });
+    response.resolve(['gpt-image-2']);
+    await request;
+    expect(store.availableModels).toEqual([initialModel]);
+    expect(store.activeModelId).toBe(initialModel);
   });
 });

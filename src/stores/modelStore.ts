@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import {
   type ModelProfile,
   GPT_IMAGE_2_PROFILE,
@@ -10,6 +10,13 @@ import {
 } from '@/types/model';
 import { useConfigStore } from '@/stores/configStore';
 import { fetchRemoteModels } from '@/utils/fetchRemoteModels';
+
+interface ModelFetchRequest {
+  baseUrl: string;
+  apiKey: string;
+  version: number;
+  promise: Promise<string[]>;
+}
 
 export const useModelStore = defineStore('model', () => {
   const configStore = useConfigStore();
@@ -24,7 +31,20 @@ export const useModelStore = defineStore('model', () => {
   const availableModels = ref<string[]>([activeModelId.value]);
   const isFetchingModels = ref(false);
 
-  let inflightFetch: Promise<string[]> | null = null;
+  let inflightFetch: ModelFetchRequest | null = null;
+  let requestVersion = 0;
+
+  watch(
+    () => [configStore.effectiveBaseUrl, configStore.effectiveApiKey] as const,
+    () => {
+      // 旧服务的列表与进行中的请求不能继续用于新凭据。
+      requestVersion += 1;
+      inflightFetch = null;
+      isFetchingModels.value = false;
+      availableModels.value = [activeModelId.value];
+    },
+    { flush: 'sync' }
+  );
 
   const activeModel = computed<ModelProfile>(() => {
     return registeredModels.value.find((m) => m.id === activeModelId.value) || GPT_IMAGE_2_PROFILE;
@@ -64,15 +84,22 @@ export const useModelStore = defineStore('model', () => {
     }
   }
 
-  function startFetch(): Promise<string[]> {
-    const request = fetchRemoteModels(configStore.effectiveBaseUrl, configStore.effectiveApiKey)
-      .then(resolveImageModelList)
-      .finally(() => {
-        isFetchingModels.value = false;
-        inflightFetch = null;
-      });
+  function startFetch(baseUrl: string, apiKey: string): ModelFetchRequest {
+    const request: ModelFetchRequest = {
+      baseUrl,
+      apiKey,
+      version: ++requestVersion,
+      promise: fetchRemoteModels(baseUrl, apiKey).then(resolveImageModelList)
+    };
     inflightFetch = request;
+    isFetchingModels.value = true;
     return request;
+  }
+
+  function isCurrentRequest(request: ModelFetchRequest): boolean {
+    return request.version === requestVersion &&
+      request.baseUrl === configStore.effectiveBaseUrl &&
+      request.apiKey === configStore.effectiveApiKey;
   }
 
   /**
@@ -82,12 +109,15 @@ export const useModelStore = defineStore('model', () => {
   async function refreshAvailableModels(options?: { adjustSelection?: boolean }): Promise<void> {
     if (!configStore.isConfigured) return;
 
-    isFetchingModels.value = true;
-    const request = inflightFetch ?? startFetch();
+    const baseUrl = configStore.effectiveBaseUrl;
+    const apiKey = configStore.effectiveApiKey;
+    const request = inflightFetch?.baseUrl === baseUrl && inflightFetch.apiKey === apiKey
+      ? inflightFetch
+      : startFetch(baseUrl, apiKey);
 
     try {
-      const list = await request;
-      if (list.length === 0) return;
+      const list = await request.promise;
+      if (!isCurrentRequest(request) || list.length === 0) return;
 
       availableModels.value = list;
       for (const id of list) {
@@ -102,6 +132,11 @@ export const useModelStore = defineStore('model', () => {
       }
     } catch {
       // 无感失败：保留当前选择与已有列表
+    } finally {
+      if (inflightFetch === request) {
+        isFetchingModels.value = false;
+        inflightFetch = null;
+      }
     }
   }
 
