@@ -10,6 +10,8 @@ import LightboxViewport from './lightbox/LightboxViewport.vue';
 import LightboxDetailPanel from './lightbox/LightboxDetailPanel.vue';
 import { useGalleryStore } from '@/stores/galleryStore';
 import { useConfigStore } from '@/stores/configStore';
+import { useTaskStore } from '@/stores/taskStore';
+import AppHeader from '@/components/layout/AppHeader.vue';
 import type { MediaAsset } from '@/types/asset';
 import type { GenerationTask } from '@/types/task';
 
@@ -44,6 +46,148 @@ describe('Gallery Components (src/components/gallery)', () => {
   it('should export lightbox subcomponents properly', () => {
     expect(LightboxViewport).toBeDefined();
     expect(LightboxDetailPanel).toBeDefined();
+  });
+});
+
+describe('GalleryGrid 首次使用引导', () => {
+  let container: HTMLDivElement;
+  let pinia: ReturnType<typeof createPinia>;
+  let app: ReturnType<typeof createApp> | null;
+
+  beforeEach(() => {
+    localStorage.clear();
+    pinia = createPinia();
+    setActivePinia(pinia);
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    app = null;
+  });
+
+  afterEach(() => {
+    app?.unmount();
+    container.remove();
+  });
+
+  async function mountGallery(onOpenConfig?: () => void) {
+    app = createApp({
+      render() {
+        return h(GalleryGrid, { onOpenConfig });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+  }
+
+  it('未配置且没有作品时提供配置入口并发出打开设置事件', async () => {
+    let opened = 0;
+    await mountGallery(() => { opened++; });
+
+    expect(container.querySelector('.gallery-empty p')?.textContent).toContain('先连接生图服务，再输入描述开始创作');
+    const button = container.querySelector('.gallery-empty button') as HTMLButtonElement;
+    expect(button?.textContent).toContain('配置生图服务');
+    button.click();
+    expect(opened).toBe(1);
+  });
+
+  it('配置完成后恢复正常创作提示并隐藏配置入口', async () => {
+    await mountGallery();
+    useConfigStore().updateConfig({ baseUrl: 'https://images.example.com', apiKey: 'test-key' });
+    await nextTick();
+
+    expect(container.querySelector('.gallery-empty p')?.textContent).toContain('在下方输入提示词并点击生成');
+    expect(container.querySelector('.gallery-empty button')).toBeNull();
+  });
+
+  it.each([
+    { label: '搜索', searchQuery: '不存在的作品', filterFavoriteOnly: false, filterType: 'all' as const },
+    { label: '收藏', searchQuery: '', filterFavoriteOnly: true, filterType: 'all' as const },
+    { label: '文生图分类', searchQuery: '', filterFavoriteOnly: false, filterType: 't2i' as const },
+    { label: '图生图分类', searchQuery: '', filterFavoriteOnly: false, filterType: 'i2i' as const }
+  ])('$label 筛选无结果时不显示首次配置引导', async ({ searchQuery, filterFavoriteOnly, filterType }) => {
+    const galleryStore = useGalleryStore();
+    galleryStore.searchQuery = searchQuery;
+    galleryStore.filterFavoriteOnly = filterFavoriteOnly;
+    galleryStore.filterType = filterType;
+    await mountGallery();
+
+    expect(container.querySelector('.gallery-empty')).not.toBeNull();
+    expect(container.textContent).not.toContain('先连接生图服务');
+    expect(container.querySelector('.gallery-empty button')).toBeNull();
+  });
+
+  it('已有作品时不因接口未配置而展示首次引导', async () => {
+    useGalleryStore().items = [createMockAsset(1, '历史作品')];
+    await mountGallery();
+
+    expect(container.querySelector('.gallery-empty')).toBeNull();
+    expect(container.querySelector('.cards-grid')).not.toBeNull();
+  });
+
+  it('已有生成任务时保留任务卡片，不展示首次引导', async () => {
+    useTaskStore().addTask({
+      id: 'task_onboarding',
+      type: 't2i',
+      params: {
+        model: 'gpt-image-2',
+        prompt: '进行中的创作',
+        type: 't2i',
+        size: 'auto',
+        resolution: '1k',
+        aspectRatio: 'auto',
+        quality: 'medium',
+        format: 'png',
+        transparent: false,
+        count: 1
+      },
+      status: 'processing',
+      progress: 10,
+      currentIndex: 1,
+      elapsedSeconds: 1,
+      durationFormatted: '1.0s',
+      resultAssetIds: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+    await mountGallery();
+
+    expect(container.querySelector('.gallery-empty')).toBeNull();
+    expect(container.querySelector('.cards-grid')).not.toBeNull();
+  });
+
+  it('加载历史作品时不提前展示首次引导', async () => {
+    useGalleryStore().isLoading = true;
+    await mountGallery();
+
+    expect(container.querySelector('.gallery-loading')).not.toBeNull();
+    expect(container.querySelector('.gallery-empty')).toBeNull();
+  });
+
+  it('设置与收藏图标按钮具有明确名称并同步收藏状态', async () => {
+    let opened = 0;
+    app = createApp({
+      render() {
+        return h(AppHeader, { onOpenConfig: () => { opened++; } });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const settingsButton = container.querySelector('.config-btn') as HTMLButtonElement;
+    expect(settingsButton.type).toBe('button');
+    expect(settingsButton.getAttribute('aria-label')).toBe('设置');
+    expect(settingsButton.getAttribute('data-tip')).toBe('设置');
+    settingsButton.click();
+    expect(opened).toBe(1);
+
+    const favoriteButton = container.querySelector('.filter-btn') as HTMLButtonElement;
+    expect(favoriteButton.type).toBe('button');
+    expect(favoriteButton.getAttribute('aria-label')).toBe('仅查看收藏');
+    expect(favoriteButton.getAttribute('aria-pressed')).toBe('false');
+    favoriteButton.click();
+    await nextTick();
+    expect(favoriteButton.getAttribute('aria-pressed')).toBe('true');
   });
 });
 

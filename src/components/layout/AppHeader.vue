@@ -35,9 +35,12 @@ function clearSearch() {
     <div class="header-left">
       <!-- 收藏快速筛选 -->
       <button 
+        type="button"
         class="filter-btn" 
         :class="{ active: galleryStore.filterFavoriteOnly }"
         data-tip="仅查看收藏"
+        aria-label="仅查看收藏"
+        :aria-pressed="galleryStore.filterFavoriteOnly"
         @click="galleryStore.filterFavoriteOnly = !galleryStore.filterFavoriteOnly"
       >
         <Star :size="15" :class="{ 'star-active': galleryStore.filterFavoriteOnly }" />
@@ -79,9 +82,11 @@ function clearSearch() {
 
       <!-- 设置按钮 -->
       <button 
+        type="button"
         class="config-btn" 
         :class="{ 'needs-config': !configStore.isConfigured }"
-        data-tip="接口配置"
+        data-tip="设置"
+        aria-label="设置"
         @click="$emit('openConfig')"
       >
         <Settings :size="16" />

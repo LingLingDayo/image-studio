@@ -1,4 +1,4 @@
-import { ref, computed, reactive, watch } from 'vue';
+import { ref, computed, reactive, watch, markRaw, toRaw, getCurrentScope, onScopeDispose } from 'vue';
 import { useConfigStore } from '@/stores/configStore';
 import { useModelStore } from '@/stores/modelStore';
 import { useTaskStore } from '@/stores/taskStore';
@@ -14,7 +14,7 @@ import {
 } from '@/types/model';
 import type { MediaAsset, ArtworkBatch } from '@/types/asset';
 import { dataUrlToFile } from '@/utils/download';
-import { calculateImageDimensions } from '@/utils/image';
+import { calculateImageDimensions, loadImageDimensions } from '@/utils/image';
 import {
   applyAspectRatioChange,
   applyHeightChange,
@@ -99,28 +99,83 @@ export function useImageStudio() {
   const progress = computed(() => taskStore.currentProgress);
   const errorMessage = computed(() => taskStore.lastError);
 
+  function createReferenceImage(file: File, metadata?: TaskReferenceImage): TaskReferenceImage {
+    const retainedFile = markRaw(toRaw(file));
+    return reactive<TaskReferenceImage>({
+      ...metadata,
+      id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      file: retainedFile,
+      previewUrl: URL.createObjectURL(retainedFile)
+    });
+  }
+
+  function updateReferenceDimensions(img: TaskReferenceImage) {
+    calculateImageDimensions(img.previewUrl)
+      .then((dims) => {
+        img.width = dims.width;
+        img.height = dims.height;
+        img.ratio = dims.ratioStr;
+        if (isReferenceRatio(sizeState.aspectRatio) && referenceImages.value[0]?.id === img.id) {
+          Object.assign(sizeState, applyAspectRatioChange(sizeState, sizeState.aspectRatio, dims.ratioStr, dims));
+        }
+      })
+      .catch(() => {});
+  }
+
   function addReferenceImages(files: FileList | File[]) {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!file.type.startsWith('image/')) continue;
-      const previewUrl = URL.createObjectURL(file);
-      const newImg = reactive<TaskReferenceImage>({
-        id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        file,
-        previewUrl
-      });
-      referenceImages.value.push(newImg);
+      const img = createReferenceImage(file);
+      referenceImages.value.push(img);
+      updateReferenceDimensions(img);
+    }
+  }
 
-      calculateImageDimensions(previewUrl)
-        .then((dims) => {
-          newImg.width = dims.width;
-          newImg.height = dims.height;
-          newImg.ratio = dims.ratioStr;
-          if (isReferenceRatio(sizeState.aspectRatio) && referenceImages.value[0]?.id === newImg.id) {
-            Object.assign(sizeState, applyAspectRatioChange(sizeState, sizeState.aspectRatio, dims.ratioStr));
-          }
-        })
-        .catch(() => {});
+  async function loadReferenceImage(url: string, filename: string): Promise<TaskReferenceImage> {
+    if (!url.trim()) {
+      throw new Error('无法读取参考图：图片地址为空');
+    }
+
+    let file: File;
+    if (url.startsWith('data:')) {
+      try {
+        file = dataUrlToFile(url, filename);
+      } catch {
+        throw new Error('无法读取参考图：本地图片数据无效');
+      }
+    } else {
+      let response: Response;
+      try {
+        response = await fetch(url);
+      } catch {
+        throw new Error('无法读取参考图，请检查图片地址、网络或跨域权限');
+      }
+      if (!response.ok) {
+        throw new Error(`无法读取参考图：HTTP ${response.status}`);
+      }
+      try {
+        const blob = await response.blob();
+        file = new File([blob], filename, { type: blob.type });
+      } catch {
+        throw new Error('无法读取参考图：图片内容读取失败');
+      }
+    }
+
+    if (!file.type.startsWith('image/') || file.size === 0) {
+      throw new Error('参考图为空或不是有效的图片，请重新选择');
+    }
+
+    const img = createReferenceImage(file);
+    try {
+      const dims = await loadImageDimensions(img.previewUrl);
+      img.width = dims.width;
+      img.height = dims.height;
+      img.ratio = dims.ratioStr;
+      return img;
+    } catch (error) {
+      URL.revokeObjectURL(img.previewUrl);
+      throw error;
     }
   }
 
@@ -143,6 +198,14 @@ export function useImageStudio() {
     }
   }
 
+  let isDisposed = false;
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      isDisposed = true;
+      clearReferenceImages();
+    });
+  }
+
   async function generate(): Promise<GenerationTask[]> {
     const batches = splitPromptBatches(prompt.value);
     if (batches.length === 0) {
@@ -154,7 +217,6 @@ export function useImageStudio() {
     }
 
     const isEditMode = referenceImages.value.length > 0;
-    const sharedRefs = isEditMode ? [...referenceImages.value] : [];
     const outputFormat = transparent.value ? resolveTransparentOutputFormat(format.value) : format.value;
 
     // 确保首张参考图真实尺寸已就绪（避免直接点击生成时尺寸未决）
@@ -175,6 +237,8 @@ export function useImageStudio() {
       primaryReferenceRatio: primaryReferenceRatio.value
     });
 
+    // 输入区持有预览 URL；任务只保留 File 与尺寸快照，复用时重新创建预览。
+    const sharedRefs = isEditMode ? referenceImages.value.map((img) => ({ ...img })) : [];
     const tasks: GenerationTask[] = [];
     for (const batchPrompt of batches) {
       const params: TaskGenerationParams = {
@@ -299,145 +363,57 @@ export function useImageStudio() {
   }
 
   async function reuseItem(item: MediaAsset | ArtworkBatch | GenerationTask | TaskGenerationParams) {
-    if (!item) return;
+    const source = 'params' in item ? item.params : item;
+    const targetSize = hydrateImageSizeFromSettings(source);
+    const targetQuality = source.quality as ModelQuality | undefined;
+    const targetFormat = source.format as ModelFormat | undefined;
+    const targetModeration = source.moderation as ModelModeration | undefined;
+    const targetCount = 'count' in source ? source.count : 'assets' in source ? source.assets.length : undefined;
+    const preparedRefs: TaskReferenceImage[] = [];
 
-    let modelName: string | undefined;
-    let targetPrompt = '';
-    let targetQuality: ModelQuality | undefined;
-    let targetFormat: ModelFormat | undefined;
-    let targetTransparent: boolean | undefined;
-    let targetModeration: ModelModeration | undefined;
-    let targetCount: number | undefined;
-    let refsTask: TaskReferenceImage[] | undefined;
-    let refsStrings: string[] | undefined;
-
-    if ('params' in item) {
-      // GenerationTask
-      const p = item.params;
-      modelName = p.model;
-      targetPrompt = p.prompt;
-      targetQuality = p.quality;
-      targetFormat = p.format;
-      targetTransparent = p.transparent;
-      targetModeration = p.moderation;
-      targetCount = p.count;
-      refsTask = p.referenceImages;
-      Object.assign(sizeState, hydrateImageSizeFromSettings(p));
-    } else if ('url' in item || 'assets' in item) {
-      // MediaAsset 或 ArtworkBatch
-      const asset = item as MediaAsset;
-      modelName = asset.model;
-      targetPrompt = asset.prompt;
-      targetQuality = asset.quality as ModelQuality;
-      targetFormat = asset.format as ModelFormat;
-      targetTransparent = asset.transparent;
-      targetModeration = asset.moderation as ModelModeration | undefined;
-      targetCount = ('assets' in item && Array.isArray((item as ArtworkBatch).assets))
-        ? (item as ArtworkBatch).assets.length
-        : undefined;
-      refsStrings = asset.referenceImages;
-      Object.assign(sizeState, hydrateImageSizeFromSettings(asset));
-    } else {
-      // TaskGenerationParams
-      const p = item as TaskGenerationParams;
-      modelName = p.model;
-      targetPrompt = p.prompt;
-      targetQuality = p.quality;
-      targetFormat = p.format;
-      targetTransparent = p.transparent;
-      targetModeration = p.moderation;
-      targetCount = p.count;
-      refsTask = p.referenceImages;
-      Object.assign(sizeState, hydrateImageSizeFromSettings(p));
+    // 参考图全部准备成功后再替换输入，避免加载失败时留下不完整的复用状态。
+    try {
+      if ('url' in source || 'assets' in source) {
+        for (const [index, url] of (source.referenceImages || []).entries()) {
+          preparedRefs.push(await loadReferenceImage(url, `reference_${index + 1}.png`));
+        }
+      } else {
+        for (const img of source.referenceImages || []) {
+          preparedRefs.push(createReferenceImage(img.file, img));
+        }
+      }
+      if (isDisposed) throw new Error('工作台已关闭，请重新打开后再操作');
+    } catch (error) {
+      preparedRefs.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+      throw error;
     }
 
-    // 1. 恢复提示词 (使用原始 prompt，绝非 revisedPrompt)
-    if (targetPrompt !== undefined) {
-      prompt.value = targetPrompt;
+    clearReferenceImages();
+    referenceImages.value = preparedRefs;
+    for (const img of preparedRefs) {
+      if (!img.ratio || !img.width || !img.height) updateReferenceDimensions(img);
     }
-
-    // 2. 恢复模型选择
-    if (modelName) {
-      modelStore.setActiveModel(modelName);
-    }
-
-    // 3. 恢复画质
-    if (targetQuality) {
-      quality.value = targetQuality;
-    }
-
-    // 4. 恢复透明度与格式
-    if (targetTransparent !== undefined) {
-      transparent.value = targetTransparent;
-    }
+    Object.assign(sizeState, targetSize);
+    prompt.value = source.prompt;
+    if (source.model) modelStore.setActiveModel(source.model);
+    if (targetQuality) quality.value = targetQuality;
+    if (source.transparent !== undefined) transparent.value = source.transparent;
     if (targetFormat) {
-      const reusedFormat = targetFormat as ModelFormat;
-      format.value = transparent.value ? resolveTransparentOutputFormat(reusedFormat) : reusedFormat;
+      format.value = transparent.value ? resolveTransparentOutputFormat(targetFormat) : targetFormat;
     } else if (transparent.value) {
       format.value = resolveTransparentOutputFormat(format.value);
     }
-
-    // 5. 恢复生成张数
-    if (targetCount && targetCount > 0) {
-      count.value = targetCount;
-    }
-
-    // 6. 恢复审核力度
-    if (targetModeration) {
-      moderation.value = targetModeration;
-    }
-
-    // 7. 恢复参考图 (先清空现有参考图，精准还原生图设定的参考图状态)
-    clearReferenceImages();
-    if (refsTask && refsTask.length > 0) {
-      referenceImages.value = [...refsTask];
-      refsTask.forEach((img) => {
-        if (!img.ratio) {
-          calculateImageDimensions(img.previewUrl).then((dims) => {
-            img.width = dims.width;
-            img.height = dims.height;
-            img.ratio = dims.ratioStr;
-            if (isReferenceRatio(sizeState.aspectRatio) && referenceImages.value[0]?.id === img.id) {
-              Object.assign(sizeState, applyAspectRatioChange(sizeState, sizeState.aspectRatio, dims.ratioStr));
-            }
-          }).catch(() => {});
-        }
-      });
-    } else if (refsStrings && refsStrings.length > 0) {
-      for (let i = 0; i < refsStrings.length; i++) {
-        const refStr = refsStrings[i];
-        if (!refStr) continue;
-        try {
-          if (refStr.startsWith('data:')) {
-            const file = dataUrlToFile(refStr, `reference_${i + 1}.png`);
-            addReferenceImages([file]);
-          } else {
-            const res = await fetch(refStr);
-            const blob = await res.blob();
-            const file = new File([blob], `reference_${i + 1}.png`, { type: blob.type || 'image/png' });
-            addReferenceImages([file]);
-          }
-        } catch (e) {
-          console.warn('恢复参考图失败:', e);
-        }
-      }
-    }
+    if (targetCount && targetCount > 0) count.value = targetCount;
+    if (targetModeration) moderation.value = targetModeration;
   }
 
   async function useImageAsReference(url: string, filename: string = 'reference.png') {
-    try {
-      if (url.startsWith('data:')) {
-        const file = dataUrlToFile(url, filename);
-        addReferenceImages([file]);
-        return;
-      }
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const file = new File([blob], filename, { type: blob.type || 'image/png' });
-      addReferenceImages([file]);
-    } catch (e) {
-      console.error('加载参考图失败:', e);
+    const img = await loadReferenceImage(url, filename);
+    if (isDisposed) {
+      URL.revokeObjectURL(img.previewUrl);
+      throw new Error('工作台已关闭，请重新打开后再操作');
     }
+    referenceImages.value.push(img);
   }
 
   return {

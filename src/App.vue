@@ -15,7 +15,6 @@ import type { GenerationTask, TaskReferenceImage } from '@/types/task';
 
 const isConfigOpen = ref(false);
 const configInitialTab = ref<'image' | 'optimizer'>('image');
-const isApiKeyMissingDialogOpen = ref(false);
 const activeLightboxItem = ref<MediaAsset | null>(null);
 const activeLightboxBatch = ref<MediaAsset[]>([]);
 const activePreviewRefImage = ref<TaskReferenceImage | null>(null);
@@ -42,12 +41,9 @@ function openConfig(tab: 'image' | 'optimizer' = 'image') {
   isConfigOpen.value = true;
 }
 
-function handleGoToConfig() {
-  isApiKeyMissingDialogOpen.value = false;
-  openConfig('image');
-}
-
 const configStore = useConfigStore();
+
+
 const galleryStore = useGalleryStore();
 const {
   prompt,
@@ -78,15 +74,18 @@ const {
   useImageAsReference
 } = useImageStudio();
 
+function ensureImageServiceConfigured(): boolean {
+  if (configStore.isConfigured) return true;
+  openConfig('image');
+  return false;
+}
+
 onMounted(async () => {
   await galleryStore.loadGallery();
 });
 
 async function handleGenerate() {
-  if (!configStore.isConfigured) {
-    isApiKeyMissingDialogOpen.value = true;
-    return;
-  }
+  if (!ensureImageServiceConfigured()) return;
   try {
     const tasks = await generate();
     showToast(
@@ -95,29 +94,27 @@ async function handleGenerate() {
         : '已发起生成任务，正在实时绘制...',
       'info'
     );
-  } catch (err: any) {
-    showToast(err.message || '发起生图失败', 'error');
+  } catch (error) {
+    showToast(getOperationErrorMessage(error, '发起生图失败'), 'error');
   }
 }
 
-async function handleRegenerate(item: MediaAsset | any) {
-  if (!configStore.isConfigured) {
-    isApiKeyMissingDialogOpen.value = true;
-    return;
-  }
+async function handleRegenerate(item: MediaAsset | ArtworkBatch | GenerationTask) {
+  if (!ensureImageServiceConfigured()) return;
   if ('params' in item) {
     retryTask(item);
   } else {
-    await reuseItem(item);
-    await handleGenerate();
+    try {
+      await reuseItem(item);
+      await handleGenerate();
+    } catch (error) {
+      showToast(getOperationErrorMessage(error, '恢复生成参数失败，请重试'), 'error');
+    }
   }
 }
 
-function handleRetryTask(task: any) {
-  if (!configStore.isConfigured) {
-    isApiKeyMissingDialogOpen.value = true;
-    return;
-  }
+function handleRetryTask(task: GenerationTask) {
+  if (!ensureImageServiceConfigured()) return;
   retryTask(task);
   showToast('已重新发起生成任务', 'info');
 }
@@ -131,15 +128,27 @@ function handleRemoveTask(taskId: string) {
   removeTask(taskId);
 }
 
-async function handleReuse(item: MediaAsset | GenerationTask | any) {
-  await reuseItem(item);
-  showToast('已复用提示词与全部参数设置', 'info');
+function getOperationErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+async function handleReuse(item: MediaAsset | ArtworkBatch | GenerationTask) {
+  try {
+    await reuseItem(item);
+    showToast('已复用提示词与全部参数设置', 'info');
+  } catch (error) {
+    showToast(getOperationErrorMessage(error, '复用失败，请重试'), 'error');
+  }
 }
 
 async function handleEditAsReference(item: MediaAsset) {
-  await reuseItem(item);
-  await useImageAsReference(item.url);
-  showToast('已将选定图片加入参考图栏', 'info');
+  try {
+    await reuseItem(item);
+    await useImageAsReference(item.url);
+    showToast('已将选定图片加入参考图栏', 'info');
+  } catch (error) {
+    showToast(getOperationErrorMessage(error, '加载参考图失败，请重试'), 'error');
+  }
 }
 
 function showToast(message: string, type: 'success' | 'error' | 'info' = 'info') {
@@ -301,6 +310,7 @@ async function confirmPendingDelete() {
       <!-- 主画廊相册展示区 -->
       <main class="content-area">
         <GalleryGrid 
+          @open-config="openConfig('image')"
           @view="handleOpenLightbox"
           @regenerate="handleRegenerate"
           @reuse="handleReuse"
@@ -348,7 +358,7 @@ async function confirmPendingDelete() {
       :is-open="isConfigOpen"
       :initial-tab="configInitialTab"
       @close="isConfigOpen = false" 
-      @saved="showToast('系统设置已保存', 'success')" 
+      @saved="showToast('设置已保存', 'success')"
     />
 
     <!-- 大图高清查看灯箱 -->
@@ -407,18 +417,6 @@ async function confirmPendingDelete() {
       cancel-text="取消"
       @confirm="confirmPendingDelete"
       @close="closeDeleteDialog"
-    />
-
-    <!-- 未配置 API Key 提示弹窗 -->
-    <UiDialog
-      :is-open="isApiKeyMissingDialogOpen"
-      type="warning"
-      title="未配置生图 API Key"
-      description="检测到尚未配置生图接口地址或 API Key。请先前往系统设置完成配置后再发起生图任务。"
-      confirm-text="前往配置"
-      cancel-text="取消"
-      @confirm="handleGoToConfig"
-      @close="isApiKeyMissingDialogOpen = false"
     />
 
     <!-- 全局单例 Tooltip -->

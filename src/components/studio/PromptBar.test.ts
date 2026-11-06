@@ -38,6 +38,17 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     elapsedTime: '0s'
   };
 
+  it('输入区使用简短引导，关键操作保留可访问名称', async () => {
+    const app = createApp(() => h(PromptBar, { ...defaultProps, quality: 'medium' }));
+    app.mount(container);
+    await nextTick();
+    const textarea = container.querySelector('textarea')!;
+    expect(textarea.placeholder.length).toBeLessThanOrEqual(30);
+    expect(textarea.getAttribute('aria-label')).toBe('画面描述');
+    expect(container.querySelector('.btn-clip')?.getAttribute('aria-label')).toBe('添加参考图');
+    expect(container.querySelector('.btn-send')?.getAttribute('aria-label')).toBe('生成图片');
+    app.unmount();
+  });
   it('未配置优化模型时默认显示 AI 优化按钮，但处于 disabled 状态且 tooltip 提示配置 key', async () => {
     const configStore = useConfigStore();
     // 确保未配置
@@ -318,7 +329,7 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     app.unmount();
   });
 
-  it('空输入时应在占位文案中说明连续两个空行可分批生成', async () => {
+  it('空输入时以轻量说明保留连续两个空行分批提示', async () => {
     const app = createApp({
       render() {
         return h(PromptBar as any, defaultProps);
@@ -329,7 +340,9 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     await nextTick();
 
     const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
-    expect(textarea.placeholder).toContain('连续两个空行分隔即可分批生成');
+    expect(textarea.placeholder.length).toBeLessThanOrEqual(30);
+    expect(container.querySelector('.prompt-hint')?.textContent).toContain('连续两个空行');
+    expect(textarea.getAttribute('aria-description')).toContain('连续两个空行分隔');
 
     app.unmount();
   });

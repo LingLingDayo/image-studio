@@ -467,7 +467,9 @@ onUnmounted(() => {
           ref="textareaRef"
           :value="prompt"
           :rows="TEXTAREA_MIN_ROWS"
-          placeholder="输入画面描述或图生图指令... (支持直接粘贴或拖入参考图，Ctrl + Enter 快速生成；连续两个空行分隔即可分批生成)"
+          placeholder="描述想生成的画面，或拖入参考图…"
+          aria-label="画面描述"
+          aria-description="支持粘贴或拖入参考图；Ctrl+Enter 生成；连续两个空行分隔可分批生成。"
           @input="handlePromptInput"
           @keydown="handleKeyDown"
         ></textarea>
@@ -476,11 +478,17 @@ onUnmounted(() => {
           v-if="prompt" 
           class="clear-text-btn" 
           data-tip="清空文字"
+          type="button"
+          aria-label="清空提示词"
           @click="emit('update:prompt', '')"
         >
           <X :size="14" />
         </button>
       </div>
+
+      <p v-if="!prompt" class="prompt-hint" data-tip="连续两个空行分隔即可分批生成，单个空行不会拆分。">
+        Ctrl+Enter 生成 · 连续两个空行分批
+      </p>
 
       <!-- 底部参数与操作栏 -->
       <div class="toolbar">
@@ -618,6 +626,7 @@ onUnmounted(() => {
             class="btn-clip" 
             :class="{ 'has-images': referenceImages.length > 0 }"
             data-tip="添加参考图片 (支持多图拖拽/剪贴板粘贴)"
+            aria-label="添加参考图"
             @click="triggerFileInput"
           >
             <Paperclip :size="15" />
@@ -625,7 +634,9 @@ onUnmounted(() => {
 
           <!-- 生成/发送按钮 -->
           <button 
-            class="btn-send" 
+            class="btn-send"
+            type="button"
+            aria-label="生成图片"
             :disabled="!prompt.trim()" 
             :data-tip="isGenerating ? `发起新生成 (当前有 ${elapsedTime} 绘制中)` : '立即生成 (Ctrl+Enter)'"
             @click="handleGenerateClick"
@@ -753,6 +764,11 @@ onUnmounted(() => {
       opacity: 1;
     }
   }
+}
+
+.prompt-hint {
+  color: $text-muted;
+  font-size: 0.72rem;
 }
 
 .input-wrapper {

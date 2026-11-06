@@ -2,13 +2,15 @@
 import { computed } from 'vue';
 import { useGalleryStore } from '@/stores/galleryStore';
 import { useTaskStore } from '@/stores/taskStore';
+import { useConfigStore } from '@/stores/configStore';
 import type { MediaAsset, ArtworkBatch } from '@/types/asset';
 import type { GenerationTask } from '@/types/task';
 import GalleryCard from './GalleryCard.vue';
-import { UiPagination } from '@/components/ui';
+import { UiButton, UiPagination } from '@/components/ui';
 import { ImageOff, Loader2 } from '@lucide/vue';
 
 const emit = defineEmits<{
+  (e: 'openConfig'): void;
   (e: 'view', item: MediaAsset, allAssets: MediaAsset[]): void;
   (e: 'regenerate', item: MediaAsset | GenerationTask): void;
   (e: 'reuse', item: MediaAsset | GenerationTask): void;
@@ -23,6 +25,7 @@ const emit = defineEmits<{
 
 const galleryStore = useGalleryStore();
 const taskStore = useTaskStore();
+const configStore = useConfigStore();
 
 // 进行中/失败的任务卡片只在「全部作品」第一页展示，收藏筛选中不出现
 const showActiveTasks = computed(() => {
@@ -35,6 +38,17 @@ const showActiveTasks = computed(() => {
 
 const isGalleryEmpty = computed(() => {
   return !showActiveTasks.value && galleryStore.filteredBatches.length === 0;
+});
+
+const needsInitialSetup = computed(() => {
+  return (
+    !configStore.isConfigured &&
+    galleryStore.items.length === 0 &&
+    taskStore.tasks.length === 0 &&
+    !galleryStore.searchQuery.trim() &&
+    !galleryStore.filterFavoriteOnly &&
+    galleryStore.filterType === 'all'
+  );
 });
 
 async function handleToggleFavorite(id: number) {
@@ -80,7 +94,8 @@ function handlePageSizeChange(size: number) {
               : '暂无生成作品'
         }}
       </h3>
-      <p>
+      <p v-if="needsInitialSetup">先连接生图服务，再输入描述开始创作</p>
+      <p v-else>
         {{
           galleryStore.searchQuery
             ? '请尝试更换搜索关键词或清除筛选'
@@ -89,6 +104,9 @@ function handlePageSizeChange(size: number) {
               : '在下方输入提示词并点击生成，你的作品将呈现于此'
         }}
       </p>
+      <UiButton v-if="needsInitialSetup" variant="primary" class="setup-button" @click="emit('openConfig')">
+        配置生图服务
+      </UiButton>
     </div>
 
     <div v-else class="gallery-content-wrap">
@@ -143,6 +161,10 @@ function handlePageSizeChange(size: number) {
 .gallery-container {
   width: 100%;
   min-height: 200px;
+}
+
+.setup-button {
+  margin-top: 16px;
 }
 
 .gallery-content-wrap {

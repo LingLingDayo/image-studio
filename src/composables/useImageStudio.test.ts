@@ -1,11 +1,16 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { createApp, effectScope, nextTick } from 'vue';
 import { setActivePinia, createPinia } from 'pinia';
 import { useImageStudio } from './useImageStudio';
 import { defaultTaskScheduler } from '@/core/scheduler/TaskScheduler';
+import { useConfigStore } from '@/stores/configStore';
+import { useGalleryStore } from '@/stores/galleryStore';
+import { useModelStore } from '@/stores/modelStore';
+import App from '@/App.vue';
 import type { MediaAsset, ArtworkBatch } from '@/types/asset';
 import type { GenerationTask, TaskGenerationParams } from '@/types/task';
 
-vi.spyOn(defaultTaskScheduler, 'execute').mockResolvedValue(undefined as any);
+vi.spyOn(defaultTaskScheduler, 'execute').mockResolvedValue([]);
 
 describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
   beforeEach(() => {
@@ -422,3 +427,329 @@ describe('useImageStudio - reference aspect ratio option', () => {
   });
 });
 
+describe('useImageStudio - 参考图资源与错误反馈', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    useConfigStore().updateConfig({ baseUrl: 'https://api.example.com', apiKey: 'test-key' });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function createReferenceAsset(referenceImages: string[]): MediaAsset {
+    return {
+      id: 1,
+      url: 'https://images.example.com/result.png',
+      blob: new Blob(['image'], { type: 'image/png' }),
+      prompt: '复用的提示词',
+      model: 'gpt-image-2',
+      size: '1024x1024',
+      quality: 'medium',
+      duration: '1.0s',
+      timestamp: Date.now(),
+      referenceImages
+    };
+  }
+
+  it('生成任务在首张尺寸补齐后克隆参考图元数据，避免与输入区共享对象', async () => {
+    const studio = useImageStudio();
+    const file = new File(['image'], 'reference.png', { type: 'image/png' });
+    studio.addReferenceImages([file]);
+    studio.prompt.value = '参考图创作';
+    const [task] = await studio.generate();
+    const snapshot = task.params.referenceImages?.[0];
+
+    expect(snapshot).not.toBe(studio.referenceImages.value[0]);
+    expect(snapshot?.file).toBe(file);
+    expect(snapshot?.width).toBe(1024);
+    expect(snapshot?.height).toBe(1024);
+    expect(snapshot?.ratio).toBe('1:1');
+    studio.referenceImages.value[0].ratio = '16:9';
+    expect(snapshot?.ratio).toBe('1:1');
+    studio.clearReferenceImages();
+  });
+
+  it('从输入区移除参考图后，复用任务依据 File 重建可用预览地址', async () => {
+    const studio = useImageStudio();
+    const file = new File(['image'], 'reference.png', { type: 'image/png' });
+    studio.addReferenceImages([file]);
+    studio.prompt.value = '参考图创作';
+    const [task] = await studio.generate();
+    const snapshot = task.params.referenceImages?.[0];
+    const oldUrl = snapshot?.previewUrl;
+    studio.removeReferenceImage(studio.referenceImages.value[0].id);
+
+    await studio.reuseItem(task);
+
+    expect(studio.referenceImages.value).toHaveLength(1);
+    expect(studio.referenceImages.value[0].file).toBe(file);
+    expect(studio.referenceImages.value[0].previewUrl).not.toBe(oldUrl);
+    expect(studio.referenceImages.value[0]).not.toBe(snapshot);
+    studio.clearReferenceImages();
+  });
+
+  it('连续复用同一任务时每次创建独立预览并释放旧输入区地址', async () => {
+    const studio = useImageStudio();
+    studio.addReferenceImages([new File(['image'], 'reference.png', { type: 'image/png' })]);
+    studio.prompt.value = '参考图创作';
+    const [task] = await studio.generate();
+    const originalUrl = studio.referenceImages.value[0].previewUrl;
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+
+    try {
+      await studio.reuseItem(task);
+      const firstUrl = studio.referenceImages.value[0].previewUrl;
+      await studio.reuseItem(task);
+      const secondUrl = studio.referenceImages.value[0].previewUrl;
+
+      expect(new Set([originalUrl, firstUrl, secondUrl]).size).toBe(3);
+      expect(revoke).toHaveBeenCalledWith(originalUrl);
+      expect(revoke).toHaveBeenCalledWith(firstUrl);
+      expect(revoke).not.toHaveBeenCalledWith(secondUrl);
+      studio.clearReferenceImages();
+      expect(revoke).toHaveBeenCalledWith(secondUrl);
+    } finally {
+      revoke.mockRestore();
+    }
+  });
+
+  it('工作台作用域销毁时释放输入区持有的预览地址', () => {
+    const scope = effectScope();
+    const studio = scope.run(() => useImageStudio())!;
+    studio.addReferenceImages([new File(['image'], 'reference.png', { type: 'image/png' })]);
+    const url = studio.referenceImages.value[0].previewUrl;
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+
+    try {
+      scope.stop();
+      expect(revoke).toHaveBeenCalledWith(url);
+    } finally {
+      revoke.mockRestore();
+    }
+  });
+
+  it('参考图请求失败时向调用方抛出 HTTP 状态且不加入输入区', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('unavailable', { status: 503 })));
+    const studio = useImageStudio();
+
+    await expect(studio.useImageAsReference('https://images.example.com/ref.png')).rejects.toThrow('HTTP 503');
+    expect(studio.referenceImages.value).toHaveLength(0);
+  });
+
+  it('参考图网络失败时给出可理解的读取失败信息', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    const studio = useImageStudio();
+
+    await expect(studio.useImageAsReference('https://images.example.com/ref.png')).rejects.toThrow('无法读取参考图');
+    expect(studio.referenceImages.value).toHaveLength(0);
+  });
+
+  it('图片响应体读取失败时给出中文错误，不加入参考图', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: vi.fn().mockRejectedValue(new TypeError('terminated'))
+    }));
+    const studio = useImageStudio();
+
+    await expect(studio.useImageAsReference('https://images.example.com/ref.png')).rejects.toThrow('图片内容读取失败');
+    expect(studio.referenceImages.value).toHaveLength(0);
+  });
+
+  it('作用域销毁后才完成的参考图读取会释放预览而非写回已关闭工作台', async () => {
+    let resolveResponse!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    })));
+    const scope = effectScope();
+    const studio = scope.run(() => useImageStudio())!;
+    const pending = studio.useImageAsReference('https://images.example.com/ref.png');
+    scope.stop();
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+
+    try {
+      resolveResponse(new Response(new Blob(['image'], { type: 'image/png' })));
+      await expect(pending).rejects.toThrow('工作台已关闭');
+      expect(studio.referenceImages.value).toHaveLength(0);
+      expect(revoke).toHaveBeenCalledOnce();
+    } finally {
+      revoke.mockRestore();
+    }
+  });
+
+  it.each([
+    new Blob(['not an image'], { type: 'application/json' }),
+    new Blob([], { type: 'image/png' })
+  ])('非图片响应和空图片不能作为参考图加入', async (blob) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(blob)));
+    const studio = useImageStudio();
+
+    await expect(studio.useImageAsReference('https://images.example.com/ref.png')).rejects.toThrow('不是有效的图片');
+    expect(studio.referenceImages.value).toHaveLength(0);
+  });
+
+  it('声明为图片但无法解码时抛错并释放临时预览地址', async () => {
+    class InvalidImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(_url: string) {
+        queueMicrotask(() => this.onerror?.());
+      }
+    }
+    vi.stubGlobal('Image', InvalidImage);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(new Blob(['broken'], { type: 'image/png' }))));
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    const studio = useImageStudio();
+
+    try {
+      await expect(studio.useImageAsReference('https://images.example.com/ref.png')).rejects.toThrow('无法解码');
+      expect(studio.referenceImages.value).toHaveLength(0);
+      expect(revoke).toHaveBeenCalledOnce();
+    } finally {
+      revoke.mockRestore();
+    }
+  });
+
+  it('成功读取参考图后加入已解析尺寸的独立预览', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(new Blob(['image'], { type: 'image/png' }))));
+    const studio = useImageStudio();
+
+    await studio.useImageAsReference('https://images.example.com/ref.png');
+
+    expect(studio.referenceImages.value).toHaveLength(1);
+    expect(studio.referenceImages.value[0].width).toBe(1024);
+    expect(studio.referenceImages.value[0].ratio).toBe('1:1');
+    studio.clearReferenceImages();
+  });
+
+  it('复用作品恢复参考图失败时保留原输入并释放已准备的预览', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(new Blob(['image'], { type: 'image/png' })))
+      .mockResolvedValueOnce(new Response('unavailable', { status: 503 })));
+    const studio = useImageStudio();
+    studio.prompt.value = '原输入';
+    studio.addReferenceImages([new File(['original'], 'original.png', { type: 'image/png' })]);
+    const originalUrl = studio.referenceImages.value[0].previewUrl;
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+
+    try {
+      await expect(studio.reuseItem(createReferenceAsset([
+        'https://images.example.com/first.png',
+        'https://images.example.com/second.png'
+      ]))).rejects.toThrow('HTTP 503');
+      expect(studio.prompt.value).toBe('原输入');
+      expect(studio.referenceImages.value[0].previewUrl).toBe(originalUrl);
+      expect(revoke).toHaveBeenCalledOnce();
+      expect(revoke).not.toHaveBeenCalledWith(originalUrl);
+      studio.clearReferenceImages();
+    } finally {
+      revoke.mockRestore();
+    }
+  });
+
+  it('复用作品可恢复本地 Data URL 参考图，并释放旧输入区预览', async () => {
+    const studio = useImageStudio();
+    studio.addReferenceImages([new File(['original'], 'original.png', { type: 'image/png' })]);
+    const originalUrl = studio.referenceImages.value[0].previewUrl;
+
+    await studio.reuseItem(createReferenceAsset(['data:image/png;base64,aW1hZ2U=']));
+
+    expect(studio.prompt.value).toBe('复用的提示词');
+    expect(studio.referenceImages.value).toHaveLength(1);
+    expect(studio.referenceImages.value[0].previewUrl).not.toBe(originalUrl);
+    expect(studio.referenceImages.value[0].file.type).toBe('image/png');
+    studio.clearReferenceImages();
+  });
+});
+
+describe('App - 参考图操作反馈', () => {
+  let pinia: ReturnType<typeof createPinia>;
+  let app: ReturnType<typeof createApp> | null;
+  let container: HTMLDivElement;
+  let loadGallery: ReturnType<typeof vi.spyOn>;
+  let refreshModels: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    localStorage.clear();
+    pinia = createPinia();
+    setActivePinia(pinia);
+    app = null;
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    const galleryStore = useGalleryStore();
+    loadGallery = vi.spyOn(galleryStore, 'loadGallery').mockResolvedValue();
+    refreshModels = vi.spyOn(useModelStore(), 'refreshAvailableModels').mockResolvedValue();
+    galleryStore.items = [{
+      id: 1,
+      url: 'https://images.example.com/result.png',
+      blob: new Blob(['image'], { type: 'image/png' }),
+      prompt: '测试作品',
+      model: 'gpt-image-2',
+      size: '1024x1024',
+      quality: 'medium',
+      duration: '1.0s',
+      timestamp: Date.now()
+    }];
+  });
+
+  afterEach(() => {
+    app?.unmount();
+    container.remove();
+    loadGallery.mockRestore();
+    refreshModels.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it('未配置时发起生成直接打开设置，并保留已经输入的描述', async () => {
+    app = createApp(App);
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+    const textarea = container.querySelector('textarea')!;
+    textarea.value = '准备生成的画面';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    await nextTick();
+    (container.querySelector('.btn-send') as HTMLButtonElement).click();
+    await nextTick();
+
+    expect(container.querySelector('#settings-title')?.textContent).toBe('设置');
+    expect(container.textContent).not.toContain('未配置生图 API Key');
+    expect(textarea.value).toBe('准备生成的画面');
+  });
+  it('复用作品的参考图恢复失败时只提示错误，不提示复用成功', async () => {
+    useGalleryStore().items[0].referenceImages = ['https://images.example.com/reference.png'];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('unavailable', { status: 503 })));
+    app = createApp(App);
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+    const button = container.querySelector('[data-tip="复用提示词与参数"]') as HTMLButtonElement;
+    button.click();
+    await vi.waitFor(() => {
+      expect(container.querySelector('.toast.error')?.textContent).toContain('HTTP 503');
+      expect(container.textContent).not.toContain('已复用提示词与全部参数设置');
+    });
+  });
+
+  it.each([503, 200])('以作品为参考图时按 HTTP %s 结果展示错误或成功反馈', async (status) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(new Blob(['image'], { type: 'image/png' }), { status })));
+    app = createApp(App);
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+    const button = container.querySelector('[data-tip="以此图为参考进行图生图编辑"]') as HTMLButtonElement;
+    expect(button).not.toBeNull();
+    button.click();
+    await vi.waitFor(() => {
+      if (status === 503) {
+        expect(container.querySelector('.toast.error')?.textContent).toContain('HTTP 503');
+        expect(container.textContent).not.toContain('已将选定图片加入参考图栏');
+      } else {
+        expect(container.querySelector('.toast.info')?.textContent).toContain('已将选定图片加入参考图栏');
+        expect(container.querySelector('.toast.error')).toBeNull();
+      }
+    }, { timeout: 3000 });
+  });
+});
