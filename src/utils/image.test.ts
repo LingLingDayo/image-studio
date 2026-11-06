@@ -75,7 +75,7 @@ describe('loadImageDimensions 严格加载与降级兼容', () => {
 
   it('仅创建一次 Image，返回真实尺寸和比例并解绑事件', async () => {
     let created = 0;
-    let image!: MockImage;
+    const instances: MockImage[] = [];
     class MockImage {
       naturalWidth = 1920;
       naturalHeight = 1080;
@@ -83,7 +83,7 @@ describe('loadImageDimensions 严格加载与降级兼容', () => {
       onerror: (() => void) | null = null;
       constructor() {
         created++;
-        image = this;
+        instances.push(this);
       }
       set src(_url: string) {
         queueMicrotask(() => this.onload?.());
@@ -97,18 +97,18 @@ describe('loadImageDimensions 严格加载与降级兼容', () => {
       ratioStr: '16:9'
     });
     expect(created).toBe(1);
-    expect(image.onload).toBeNull();
-    expect(image.onerror).toBeNull();
+    expect(instances[0].onload).toBeNull();
+    expect(instances[0].onerror).toBeNull();
   });
 
   it('解码失败时拒绝并解绑事件、清理超时计时器', async () => {
     vi.useFakeTimers();
-    let image!: MockImage;
+    const instances: MockImage[] = [];
     class MockImage {
       onload: (() => void) | null = null;
       onerror: (() => void) | null = null;
       constructor() {
-        image = this;
+        instances.push(this);
       }
       set src(_url: string) {
         Promise.resolve().then(() => this.onerror?.());
@@ -117,19 +117,19 @@ describe('loadImageDimensions 严格加载与降级兼容', () => {
     vi.stubGlobal('Image', MockImage);
 
     await expect(loadImageDimensions('blob:broken-image')).rejects.toThrow('无法解码');
-    expect(image.onload).toBeNull();
-    expect(image.onerror).toBeNull();
+    expect(instances[0].onload).toBeNull();
+    expect(instances[0].onerror).toBeNull();
     expect(vi.getTimerCount()).toBe(0);
   });
 
   it('加载超时会拒绝并清理事件与计时器', async () => {
     vi.useFakeTimers();
-    let image!: MockImage;
+    const instances: MockImage[] = [];
     class MockImage {
       onload: (() => void) | null = null;
       onerror: (() => void) | null = null;
       constructor() {
-        image = this;
+        instances.push(this);
       }
       set src(_url: string) {}
     }
@@ -139,8 +139,8 @@ describe('loadImageDimensions 严格加载与降级兼容', () => {
 
     await vi.advanceTimersByTimeAsync(100);
     await assertion;
-    expect(image.onload).toBeNull();
-    expect(image.onerror).toBeNull();
+    expect(instances[0].onload).toBeNull();
+    expect(instances[0].onerror).toBeNull();
     expect(vi.getTimerCount()).toBe(0);
   });
 

@@ -9,6 +9,21 @@ describe('OpenAICompatibleAdapter (OpenAICompatibleAdapter.ts)', () => {
     vi.restoreAllMocks();
   });
 
+  it.each(['network', 'stream'] as const)('包装 %s 错误时保留原始cause', async (mode) => {
+    const original = new TypeError('underlying failure');
+    globalThis.fetch = mode === 'network'
+      ? vi.fn().mockRejectedValue(original)
+      : vi.fn().mockResolvedValue({
+          ok: true,
+          body: { getReader: () => ({ read: vi.fn().mockRejectedValue(original) }) }
+        });
+    const params: TaskGenerationParams = {
+      model: 'gpt-image-2', prompt: 'cause test', type: 't2i', size: '1024x1024',
+      quality: 'medium', format: 'png', transparent: false, count: 1
+    };
+    await expect(adapter.execute({ baseUrl: 'https://example.com/v1', apiKey: 'test-key', model: params.model }, params))
+      .rejects.toMatchObject({ cause: original });
+  });
   it('should have correct providerId and name', () => {
     expect(adapter.providerId).toBe('openai-compatible');
     expect(adapter.name).toContain('OpenAI');

@@ -426,7 +426,7 @@ export async function extractResponseError(response: Response | any, defaultActi
     return fallbackHttp();
   }
 
-  let rawBody = '';
+  let rawBody: string;
   try {
     rawBody = await response.text();
   } catch {
@@ -495,7 +495,7 @@ export async function parseResponseSafeJson(response: Response | string | any, a
     throw new Error(`${actionName}失败: 服务端返回了空响应`);
   }
 
-  let rawText = '';
+  let rawText: string;
   if (typeof response === 'string') {
     rawText = response;
   } else if (typeof response.text !== 'function' && typeof response.json === 'function') {

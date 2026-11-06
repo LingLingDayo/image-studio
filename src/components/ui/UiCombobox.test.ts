@@ -62,6 +62,17 @@ describe('UiCombobox', () => {
     return [...container.querySelectorAll('[role="option"]')].map((element) => element.textContent?.trim() || '');
   }
 
+  it('多个未传id的实例生成互不冲突的输入与列表标识', async () => {
+    app = createApp(() => h('div', [
+      h(UiCombobox, { modelValue: '', options: ['model-a'] }),
+      h(UiCombobox, { modelValue: '', options: ['model-a'] })
+    ]));
+    app.mount(container);
+    await nextTick();
+    const inputs = [...container.querySelectorAll('input')];
+    expect(new Set(inputs.map((node) => node.id)).size).toBe(2);
+    expect(new Set(inputs.map((node) => node.getAttribute('aria-controls'))).size).toBe(2);
+  });
   it('始终支持自定义输入，输入时筛选已有选项但不会自动选择', async () => {
     const { value, changed } = await mount(['model-a', 'model-b']);
     await type('custom-model');

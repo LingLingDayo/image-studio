@@ -1,5 +1,10 @@
 <script lang="ts">
 let nextComboboxId = 0;
+
+function createComboboxId(): string {
+  nextComboboxId += 1;
+  return `ui-combobox-${nextComboboxId}`;
+}
 </script>
 
 <script setup lang="ts">
@@ -31,7 +36,7 @@ const emit = defineEmits<{
   (e: 'change', value: string): void;
 }>();
 
-const fallbackId = `ui-combobox-${++nextComboboxId}`;
+const fallbackId = createComboboxId();
 const inputId = computed(() => props.id || `${fallbackId}-input`);
 const listId = computed(() => `${inputId.value}-listbox`);
 const rootRef = ref<HTMLElement | null>(null);

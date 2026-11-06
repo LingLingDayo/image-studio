@@ -23,6 +23,8 @@ jobs:
           cache: npm
       - name: 安装锁定依赖
         run: npm ci
+      - name: ESLint 检查
+        run: npm run lint
       - name: 类型检查
         run: npm run typecheck
       - name: 单元与组件测试

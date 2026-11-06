@@ -34,7 +34,7 @@ function resolveRequestPrompt(params: TaskGenerationParams): string {
 }
 
 function normalizeEndpoint(baseUrl: string, path: string): string {
-  let base = baseUrl.trim().replace(/\/+$/, '');
+  const base = baseUrl.trim().replace(/\/+$/, '');
   if (base.endsWith('/v1')) {
     return `${base}${path}`;
   }
@@ -239,7 +239,7 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
       if (init.signal?.aborted) {
         throw err;
       }
-      throw new Error(formatThrownError(err, actionName));
+      throw new Error(formatThrownError(err, actionName), { cause: err });
     }
 
     if (!response.ok) {
@@ -271,7 +271,7 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
         if (init.signal?.aborted) {
           throw streamErr;
         }
-        throw new Error(`${actionName}失败: 读取响应内容流中断`);
+        throw new Error(`${actionName}失败: 读取响应内容流中断`, { cause: streamErr });
       }
     } else {
       data = await parseResponseSafeJson(response, actionName);
