@@ -3,6 +3,15 @@ import { setActivePinia, createPinia } from 'pinia';
 import { useModelStore } from './modelStore';
 import { useConfigStore } from './configStore';
 
+vi.mock('@/types/config', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/types/config')>();
+  return {
+    ...actual,
+    ENV_BASE_URL: '',
+    ENV_API_KEY: '',
+    DEFAULT_CONFIG: { ...actual.DEFAULT_CONFIG, baseUrl: '', apiKey: '' }
+  };
+});
 function deferredModelResponse() {
   let resolve!: (models: string[]) => void;
   let reject!: (error: Error) => void;
