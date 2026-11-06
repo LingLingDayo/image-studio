@@ -1,13 +1,18 @@
 import { extractResponseError, parseResponseSafeJson } from '@/utils/apiError';
 import { normalizeEndpointUrl } from '@/utils/apiUrl';
 
+export interface RemoteModelRequestOptions {
+  headers?: Record<string, string>;
+}
+
 /**
  * 按 OpenAI 兼容 /models 拉取当前 Key 可见的模型 id，保持接口返回顺序并去重。
  */
 export async function fetchRemoteModels(
   baseUrl: string,
   apiKey: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  options?: RemoteModelRequestOptions
 ): Promise<string[]> {
   if (!baseUrl || !baseUrl.trim()) {
     throw new Error('未配置模型 API Base URL');
@@ -18,11 +23,8 @@ export async function fetchRemoteModels(
 
   const endpoint = normalizeEndpointUrl(baseUrl, '/models');
 
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${apiKey.trim()}`,
-    'x-api-key': apiKey.trim(),
-    'anthropic-version': '2023-06-01',
-    'Content-Type': 'application/json'
+  const headers: Record<string, string> = options?.headers ?? {
+    Authorization: `Bearer ${apiKey.trim()}`
   };
 
   const response = await fetch(endpoint, {

@@ -3,6 +3,7 @@ import { useConfigStore } from '@/stores/configStore';
 import { PromptOptimizerService } from '@/core/services/PromptOptimizerService';
 import { COMMON_OPTIMIZER_ENDPOINTS, ENV_OPTIMIZER_API_KEY_HINT } from '@/types/config';
 import { isHttpUrl } from '@/utils/apiUrl';
+import { resolveOptimizerProtocol } from '@/core/services/optimizer/protocol';
 import {
   SETTING_WIDGET,
   type SettingSection,
@@ -35,6 +36,7 @@ export async function fetchOptimizerModels(
 
   const url = String(ctx.values[SETTING_KEYS.optimizerBaseUrl] ?? '').trim();
   const key = String(ctx.values[SETTING_KEYS.optimizerApiKey] ?? '').trim();
+  const endpoint = String(ctx.values[SETTING_KEYS.optimizerEndpoint] ?? '').trim() || '/v1/chat/completions';
 
   if (!isHttpUrl(url)) {
     ctx.setRuntime(SETTING_RUNTIME.optimizerFetchStatus, {
@@ -56,14 +58,15 @@ export async function fetchOptimizerModels(
   ctx.setRuntime(SETTING_RUNTIME.optimizerIsFetching, true);
   ctx.setRuntime(SETTING_RUNTIME.optimizerFetchStatus, idleFetchStatus());
 
-  // 凭据可能在请求中途变更，旧请求不能覆盖新服务的模型与状态。
+  // 凭据或协议可能在请求中途变更，旧请求不能覆盖新服务的模型与状态。
   const isCurrentRequest = () =>
     ctx.runtime[FETCH_REQUEST_ID] === requestId &&
     String(ctx.values[SETTING_KEYS.optimizerBaseUrl] ?? '').trim() === url &&
-    String(ctx.values[SETTING_KEYS.optimizerApiKey] ?? '').trim() === key;
+    String(ctx.values[SETTING_KEYS.optimizerApiKey] ?? '').trim() === key &&
+    (String(ctx.values[SETTING_KEYS.optimizerEndpoint] ?? '').trim() || '/v1/chat/completions') === endpoint;
 
   try {
-    const list = await PromptOptimizerService.fetchModels(url, key);
+    const list = await PromptOptimizerService.fetchModels(url, key, undefined, endpoint);
     if (!isCurrentRequest()) return;
     ctx.setRuntime(SETTING_RUNTIME.optimizerModels, list);
 
@@ -194,7 +197,8 @@ export const optimizerSection: SettingSection = {
           label: '调用端点',
           icon: Route,
           hint: '默认使用聊天端点，仅在服务要求其他协议时修改。',
-          options: COMMON_OPTIMIZER_ENDPOINTS
+          options: COMMON_OPTIMIZER_ENDPOINTS,
+          onChange: resetOptimizerModels
         }
       ]
     }
@@ -244,6 +248,11 @@ export const optimizerSection: SettingSection = {
     if (!url || !key) return { ok: false, message: '请补全优化接口地址与 API Key；不使用时可将两项留空。' };
     if (!isHttpUrl(url)) return { ok: false, message: '优化接口地址需以 http:// 或 https:// 开头。' };
     if (!model) return { ok: false, message: '请填写优化模型名称，或获取可用模型后选择。' };
+    try {
+      resolveOptimizerProtocol(String(ctx.values[SETTING_KEYS.optimizerEndpoint] ?? ''));
+    } catch {
+      return { ok: false, message: '请在高级选项中选择支持的优化调用端点。' };
+    }
     return { ok: true };
   }
 };

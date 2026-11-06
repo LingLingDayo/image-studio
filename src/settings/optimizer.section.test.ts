@@ -86,7 +86,7 @@ describe('optimizer section schema', () => {
     expect(PromptOptimizerService.fetchModels).not.toHaveBeenCalled();
   });
 
-  it.each([SETTING_KEYS.optimizerBaseUrl, SETTING_KEYS.optimizerApiKey])(
+  it.each([SETTING_KEYS.optimizerBaseUrl, SETTING_KEYS.optimizerApiKey, SETTING_KEYS.optimizerEndpoint])(
     'clears stale model state whenever %s changes',
     async (key) => {
       const ctx = createDraft('custom-model');
@@ -94,7 +94,8 @@ describe('optimizer section schema', () => {
       ctx.setRuntime(SETTING_RUNTIME.optimizerFetchStatus, { type: 'success', message: 'ok' });
       ctx.setRuntime(SETTING_RUNTIME.optimizerIsFetching, true);
 
-      await applyFieldChange(findField(key), key === SETTING_KEYS.optimizerBaseUrl ? 'https://new.example.com' : 'sk-new', ctx);
+      const next = key === SETTING_KEYS.optimizerBaseUrl ? 'https://new.example.com' : key === SETTING_KEYS.optimizerEndpoint ? '/v1/messages' : 'sk-new';
+      await applyFieldChange(findField(key), next, ctx);
 
       expect(ctx.runtime[SETTING_RUNTIME.optimizerModels]).toEqual([]);
       expect(ctx.runtime[SETTING_RUNTIME.optimizerFetchStatus]).toEqual({ type: 'idle', message: '' });
@@ -148,6 +149,36 @@ describe('optimizer section schema', () => {
     request.resolve(['model-a']);
     await pending;
     expect(ctx.values[SETTING_KEYS.optimizerModel]).toBe('edited-model');
+  });
+  it('模型列表请求携带当前端点，并忽略协议切换前的成功响应', async () => {
+    const first = deferredModels();
+    const second = deferredModels();
+    vi.mocked(PromptOptimizerService.fetchModels).mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const ctx = createDraft();
+    const opening = fetchOptimizerModels(null, ctx);
+    expect(PromptOptimizerService.fetchModels).toHaveBeenLastCalledWith('https://api.example.com', 'sk-test', undefined, '/v1/chat/completions');
+    await applyFieldChange(findField(SETTING_KEYS.optimizerEndpoint), '/v1/messages', ctx);
+    const switched = fetchOptimizerModels(null, ctx);
+    expect(PromptOptimizerService.fetchModels).toHaveBeenLastCalledWith('https://api.example.com', 'sk-test', undefined, '/v1/messages');
+    first.resolve(['old-protocol-model']);
+    await opening;
+    expect(ctx.runtime[SETTING_RUNTIME.optimizerModels]).toEqual([]);
+    expect(ctx.runtime[SETTING_RUNTIME.optimizerIsFetching]).toBe(true);
+    second.resolve(['new-protocol-model']);
+    await switched;
+    expect(ctx.runtime[SETTING_RUNTIME.optimizerModels]).toEqual(['new-protocol-model']);
+  });
+
+  it('协议切换后的旧失败响应不覆盖当前状态', async () => {
+    const request = deferredModels();
+    vi.mocked(PromptOptimizerService.fetchModels).mockReturnValueOnce(request.promise);
+    const ctx = createDraft();
+    const pending = fetchOptimizerModels(null, ctx);
+    await applyFieldChange(findField(SETTING_KEYS.optimizerEndpoint), '/v1/responses', ctx);
+    request.reject(new Error('old protocol failed'));
+    await pending;
+    expect(ctx.runtime[SETTING_RUNTIME.optimizerFetchStatus]).toEqual({ type: 'idle', message: '' });
+    expect(ctx.runtime[SETTING_RUNTIME.optimizerModels]).toEqual([]);
   });
   it('ignores stale successful responses and does not clear a newer request loading state', async () => {
     const first = deferredModels();
@@ -212,6 +243,8 @@ describe('optimizer section schema', () => {
     expect(optimizerSection.validate!(ctx).ok).toBe(false);
     ctx.setValue(SETTING_KEYS.optimizerBaseUrl, 'https://api.example.com');
     expect(optimizerSection.validate!(ctx).ok).toBe(true);
+    ctx.setValue(SETTING_KEYS.optimizerEndpoint, '/v1/unknown');
+    expect(optimizerSection.validate!(ctx)).toMatchObject({ ok: false, message: expect.stringContaining('调用端点') });
   });
 
   it('hydrates from store and commits only unlocked optimizer fields', () => {
