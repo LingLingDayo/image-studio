@@ -20,7 +20,7 @@
 
 ## 本地开发
 
-需要 Node.js（建议 22.12+ LTS 或 24 LTS）和 npm。当前锁定的 Vite 要求 Node.js `^20.19.0 || >=22.12.0`。
+需要 Node.js（建议 22.13+ LTS 或 24 LTS）和 npm。ESLint 10 要求 Node.js `^20.19.0 || ^22.13.0 || >=24`，项目已声明相同的运行环境约束。
 
 ```powershell
 npm ci

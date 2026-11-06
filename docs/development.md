@@ -8,7 +8,7 @@
 - Vite 提供开发服务和生产静态资源构建，Vitest 使用 happy-dom 测试组件；IndexedDB 测试使用 fake-indexeddb。
 - 浏览器通过 provider 调用接口，作品保存到本地 IndexedDB。仓库没有工作台后端、账号体系或云端存储。
 
-Node.js 建议使用 22.12+ LTS 或 24 LTS；锁定的 Vite 8.2.2 声明要求 `^20.19.0 || >=22.12.0`。
+Node.js 建议使用 22.13+ LTS 或 24 LTS；项目遵循 ESLint 10 的 `^20.19.0 || ^22.13.0 || >=24` 环境范围。
 
 ## 工具链与依赖安装
 
@@ -18,12 +18,18 @@ Node.js 建议使用 22.12+ LTS 或 24 LTS；锁定的 Vite 8.2.2 声明要求 `
 npm ci
 ```
 
-不要随意重写锁文件或批量升级无关依赖。项目的 GitHub Actions 质量检查使用 Windows、Node.js 22，执行标准依赖安装、类型检查与测试；流水线配置已加入仓库，实际远端执行仍需推送后确认。
+不要随意重写锁文件或批量升级无关依赖。项目的 GitHub Actions 质量检查使用 Windows、Node.js 22，执行标准依赖安装、lint、类型检查与测试；流水线配置已加入仓库，实际远端执行仍需推送后确认。
 ## 常用命令
 
 ```powershell
 # 开发服务，默认端口 3000；结束后在终端按 Ctrl+C
 npm run dev
+
+# 静态代码检查（不自动格式化，CI 不允许警告）
+npm run lint
+
+# 一次执行 lint、类型检查和全部测试
+npm run check
 
 # 全部测试
 npm test
@@ -35,9 +41,11 @@ npm test -- src/components/settings src/settings
 npm run typecheck
 ```
 
-目前项目没有 lint 脚本或 ESLint 配置，不能把测试或类型检查当作 lint，也不能声称 lint 已通过。本轮已申请新增 ESLint 相关开发依赖，尚未获得批准，因此没有擅自安装或声称 lint 通过。批准后再接入，以问题检查为主，不夹带全库格式化。
+已批准并接入 `eslint`、`@eslint/js`、`eslint-plugin-vue`、`typescript-eslint`，使用 `eslint.config.js` flat config 检查 JavaScript、TypeScript 与 Vue，忽略依赖、产物和 `.temp/`。规则以正确性为主，不启用格式化规则。历史动态接口与测试桩暂保留 `any`；新协议、备份核心和优化 composable 禁止新增显式 `any`，类型声明由 `vue-tsc` 校验。
 
 普通功能修改不以 build 代替验证；优先补充回归测试，运行相关测试与类型检查。生产部署才运行 `npm run build`，见 [配置与部署](configuration.md#docker-部署)。
+
+TypeScript 输出目标保持 ES2020，标准库类型扩展到 ES2022，以使用标准 `Error.cause` 保留底层异常。
 
 ## 代码组织
 
@@ -89,7 +97,7 @@ src/
 
 ## 维护重点
 
-- 保持标准 `npm ci`、类型检查与测试可以独立执行；lint 依赖批准后再补齐。
+- 保持标准 `npm ci`、lint、类型检查与测试可以独立执行；`npm run check` 是本地完整质量入口，CI 分步执行便于定位问题。
 - 提示词优化协议适配位于 `core/services/optimizer`，模型列表按所选协议使用对应认证。不要在 UI 中拼接厂商请求。
 - 备份仅覆盖现有作品字段、图片与本地参考图，不导出配置；合并导入的异步准备放在事务外，事务完成后才报告成功，禁止先清空原库。
 - 最近 30 个成功/取消任务保留历史；活跃与失败待处理任务不自动驱逐。移除失败任务同时释放历史引用，不撤销输入区拥有的预览 URL。

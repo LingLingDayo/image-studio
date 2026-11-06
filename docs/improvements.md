@@ -59,7 +59,7 @@
 
 已升级现有 Vue 插件到 6.0.10，与 Vite 8.2.2 匹配；标准 `npm ci` 已验证，无需忽略 peer 校验。新增独立 `npm run typecheck` 与 Windows / Node.js 22 的 GitHub Actions 质量检查。流水线配置已加入仓库，远端运行仍需推送后验证。
 
-lint 尚未接入：已申请 `eslint`、`@eslint/js`、`eslint-plugin-vue`、`typescript-eslint` 四个开发依赖，未获批准前不安装、不宣称 lint 通过，也不做全库格式化。
+lint 已获批准并接入：安装 `eslint`、`@eslint/js`、`eslint-plugin-vue`、`typescript-eslint` 四个开发依赖，采用 flat config 与零警告 CI 门槛。只修复必要规则问题，不做全库格式化，其他既有依赖版本未升级。
 
 ### 2. 接口协议能力：已实现明确适配
 
@@ -89,4 +89,11 @@ Chat Completions、Responses、Messages 使用各自请求体、认证头和文�
 - 全量 Vitest：43 个文件、465 个测试通过；类型检查与变更检查通过。
 - 浏览器验证真实本地导入/导出：预览不写入、重复跳过、冲突 ID 合并、错误文件保护原库、刷新保留作品、320 / 390 / 1280 像素界面无溢出；导出的 JSON 不含站点配置。
 - 浏览器验证优化撤销/重做、参考图导航、页面内与原生全屏、两阶段 Escape 与滚动恢复。API 请求均由测试 mock 拦截，未新增付费请求。
-- 未运行 build；CI 尚未在远端执行，lint 仍待依赖批准。
+- 未运行 build；CI 尚未在远端执行，lint 已接入并验证。
+## ESLint 批准后的验证
+
+- `npm run lint`、`npm run typecheck`、`npm test` 均通过，`npm run check` 串联三项；全量 43 个文件、468 个测试通过。
+- 检查 JavaScript / TypeScript / Vue，忽略临时目录、依赖和构建产物；验证了未使用变量、Vue props 修改和新协议模块的显式 any 会被实际检出。
+- 只做局部修复：网络/读取流错误保留原始 `cause`，删除无效赋值，测试桩使用实例集合，组合输入标识仍保持多实例唯一。
+- ESLint 10 要求 Node.js 22.13+（或工具支持的 20.19 / 24+ 范围），输出目标未更改；ES2022 标准库类型支持 Error.cause。
+- CI 已加入 lint 步骤，远端执行仍待推送后验证；本轮未运行 build、未启动服务、未调用真实 API。
