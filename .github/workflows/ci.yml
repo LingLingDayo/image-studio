@@ -1,0 +1,29 @@
+name: 质量检查
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - name: 安装锁定依赖
+        run: npm ci
+      - name: 类型检查
+        run: npm run typecheck
+      - name: 单元与组件测试
+        run: npm test
