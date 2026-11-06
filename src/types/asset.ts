@@ -15,6 +15,7 @@ export interface MediaAsset {
   targetResolution?: ResolutionTier;
   targetRatio?: string;
   targetSize?: string;
+  targetFormat?: string;
   quality: string;
   format?: string;
   transparent?: boolean;
@@ -41,6 +42,7 @@ export interface ArtworkBatch {
   targetResolution?: ResolutionTier;
   targetRatio?: string;
   targetSize?: string;
+  targetFormat?: string;
   quality: string;
   format?: string;
   transparent?: boolean;

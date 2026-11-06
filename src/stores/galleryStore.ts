@@ -56,6 +56,7 @@ export const useGalleryStore = defineStore('gallery', () => {
           targetResolution: item.targetResolution,
           targetRatio: item.targetRatio,
           targetSize: item.targetSize,
+          targetFormat: item.targetFormat,
           ratio: item.ratio,
           width: item.width,
           height: item.height,

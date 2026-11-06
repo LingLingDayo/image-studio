@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ImagePipeline, ValidationStage } from './ImagePipeline';
+import { DimensionAnalysisStage, ImagePipeline, ValidationStage } from './ImagePipeline';
+import type { PipelineContext } from './PipelineContext';
+import { defaultTaskScheduler } from '@/core/scheduler/TaskScheduler';
 import { GPT_IMAGE_2_PROFILE } from '@/types/model';
 import type { TaskGenerationParams } from '@/types/task';
 import { assetRepository } from '@/core/storage/AssetRepository';
@@ -8,6 +10,24 @@ describe('ImagePipeline (ImagePipeline.ts)', () => {
   beforeEach(async () => {
     await assetRepository.clearAll();
     vi.restoreAllMocks();
+  });
+
+  it('分析阶段按返回图片真实格式记录结果，同时保留请求格式', async () => {
+    const params: TaskGenerationParams = {
+      model: 'gpt-image-2', prompt: 'format test', type: 't2i', size: '1024x1024',
+      quality: 'low', format: 'jpeg', transparent: false, count: 1
+    };
+    const ctx: PipelineContext = {
+      task: defaultTaskScheduler.createTask(params),
+      config: { apiKey: 'test-key', baseUrl: 'https://example.com', model: 'gpt-image-2' },
+      modelProfile: GPT_IMAGE_2_PROFILE,
+      generatedAssets: [],
+      rawResult: { created: 1, items: [{ url: 'data:image/png;base64,iVBORw0KGgo=', b64_json: 'iVBORw0KGgo=' }] }
+    };
+    await new DimensionAnalysisStage().process(ctx);
+    expect(ctx.generatedAssets[0].format).toBe('png');
+    expect(ctx.generatedAssets[0].targetFormat).toBe('jpeg');
+    expect(ctx.generatedAssets[0].blob.type).toBe('image/png');
   });
 
   it('should reject prompt validation on empty input', async () => {

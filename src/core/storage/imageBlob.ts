@@ -1,3 +1,27 @@
+export function detectImageMimeType(bytes: Uint8Array): string | undefined {
+  const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (bytes.length >= pngSignature.length && pngSignature.every((value, index) => bytes[index] === value)) {
+    return 'image/png';
+  }
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) {
+    return 'image/webp';
+  }
+  return undefined;
+}
+
+export function mimeToImageFormat(mime: string): 'png' | 'jpeg' | 'webp' | undefined {
+  switch (mime.toLowerCase()) {
+    case 'image/png': return 'png';
+    case 'image/jpeg':
+    case 'image/jpg': return 'jpeg';
+    case 'image/webp': return 'webp';
+    default: return undefined;
+  }
+}
 export function dataUrlToBlob(dataUrl: string): Blob {
   const comma = dataUrl.indexOf(',');
   if (comma < 0) {
@@ -11,7 +35,7 @@ export function dataUrlToBlob(dataUrl: string): Blob {
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
-  return new Blob([bytes], { type: mime });
+  return new Blob([bytes], { type: detectImageMimeType(bytes) || mime });
 }
 
 export async function urlToBlob(url: string): Promise<Blob> {
@@ -32,7 +56,8 @@ export async function urlToBlob(url: string): Promise<Blob> {
   if (blob.size === 0) {
     throw new Error('转存图片失败: 空文件');
   }
-  return blob;
+  const actualMime = detectImageMimeType(new Uint8Array(await blob.slice(0, 12).arrayBuffer()));
+  return actualMime && actualMime !== blob.type ? blob.slice(0, blob.size, actualMime) : blob;
 }
 
 export async function materializeImageBlob(source: {

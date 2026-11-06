@@ -1,7 +1,7 @@
 import type { IPipelineStage, PipelineContext } from './PipelineContext';
 import { providerRegistry } from '@/core/providers/ProviderRegistry';
 import { assetRepository } from '@/core/storage/AssetRepository';
-import { fileToDataUrl, materializeImageBlob } from '@/core/storage/imageBlob';
+import { fileToDataUrl, materializeImageBlob, mimeToImageFormat } from '@/core/storage/imageBlob';
 import { calculateImageDimensions } from '@/utils/image';
 import type { MediaAsset } from '@/types/asset';
 import type { TaskReferenceImage } from '@/types/task';
@@ -99,7 +99,8 @@ export class DimensionAnalysisStage implements IPipelineStage {
         width,
         height,
         quality: params.quality,
-        format: params.format,
+        format: mimeToImageFormat(blob.type) ?? params.format,
+        targetFormat: params.format,
         transparent: params.transparent,
         moderation: params.moderation,
         duration: ctx.task.durationFormatted || '0.0s',

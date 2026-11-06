@@ -1,5 +1,5 @@
 import type { MediaAsset } from '@/types/asset';
-import { revokeObjectUrl } from './imageBlob';
+import { detectImageMimeType, mimeToImageFormat, revokeObjectUrl } from './imageBlob';
 
 const DB_NAME = 'ImageStudioDB';
 const DB_VERSION = 4;
@@ -60,6 +60,7 @@ class AssetRepository {
       targetResolution: asset.targetResolution,
       targetRatio: asset.targetRatio,
       targetSize: asset.targetSize,
+      targetFormat: asset.targetFormat,
       quality: asset.quality || '',
       format: asset.format,
       transparent: asset.transparent,
@@ -71,6 +72,17 @@ class AssetRepository {
       referenceImages: asset.referenceImages ? [...asset.referenceImages] : [],
       status: asset.status,
       errorMessage: asset.errorMessage
+    };
+  }
+
+  private normalizeStoredRecord(record: StoredAsset): StoredAsset {
+    if (!record.imageBytes || record.imageBytes.byteLength === 0) return record;
+    const imageMime = detectImageMimeType(new Uint8Array(record.imageBytes)) || record.imageMime || 'image/png';
+    return {
+      ...record,
+      targetFormat: record.targetFormat ?? record.format,
+      format: mimeToImageFormat(imageMime) ?? record.format,
+      imageMime
     };
   }
 
@@ -104,11 +116,11 @@ class AssetRepository {
     if ('id' in asset && asset.id !== undefined) {
       record.id = asset.id;
     }
-    return record;
+    return this.normalizeStoredRecord(record);
   }
 
   private fromStoredRecord(record: StoredAsset): MediaAsset {
-    const { imageBytes, imageMime, ...rest } = record;
+    const { imageBytes, imageMime, ...rest } = this.normalizeStoredRecord(record);
     if (rest.status === 'failed' || !imageBytes || imageBytes.byteLength === 0) {
       return {
         ...rest,
@@ -191,13 +203,14 @@ class AssetRepository {
           imageMime = asset.blob.type || existing.imageMime || 'image/png';
         }
 
-        const updated: StoredAsset = {
+        const updated = this.normalizeStoredRecord({
           ...meta,
+          targetFormat: meta.targetFormat ?? existing.targetFormat ?? existing.format,
           id: assetId,
           url: '',
           imageBytes,
           imageMime
-        };
+        });
 
         const putReq = store.put(updated);
         putReq.onsuccess = () => resolve(true);

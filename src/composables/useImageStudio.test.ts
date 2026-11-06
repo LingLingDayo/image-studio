@@ -70,6 +70,20 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
     expect(studio.format.value).toBe('png');
   });
 
+  it('复用作品优先恢复请求格式而非服务实际返回格式', async () => {
+    const studio = useImageStudio();
+    const asset: MediaAsset = {
+      url: '', blob: new Blob(['pixels'], { type: 'image/png' }), prompt: '格式复用',
+      model: 'gpt-image-2', size: '1024x1024', quality: 'medium', format: 'png', targetFormat: 'jpeg',
+      transparent: false, duration: '1.0s', timestamp: Date.now(), type: 't2i'
+    };
+    await studio.reuseItem(asset);
+    expect(studio.format.value).toBe('jpeg');
+
+    const batch: ArtworkBatch = { ...asset, id: 'format-batch', assets: [asset] };
+    await studio.reuseItem(batch);
+    expect(studio.format.value).toBe('jpeg');
+  });
   it('应该正确从 GenerationTask 与 TaskGenerationParams 中恢复生图设定', async () => {
     const studio = useImageStudio();
 

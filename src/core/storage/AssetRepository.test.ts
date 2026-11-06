@@ -44,6 +44,29 @@ describe('AssetRepository (AssetRepository.ts)', () => {
     expect(all[0].url.startsWith('blob:')).toBe(true);
   });
 
+  it('records the actual PNG format while preserving the requested JPEG format and bytes', async () => {
+    const wrongMimeBlob = new Blob([await PNG_BLOB.arrayBuffer()], { type: 'image/jpeg' });
+    const saved = await assetRepository.save(createAsset({ blob: wrongMimeBlob, format: 'jpeg', targetFormat: 'jpeg' }));
+    expect(saved.format).toBe('png');
+    expect(saved.targetFormat).toBe('jpeg');
+    expect(saved.blob.type).toBe('image/png');
+    expect(new Uint8Array(await saved.blob.arrayBuffer())).toEqual(new Uint8Array(await PNG_BLOB.arrayBuffer()));
+
+    const [reloaded] = await assetRepository.getAll();
+    expect(reloaded.format).toBe('png');
+    expect(reloaded.targetFormat).toBe('jpeg');
+    expect(reloaded.blob.type).toBe('image/png');
+  });
+
+  it('preserves requested format and correct actual format when metadata is updated', async () => {
+    const saved = await assetRepository.save(createAsset({ format: 'jpeg', targetFormat: 'jpeg' }));
+    await assetRepository.update({ ...saved, format: 'jpeg', isFavorite: true });
+    const [reloaded] = await assetRepository.getAll();
+    expect(reloaded.format).toBe('png');
+    expect(reloaded.targetFormat).toBe('jpeg');
+    expect(reloaded.blob.type).toBe('image/png');
+    expect(reloaded.isFavorite).toBe(true);
+  });
   it.each(['auto', 'low'])('should preserve %s moderation when saving and reloading an asset', async (moderation) => {
     const saved = await assetRepository.save(createAsset({ moderation }));
     expect(saved.moderation).toBe(moderation);
@@ -195,6 +218,28 @@ describe('AssetRepository database upgrades', () => {
     expect(reloaded.find((asset) => asset.id === 42)?.isFavorite).toBe(false);
   });
 
+  it('reads legacy incorrect format declarations without changing stored pixels or losing the requested format', async () => {
+    const imageBytes = await PNG_BLOB.arrayBuffer();
+    const { blob: _blob, ...metadata } = createAsset({ format: 'jpeg' });
+    const oldDB = await openDatabase(4, (db) => {
+      const store = db.createObjectStore('assets', { keyPath: 'id', autoIncrement: true });
+      store.createIndex('timestamp', 'timestamp', { unique: false });
+      store.createIndex('isFavorite', 'isFavorite', { unique: false });
+      store.createIndex('model', 'model', { unique: false });
+      store.add({ ...metadata, id: 8, imageBytes, imageMime: 'image/jpeg' });
+    });
+    oldDB.close();
+
+    const { assetRepository: legacyRepository } = await import('./AssetRepository');
+    const [loaded] = await legacyRepository.getAll();
+    expect(loaded).toMatchObject({ id: 8, format: 'png', targetFormat: 'jpeg' });
+    expect(loaded.blob.type).toBe('image/png');
+    expect(new Uint8Array(await loaded.blob.arrayBuffer())).toEqual(new Uint8Array(imageBytes));
+
+    await legacyRepository.update({ ...loaded, isFavorite: true });
+    const [updated] = await legacyRepository.getAll();
+    expect(updated).toMatchObject({ format: 'png', targetFormat: 'jpeg', isFavorite: true });
+  });
   it('keeps an existing version 4 database readable and writable without rebuilding it', async () => {
     const { blob: _blob, ...metadata } = createAsset({ prompt: 'existing version 4', moderation: 'low' });
     const existingDB = await openDatabase(4, (db) => {

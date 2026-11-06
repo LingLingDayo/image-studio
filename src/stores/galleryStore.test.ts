@@ -193,6 +193,12 @@ describe('useGalleryStore Pagination', () => {
     expect(store.batches[0].height).toBe(1080);
   });
 
+  it('keeps actual format and requested format separate in ArtworkBatch', () => {
+    const store = useGalleryStore();
+    store.items = [{ ...createMockAsset(10), format: 'png', targetFormat: 'jpeg' }];
+    expect(store.batches[0].format).toBe('png');
+    expect(store.batches[0].targetFormat).toBe('jpeg');
+  });
   it.each(['auto', 'low'])('should preserve %s moderation when grouping assets into a batch', (moderation) => {
     const store = useGalleryStore();
     store.items = [

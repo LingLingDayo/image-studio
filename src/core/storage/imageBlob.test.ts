@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { dataUrlToBlob, materializeImageBlob, urlToBlob } from './imageBlob';
+import { dataUrlToBlob, detectImageMimeType, materializeImageBlob, mimeToImageFormat, urlToBlob } from './imageBlob';
 
 const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 const PNG_DATA_URL = `data:image/png;base64,${PNG_B64}`;
@@ -7,6 +7,35 @@ const PNG_DATA_URL = `data:image/png;base64,${PNG_B64}`;
 describe('imageBlob', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it.each([
+    { bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], mime: 'image/png', format: 'png' },
+    { bytes: [0xff, 0xd8, 0xff, 0xe0], mime: 'image/jpeg', format: 'jpeg' },
+    { bytes: [0x52, 0x49, 0x46, 0x46, 0x04, 0, 0, 0, 0x57, 0x45, 0x42, 0x50], mime: 'image/webp', format: 'webp' }
+  ])('按真实字节识别 $format，即使Data URL声明错误', async ({ bytes, mime, format }) => {
+    const base64 = btoa(String.fromCharCode(...bytes));
+    const blob = dataUrlToBlob(`data:image/unknown;base64,${base64}`);
+    expect(detectImageMimeType(new Uint8Array(bytes))).toBe(mime);
+    expect(mimeToImageFormat(mime)).toBe(format);
+    expect(blob.type).toBe(mime);
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(new Uint8Array(bytes));
+    expect((await materializeImageBlob({ b64_json: base64 })).type).toBe(mime);
+  });
+
+  it('不能识别的字节不凭请求格式猜测，保留原声明', () => {
+    expect(detectImageMimeType(new Uint8Array([1, 2, 3]))).toBeUndefined();
+    expect(mimeToImageFormat('application/octet-stream')).toBeUndefined();
+    expect(dataUrlToBlob('data:image/webp;base64,AQID').type).toBe('image/webp');
+  });
+
+  it('远程响应声明JPEG但实际PNG时规范化MIME而不转换像素', async () => {
+    const source = dataUrlToBlob(PNG_DATA_URL);
+    const incorrectlyTyped = new Blob([source], { type: 'image/jpeg' });
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, blob: async () => incorrectlyTyped });
+    const result = await urlToBlob('https://cdn.example.com/actual.png');
+    expect(result.type).toBe('image/png');
+    expect(new Uint8Array(await result.arrayBuffer())).toEqual(new Uint8Array(await source.arrayBuffer()));
   });
 
   it('should convert data URL and raw base64 into a local blob', async () => {

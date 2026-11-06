@@ -366,7 +366,7 @@ export function useImageStudio() {
     const source = 'params' in item ? item.params : item;
     const targetSize = hydrateImageSizeFromSettings(source);
     const targetQuality = source.quality as ModelQuality | undefined;
-    const targetFormat = source.format as ModelFormat | undefined;
+    const targetFormat = ('targetFormat' in source ? source.targetFormat ?? source.format : source.format) as ModelFormat | undefined;
     const targetModeration = source.moderation as ModelModeration | undefined;
     const targetCount = 'count' in source ? source.count : 'assets' in source ? source.assets.length : undefined;
     const preparedRefs: TaskReferenceImage[] = [];
