@@ -7,6 +7,14 @@
   padding: 0;
 }
 
+/* 行内图标统一规范：
+   body 的 1.5 倍行高会让中文墨迹中心相对行盒中心下沉约 1px，与几何居中的
+   SVG 图标并排时看起来图标偏高。各「图标 + 文字」的单行组合在组件内统一
+   使用 line-height: 1 对齐视觉中心；这里保证图标不会被 flex 压缩。 */
+svg {
+  flex-shrink: 0;
+}
+
 html,
 body,
 #app {
@@ -54,7 +62,9 @@ body {
   border: none;
   border-radius: $radius-sm;
   padding: 8px 16px;
+  min-height: 36px;
   font-size: 0.875rem;
+  line-height: 1;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;
@@ -82,7 +92,9 @@ body {
   color: $text-secondary;
   border-radius: $radius-sm;
   padding: 7px 14px;
+  min-height: 36px;
   font-size: 0.875rem;
+  line-height: 1;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;
@@ -144,6 +156,7 @@ body {
   height: 36px;
   box-sizing: border-box;
   font-size: 0.8rem;
+  line-height: 1;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;

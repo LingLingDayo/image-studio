@@ -437,6 +437,7 @@ async function handleCopyPrompt() {
   border: none;
   color: $accent-primary;
   font-size: 0.75rem;
+  line-height: 1;
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -512,6 +513,7 @@ async function handleCopyPrompt() {
       display: inline-flex;
       align-items: center;
       gap: 5px;
+      line-height: 1;
     }
   }
 
@@ -587,6 +589,7 @@ async function handleCopyPrompt() {
   display: flex;
   align-items: center;
   gap: 5px;
+  line-height: 1;
   color: $text-muted;
 
   .stat-icon {

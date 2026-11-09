@@ -174,8 +174,10 @@ function clearSearch() {
   background: $bg-surface;
   border: 1px solid $border-color;
   padding: 5px 12px;
+  min-height: 31px;
   border-radius: 20px;
   font-weight: 500;
+  line-height: 1;
   white-space: nowrap;
   box-shadow: $shadow-xs;
 }

@@ -44,7 +44,9 @@ const status = computed<{ type: string; message: string } | null>(() => {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-height: 32px;
   font-size: 0.78rem;
+  line-height: 1;
   padding: 6px 10px;
   border-radius: $radius-sm;
 

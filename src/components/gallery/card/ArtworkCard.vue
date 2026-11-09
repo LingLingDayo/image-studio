@@ -552,7 +552,9 @@ async function handleDownload() {
   display: inline-flex;
   align-items: center;
   gap: 3px;
+  min-height: 22px;
   font-size: 0.70rem;
+  line-height: 1;
   color: $text-muted;
   background: $bg-surface-subtle;
   border: 1px solid $border-color;

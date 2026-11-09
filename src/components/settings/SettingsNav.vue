@@ -98,11 +98,13 @@ function isActive(section: SettingSection): boolean {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
+  min-height: 38px;
   border-radius: $radius-md;
   border: 1px solid transparent;
   background: transparent;
   color: $text-muted;
   font-size: 0.85rem;
+  line-height: 1;
   font-weight: 500;
   cursor: pointer;
   text-align: left;

@@ -134,6 +134,7 @@ function handleWheel(e: WheelEvent) {
   padding: 3px 8px 3px 10px;
   height: 26px;
   box-sizing: border-box;
+  line-height: 1;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {

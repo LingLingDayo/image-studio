@@ -51,6 +51,7 @@ const selectValue = computed(() => {
   align-items: center;
   gap: 5px;
   font-size: 0.8rem;
+  line-height: 1;
   font-weight: 600;
   color: $text-muted;
 }

@@ -111,7 +111,9 @@ details.settings-group {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-height: 20px;
   font-size: 0.85rem;
+  line-height: 1;
   font-weight: 600;
   color: $text-main;
 }
