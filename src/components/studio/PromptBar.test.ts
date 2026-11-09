@@ -69,7 +69,7 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     const magicBtn = container.querySelector('.btn-magic') as HTMLButtonElement;
     expect(magicBtn).not.toBeNull();
     expect(magicBtn.disabled).toBe(true);
-    expect(magicBtn.getAttribute('data-tip')).toBe('请先在「设置 -> 提示词优化」中配置 API Key');
+    expect(magicBtn.getAttribute('data-tip')).toBe('请先在「设置 -> 生图服务」中配置 API Key');
 
     app.unmount();
   });

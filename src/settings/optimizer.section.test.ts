@@ -20,7 +20,7 @@ vi.mock('@/core/services/PromptOptimizerService', () => ({
 import { PromptOptimizerService } from '@/core/services/PromptOptimizerService';
 import {
   fetchOptimizerModels,
-  optimizerSection,
+  optimizerSettings,
   selectPreferredOptimizerModel
 } from './optimizer.section';
 import { useConfigStore } from '@/stores/configStore';
@@ -42,7 +42,7 @@ function createDraft(model = '') {
 }
 
 function findField(key: string) {
-  return optimizerSection.groups.flatMap((group) => group.fields).find((field) => field.key === key)!;
+  return optimizerSettings.groups.flatMap((group) => group.fields).find((field) => field.key === key)!;
 }
 
 function deferredModels() {
@@ -55,7 +55,7 @@ function deferredModels() {
   return { promise, resolve, reject };
 }
 
-describe('optimizer section schema', () => {
+describe('提示词优化配置片段', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     localStorage.clear();
@@ -69,20 +69,21 @@ describe('optimizer section schema', () => {
     expect(selectPreferredOptimizerModel([], '')).toBe('');
   });
 
-  it('shows the model group before credentials are filled and keeps endpoints in advanced options', () => {
+  it('shows optimizer fields before its credentials are filled and keeps endpoints in advanced options', () => {
     const ctx = createDraft();
     ctx.setValue(SETTING_KEYS.optimizerApiKey, '');
-    const modelsGroup = optimizerSection.groups.find((group) => group.id === 'optimizer.models')!;
-    const advancedGroup = optimizerSection.groups.find((group) => group.id === 'optimizer.advanced');
+    const serviceGroup = optimizerSettings.groups.find((group) => group.id === 'optimizer.service')!;
+    const advancedGroup = optimizerSettings.groups.find((group) => group.id === 'optimizer.advanced');
 
-    expect(isGroupVisible(modelsGroup, ctx)).toBe(true);
-    expect(modelsGroup.fields.some((field) => field.key === SETTING_KEYS.optimizerEndpoint)).toBe(false);
+    expect(serviceGroup.title).toContain('提示词优化');
+    expect(isGroupVisible(serviceGroup, ctx)).toBe(true);
+    expect(serviceGroup.fields.some((field) => field.key === SETTING_KEYS.optimizerEndpoint)).toBe(false);
     expect(advancedGroup?.collapsible).toBe(true);
     expect(advancedGroup?.fields.some((field) => field.key === SETTING_KEYS.optimizerEndpoint)).toBe(true);
   });
 
-  it('does not automatically request models when the section opens', async () => {
-    await optimizerSection.onOpen?.(createDraft('custom-model'));
+  it('does not automatically request models when the settings open', async () => {
+    await optimizerSettings.onOpen?.(createDraft('custom-model'));
     expect(PromptOptimizerService.fetchModels).not.toHaveBeenCalled();
   });
 
@@ -106,15 +107,16 @@ describe('optimizer section schema', () => {
 
   it('始终使用同一个可自定义输入的模型下拉框，刷新动作内嵌且不单独呈现', () => {
     const ctx = createDraft('custom-model');
-    const group = optimizerSection.groups.find((group) => group.id === 'optimizer.models')!;
-    const model = group.fields[0];
-    expect(group.title).toBeUndefined();
+    const group = optimizerSettings.groups.find((group) => group.id === 'optimizer.service')!;
+    const model = group.fields.find((field) => field.key === SETTING_KEYS.optimizerModel)!;
+    expect(group.title).toContain('提示词优化');
     expect(group.headerActionId).toBeUndefined();
-    expect(listVisibleFields(group.fields, ctx)).toHaveLength(1);
+    expect(listVisibleFields(group.fields, ctx)).toContain(model);
+    expect(listVisibleFields(group.fields, ctx).filter((field) => field.type === SETTING_WIDGET.COMBOBOX)).toEqual([model]);
     expect(model.type).toBe(SETTING_WIDGET.COMBOBOX);
     expect(model.refreshAction?.persist).toBe(false);
     ctx.setRuntime(SETTING_RUNTIME.optimizerModels, ['model-a']);
-    expect(listVisibleFields(group.fields, ctx)).toEqual([model]);
+    expect(listVisibleFields(group.fields, ctx)).toContain(model);
     const options = typeof model.options === 'function' ? model.options(ctx) : model.options;
     expect(options?.map((option: SettingSelectOption) => option.value)).toEqual(['model-a']);
     ctx.setRuntime(SETTING_RUNTIME.optimizerFetchStatus, { type: 'success', message: '已获取模型' });
@@ -232,19 +234,19 @@ describe('optimizer section schema', () => {
     const ctx = createDraft('preset-model');
     ctx.setValue(SETTING_KEYS.optimizerBaseUrl, '');
     ctx.setValue(SETTING_KEYS.optimizerApiKey, '');
-    expect(optimizerSection.validate!(ctx).ok).toBe(true);
+    expect(optimizerSettings.validate!(ctx).ok).toBe(true);
     ctx.setValue(SETTING_KEYS.optimizerBaseUrl, 'https://api.example.com');
-    expect(optimizerSection.validate!(ctx)).toMatchObject({ ok: false, message: expect.any(String) });
+    expect(optimizerSettings.validate!(ctx)).toMatchObject({ ok: false, message: expect.any(String) });
     ctx.setValue(SETTING_KEYS.optimizerApiKey, 'sk-test');
     ctx.setValue(SETTING_KEYS.optimizerModel, '');
-    expect(optimizerSection.validate!(ctx)).toMatchObject({ ok: false, message: expect.any(String) });
+    expect(optimizerSettings.validate!(ctx)).toMatchObject({ ok: false, message: expect.any(String) });
     ctx.setValue(SETTING_KEYS.optimizerModel, 'model-a');
     ctx.setValue(SETTING_KEYS.optimizerBaseUrl, 'ftp://api.example.com');
-    expect(optimizerSection.validate!(ctx).ok).toBe(false);
+    expect(optimizerSettings.validate!(ctx).ok).toBe(false);
     ctx.setValue(SETTING_KEYS.optimizerBaseUrl, 'https://api.example.com');
-    expect(optimizerSection.validate!(ctx).ok).toBe(true);
+    expect(optimizerSettings.validate!(ctx).ok).toBe(true);
     ctx.setValue(SETTING_KEYS.optimizerEndpoint, '/v1/unknown');
-    expect(optimizerSection.validate!(ctx)).toMatchObject({ ok: false, message: expect.stringContaining('调用端点') });
+    expect(optimizerSettings.validate!(ctx)).toMatchObject({ ok: false, message: expect.stringContaining('调用端点') });
   });
 
   it('hydrates from store and commits only unlocked optimizer fields', () => {
@@ -256,7 +258,7 @@ describe('optimizer section schema', () => {
       endpoint: '/v1/messages'
     });
 
-    const slice = optimizerSection.hydrate!();
+    const slice = optimizerSettings.hydrate!();
     const locks = slice.locks ?? {};
     expect(locks[SETTING_KEYS.optimizerBaseUrl]).toBe(store.hasEnvOptimizerBaseUrl);
     expect(slice.values[SETTING_KEYS.optimizerModel]).toBe('model-a');
@@ -269,7 +271,7 @@ describe('optimizer section schema', () => {
       {},
       locks
     );
-    optimizerSection.commit!(ctx);
+    optimizerSettings.commit!(ctx);
     expect(store.optimizerModel).toBe('model-b');
     expect(store.optimizerEndpoint).toBe('/v1/messages');
   });

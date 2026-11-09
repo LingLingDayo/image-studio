@@ -161,7 +161,8 @@ describe('设置保存与退出', () => {
     app.mount(container);
     await nextTick();
     expect(container.textContent).toContain('部署预设');
-    expect(container.querySelector('input')).toBeNull();
+    expect(container.querySelector('[id="image.baseUrl"]')).toBeNull();
+    expect(container.querySelector('[id="image.apiKey"]')).toBeNull();
     expect(container.textContent).not.toContain('private-preset-key');
   });
 });

@@ -63,7 +63,7 @@ describe('Settings components', () => {
     expect(SettingsField).toBeDefined();
   });
 
-  async function mountModal(initialTab: string) {
+  async function mountModal(initialTab?: string) {
     const { default: SettingsModal } = await import('./SettingsModal.vue');
     const pinia = createPinia();
     setActivePinia(pinia);
@@ -82,29 +82,41 @@ describe('Settings components', () => {
     return [...container.querySelectorAll('.group-title')].map((el) => el.textContent || '');
   }
 
-  it('renders grouped left nav and image credential fields', async () => {
+  it('通用设置是首个 tab，提示词优化并入生图服务且不再单独成项', async () => {
     const app = await mountModal('image');
 
-    expect(container.querySelector('.nav-category')?.textContent).toContain('服务');
-    const navLabels = [...container.querySelectorAll('.nav-label')].map((el) => el.textContent);
-    expect(navLabels).toContain('生图服务');
-    expect(navLabels).toContain('提示词优化');
+    const navCategories = [...container.querySelectorAll('.nav-category')].map((el) => el.textContent?.trim());
+    expect(navCategories).toEqual(['通用', '服务']);
+    const navLabels = [...container.querySelectorAll('.nav-label')].map((el) => el.textContent?.trim());
+    expect(navLabels).toEqual(['通用设置', '生图服务']);
+
     expect(container.querySelector('.pane-heading h4')?.textContent).toBe('生图服务');
     expect(container.textContent).toContain('接口地址');
     expect(container.textContent).toContain('API Key');
+    expect(groupTitles()).toContain('提示词优化（可选）');
+    expect(container.textContent).toContain('优化模型');
+
+    app.unmount();
+  });
+
+  it('未指定分区时默认打开首个 tab 通用设置', async () => {
+    const app = await mountModal();
+
+    expect(container.querySelector('.nav-item[aria-current="page"]')?.getAttribute('aria-label')).toBe('通用设置');
+    expect(container.querySelector('.pane-heading h4')?.textContent).toBe('通用设置');
 
     app.unmount();
   });
 
   it('shows optional optimizer model setup before credentials are filled', async () => {
-    const app = await mountModal('optimizer');
+    const app = await mountModal('image');
 
     expect(container.querySelector('.ui-combobox input')).not.toBeNull();
     expect(groupTitles()).not.toContain('优化模型');
     expect(container.querySelector('details')?.hasAttribute('open')).toBe(false);
 
     const labels = [...container.querySelectorAll('.input-label')];
-    const keyLabel = labels.find((el) => el.textContent?.includes('API Key'));
+    const keyLabel = labels.find((el) => el.textContent?.includes('优化 API Key'));
     const input = keyLabel?.parentElement?.querySelector('input') as HTMLInputElement | null;
     expect(input).not.toBeNull();
 
@@ -125,7 +137,7 @@ describe('Settings components', () => {
   it('内嵌刷新获取列表，不覆盖正在输入的模型，也不显示成功提示条', async () => {
     let resolveModels!: (models: string[]) => void;
     vi.mocked(PromptOptimizerService.fetchModels).mockReturnValueOnce(new Promise((resolve) => { resolveModels = resolve; }));
-    const app = await mountModal('optimizer');
+    const app = await mountModal('image');
     try {
       const refresh = container.querySelector('.combobox-refresh') as HTMLButtonElement;
       const input = container.querySelector('.ui-combobox input') as HTMLInputElement;
@@ -137,8 +149,8 @@ describe('Settings components', () => {
         field.value = value;
         field.dispatchEvent(new Event('input', { bubbles: true }));
       };
-      fill('接口地址', 'https://api.example.com');
-      fill('API Key', 'test-key');
+      fill('优化接口地址', 'https://api.example.com');
+      fill('优化 API Key', 'test-key');
       await nextTick();
       refresh.click();
       await nextTick();
@@ -162,7 +174,7 @@ describe('Settings components', () => {
   it('未获取列表也能保存自定义模型名称', async () => {
     localStorage.setItem('gpt_optimizer_base_url', 'https://api.example.com');
     localStorage.setItem('gpt_optimizer_api_key', 'test-key');
-    const app = await mountModal('optimizer');
+    const app = await mountModal('image');
     try {
       const input = container.querySelector('.ui-combobox input') as HTMLInputElement;
       input.value = 'custom-provider-model';
@@ -181,7 +193,7 @@ describe('Settings components', () => {
     localStorage.setItem('gpt_optimizer_base_url', 'https://api.example.com');
     localStorage.setItem('gpt_optimizer_api_key', 'test-key');
     vi.mocked(PromptOptimizerService.fetchModels).mockRejectedValueOnce(new Error('模型获取失败，请重试'));
-    const app = await mountModal('optimizer');
+    const app = await mountModal('image');
     try {
       (container.querySelector('.combobox-refresh') as HTMLButtonElement).click();
       await vi.waitFor(() => expect(container.querySelector('[role="alert"]')?.textContent).toContain('模型获取失败'));
@@ -229,10 +241,10 @@ describe('Settings components', () => {
     const app = await mountModal('general');
 
     const navCategories = [...container.querySelectorAll('.nav-category')].map((el) => el.textContent?.trim());
-    expect(navCategories).toContain('通用');
+    expect(navCategories[0]).toBe('通用');
 
     const navLabels = [...container.querySelectorAll('.nav-label')].map((el) => el.textContent?.trim());
-    expect(navLabels).toContain('通用设置');
+    expect(navLabels[0]).toBe('通用设置');
 
     expect(container.textContent).toContain('开始生成后清空输入框');
     expect(container.textContent).toContain('下载文件名');
