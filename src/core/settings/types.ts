@@ -105,6 +105,9 @@ export interface SettingGroup {
 
 export type SettingBadge = 'ready' | 'warn' | 'none';
 
+/** 本次会话中实际变更的字段键；分区据此只处理被改动的配置片段。 */
+export type SettingChangeSet = ReadonlySet<string>;
+
 export interface SettingSection {
   id: string;
   /** 左侧菜单分组名，如「服务」 */
@@ -115,8 +118,8 @@ export interface SettingSection {
   badge?: (ctx: SettingsContext) => SettingBadge;
   groups: SettingGroup[];
   hydrate?: () => SettingHydration;
-  commit?: (ctx: SettingsContext) => void;
-  validate?: (ctx: SettingsContext) => SettingValidation;
+  commit?: (ctx: SettingsContext, changedKeys?: SettingChangeSet) => void;
+  validate?: (ctx: SettingsContext, changedKeys?: SettingChangeSet) => SettingValidation;
   /** Extension Point: 弹窗打开后的生命周期（如预拉取模型） */
   onOpen?: (ctx: SettingsMutator) => void | Promise<void>;
 }

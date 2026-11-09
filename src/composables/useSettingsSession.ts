@@ -4,7 +4,8 @@ import type {
   SettingSection,
   SettingValue,
   SettingsContext,
-  SettingsMutator
+  SettingsMutator,
+  SettingChangeSet
 } from '@/core/settings';
 import { applyFieldChange, collectHydration } from '@/core/settings';
 
@@ -41,7 +42,8 @@ export function useSettingsSession() {
     return !locks[key] && !Object.is(values[key], baseline[key]);
   }
 
-  const hasChanges = computed(() => Object.keys(values).some(isChanged));
+  const changedKeys = computed<SettingChangeSet>(() => new Set(Object.keys(values).filter(isChanged)));
+  const hasChanges = computed(() => changedKeys.value.size > 0);
 
   function changedSections(sections: SettingSection[]): SettingSection[] {
     return sections.filter((section) => section.groups.some((group) =>
@@ -81,8 +83,10 @@ export function useSettingsSession() {
   }
 
   function commit(sections: SettingSection[]): void {
+    // baseline 会随提交更新，先固定本次变更集合再交给分区。
+    const keys: SettingChangeSet = new Set(changedKeys.value);
     for (const section of sections) {
-      section.commit?.(ctx);
+      section.commit?.(ctx, keys);
       for (const group of section.groups) {
         for (const field of group.fields) {
           if (field.persist !== false) baseline[field.key] = values[field.key];
@@ -107,6 +111,7 @@ export function useSettingsSession() {
     ctx,
     mutator,
     hasChanges,
+    changedKeys,
     changedSections,
     invalidate,
     hydrate,

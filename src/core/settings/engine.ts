@@ -6,7 +6,8 @@ import type {
   SettingValue,
   SettingsContext,
   SettingsMutator,
-  SettingHydration
+  SettingHydration,
+  SettingChangeSet
 } from './types';
 import { evaluatePredicate } from './predicates';
 
@@ -127,11 +128,12 @@ export function collectHydration(sections: SettingSection[]): Required<SettingHy
 
 export function firstInvalidSection(
   sections: SettingSection[],
-  ctx: SettingsContext
+  ctx: SettingsContext,
+  changedKeys?: SettingChangeSet
 ): SettingSection | null {
   for (const section of sections) {
     if (!section.validate) continue;
-    if (!section.validate(ctx).ok) return section;
+    if (!section.validate(ctx, changedKeys).ok) return section;
   }
   return null;
 }
