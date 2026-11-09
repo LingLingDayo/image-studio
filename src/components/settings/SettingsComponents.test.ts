@@ -6,6 +6,7 @@ import SettingsPane from './SettingsPane.vue';
 import SettingsGroup from './SettingsGroup.vue';
 import SettingsField from './SettingsField.vue';
 import { PromptOptimizerService } from '@/core/services/PromptOptimizerService';
+import { THEME_STORAGE_KEY } from '@/core/theme';
 
 vi.mock('@/core/services/PromptOptimizerService', () => ({
   PromptOptimizerService: {
@@ -255,6 +256,27 @@ describe('Settings components', () => {
     expect(switchEl?.getAttribute('role')).toBe('switch');
     expect(switchEl?.getAttribute('aria-label')).toBe('开始生成后清空输入框');
 
+    app.unmount();
+  });
+
+  it('通用设置提供主题切换，点击后立即应用并持久化', async () => {
+    const app = await mountModal('general');
+
+    expect(container.textContent).toContain('外观');
+    expect(container.textContent).toContain('主题模式');
+    const options = [...container.querySelectorAll<HTMLButtonElement>('.theme-option')];
+    expect(options.map((el) => el.textContent?.trim())).toEqual(['浅色', '深色', '跟随系统']);
+
+    const dark = options.find((el) => el.textContent?.includes('深色'))!;
+    dark.click();
+    await nextTick();
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
+    expect(dark.getAttribute('aria-checked')).toBe('true');
+
+    options[0].click();
+    await nextTick();
+    expect(document.documentElement.dataset.theme).toBe('light');
     app.unmount();
   });
 });
