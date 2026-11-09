@@ -1,47 +1,78 @@
-// Design Tokens (Luminous Modern Studio Aesthetics)
-$bg-primary: #f8fafc;
-$bg-surface: #ffffff;
-$bg-surface-subtle: #f8fafc;
-$bg-surface-hover: #f1f5f9;
-$bg-glass: rgba(255, 255, 255, 0.88);
+// Design Tokens 别名层。
+// 值全部指向运行时 CSS 变量，切换 data-theme 即可让所有引用 $xxx 的组件同步换肤。
 
-$border-color: rgba(226, 232, 240, 0.9);
-$border-light: rgba(241, 245, 249, 0.8);
-$border-subtle: rgba(0, 0, 0, 0.06);
-$border-focus: #3b82f6;
+$bg-primary: var(--is-bg);
+$bg-gradient: var(--is-bg-gradient);
+$bg-surface: var(--is-surface);
+$bg-surface-subtle: var(--is-surface-subtle);
+$bg-surface-hover: var(--is-surface-hover);
+$bg-surface-raised: var(--is-surface-raised);
+$bg-glass: var(--is-glass);
 
-$accent-primary: #2563eb;
-$accent-hover: #1d4ed8;
-$accent-subtle: #eff6ff;
-$accent-glow: rgba(37, 99, 235, 0.16);
-$accent-gradient: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+$border-color: var(--is-border);
+$border-light: var(--is-border-light);
+$border-strong: var(--is-border-strong);
+$border-subtle: var(--is-border-subtle);
+$border-focus: var(--is-accent);
 
-$text-main: #0f172a;
-$text-secondary: #334155;
-$text-muted: #64748b;
-$text-dim: #94a3b8;
+$accent-primary: var(--is-accent);
+$accent-hover: var(--is-accent-hover);
+$accent-light: var(--is-accent-light);
+$accent-subtle: var(--is-accent-subtle);
+$accent-soft: var(--is-accent-soft);
+$accent-border: var(--is-accent-border);
+$accent-glow: var(--is-accent-glow);
+$accent-ink: var(--is-accent-ink);
+$accent-gradient: var(--is-accent-gradient);
 
-$danger: #ef4444;
-$danger-subtle: #fef2f2;
-$success: #10b981;
-$success-subtle: #ecfdf5;
-$warning: #f59e0b;
-$warning-subtle: #fffbeb;
-$favorite: #f59e0b;
-$favorite-subtle: #fffbeb;
-$favorite-glow: rgba(245, 158, 11, 0.2);
+$text-main: var(--is-text);
+$text-secondary: var(--is-text-secondary);
+$text-muted: var(--is-text-muted);
+$text-dim: var(--is-text-dim);
+$text-placeholder: var(--is-placeholder);
+$text-on-fill: var(--is-on-fill);
+$text-on-scrim: var(--is-on-scrim);
+
+$danger: var(--is-danger);
+$danger-hover: var(--is-danger-hover);
+$danger-subtle: var(--is-danger-subtle);
+$danger-soft: var(--is-danger-soft);
+$danger-border: var(--is-danger-border);
+
+$success: var(--is-success);
+$success-subtle: var(--is-success-subtle);
+$success-border: var(--is-success-border);
+
+$warning: var(--is-warning);
+$warning-subtle: var(--is-warning-subtle);
+
+$favorite: var(--is-favorite);
+$favorite-subtle: var(--is-favorite-subtle);
+$favorite-glow: var(--is-favorite-glow);
+$favorite-border: var(--is-favorite-border);
+
+$overlay: var(--is-overlay);
+$scrim: var(--is-scrim);
+$stage: var(--is-stage);
+$media-glass: var(--is-media-glass);
+$media-glass-border: var(--is-media-glass-border);
+$media-text: var(--is-media-text);
 
 $radius-xl: 16px;
 $radius-lg: 12px;
 $radius-md: 8px;
 $radius-sm: 6px;
 
-$shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
-$shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
-$shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -1px rgba(15, 23, 42, 0.03);
-$shadow-lg: 0 12px 32px -4px rgba(15, 23, 42, 0.1), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
-$shadow-float: 0 20px 45px -10px rgba(15, 23, 42, 0.09), 0 2px 8px -2px rgba(15, 23, 42, 0.04);
-$shadow-glow: 0 4px 14px rgba(37, 99, 235, 0.25);
+$shadow-xs: var(--is-shadow-xs);
+$shadow-sm: var(--is-shadow-sm);
+$shadow-md: var(--is-shadow-md);
+$shadow-lg: var(--is-shadow-lg);
+$shadow-float: var(--is-shadow-float);
+$shadow-glow: var(--is-shadow-glow);
+$shadow-scrim: var(--is-shadow-scrim);
+
+$scrollbar-thumb: var(--is-scrollbar-thumb);
+$scrollbar-thumb-hover: var(--is-scrollbar-thumb-hover);
 
 $font-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 $font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;

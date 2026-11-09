@@ -1,3 +1,4 @@
+@use './themes.scss';
 @use './variables.scss' as *;
 
 * {
@@ -14,10 +15,8 @@ body,
 
 body {
   font-family: $font-main;
-  background-color: #f8fafc;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(224, 242, 254, 0.4) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(238, 242, 255, 0.4) 0px, transparent 50%);
+  background-color: $bg-primary;
+  background-image: $bg-gradient;
   background-attachment: fixed;
   color: $text-main;
   min-height: 100%;
@@ -25,6 +24,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* 页面滚动条美化 (精致超细) */
@@ -38,19 +38,19 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.4);
+  background: $scrollbar-thumb;
   border-radius: 9999px;
   transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.7);
+  background: $scrollbar-thumb-hover;
 }
 
 /* 按钮通用风格 */
 .btn-primary {
   background: $accent-gradient;
-  color: #ffffff;
+  color: $accent-ink;
   border: none;
   border-radius: $radius-sm;
   padding: 8px 16px;
@@ -61,17 +61,12 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: $shadow-glow;
 
   &:hover:not(:disabled) {
-    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
+    background: $accent-hover;
+    box-shadow: $shadow-lg;
   }
 
   &:disabled {
@@ -82,8 +77,8 @@ body {
 }
 
 .btn-secondary {
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: $bg-surface;
+  border: 1px solid $border-color;
   color: $text-secondary;
   border-radius: $radius-sm;
   padding: 7px 14px;
@@ -95,20 +90,19 @@ body {
   justify-content: center;
   gap: 6px;
   box-shadow: $shadow-xs;
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s cubic-bezier(0.16, 1, 0.3, 1), color 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    background: #ffffff;
-    border-color: #94a3b8;
+    background: $bg-surface-hover;
+    border-color: $border-strong;
     color: $text-main;
-    transform: translateY(-0.5px);
     box-shadow: $shadow-sm;
   }
 }
 
 .btn-icon {
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: $bg-surface;
+  border: 1px solid $border-color;
   color: $text-muted;
   width: 34px;
   height: 34px;
@@ -126,25 +120,24 @@ body {
   justify-content: center;
   cursor: pointer;
   box-shadow: $shadow-xs;
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s cubic-bezier(0.16, 1, 0.3, 1), color 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    background: #ffffff;
-    border-color: #94a3b8;
+    background: $bg-surface-hover;
+    border-color: $border-strong;
     color: $text-main;
-    transform: translateY(-0.5px);
   }
 
   &.active {
     background: $accent-subtle;
-    border-color: #93c5fd;
+    border-color: $accent-border;
     color: $accent-primary;
   }
 }
 
 .btn-danger-outline {
-  background: #ffffff;
-  border: 1px solid #fecaca;
+  background: $bg-surface;
+  border: 1px solid $danger-border;
   color: $danger;
   border-radius: $radius-sm;
   padding: 7px 12px;
@@ -158,12 +151,11 @@ body {
   justify-content: center;
   gap: 6px;
   box-shadow: $shadow-xs;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 
   &:hover {
     background: $danger-subtle;
     border-color: $danger;
-    transform: translateY(-0.5px);
   }
 
   &.btn-icon,
