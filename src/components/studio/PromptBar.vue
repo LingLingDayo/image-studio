@@ -577,12 +577,12 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   max-width: 1120px;
-  background: rgba(255, 255, 255, 0.94);
+  background: $bg-glass;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  border: 1px solid $border-color;
   border-radius: 20px;
-  box-shadow: 0 20px 50px -12px rgba(15, 23, 42, 0.1), 0 2px 8px -2px rgba(15, 23, 42, 0.04);
+  box-shadow: $shadow-float;
   padding: 14px 16px 12px 16px;
   display: flex;
   flex-direction: column;
@@ -590,21 +590,21 @@ onUnmounted(() => {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:focus-within {
-    border-color: #93c5fd;
-    box-shadow: 0 24px 60px -12px rgba(37, 99, 235, 0.14), 0 0 0 1px rgba(37, 99, 235, 0.2);
+    border-color: $accent-border;
+    box-shadow: 0 24px 60px -12px $accent-glow, 0 0 0 1px $accent-soft;
   }
 
   &.is-dragging {
     border-color: $accent-primary;
     border-style: dashed;
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+    box-shadow: 0 0 0 4px $accent-soft;
   }
 }
 
 .drag-drop-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(239, 246, 255, 0.95);
+  background: $accent-subtle;
   border-radius: 20px;
   display: flex;
   flex-direction: column;
@@ -623,7 +623,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px dashed rgba(226, 232, 240, 0.9);
+  border-bottom: 1px dashed $border-color;
   overflow-x: auto;
 }
 
@@ -633,7 +633,7 @@ onUnmounted(() => {
   height: 48px;
   border-radius: $radius-md;
   overflow: hidden;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid $border-color;
   box-shadow: $shadow-xs;
   flex-shrink: 0;
   cursor: pointer;
@@ -661,9 +661,9 @@ onUnmounted(() => {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: rgba(239, 68, 68, 0.9);
+    background: $danger;
     border: none;
-    color: #ffffff;
+    color: $text-on-fill;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -699,7 +699,7 @@ onUnmounted(() => {
     padding-right: 28px;
 
     &::placeholder {
-      color: $text-dim;
+      color: $text-placeholder;
       font-size: 0.875rem;
     }
   }
@@ -723,7 +723,7 @@ onUnmounted(() => {
     flex-shrink: 0;
 
     &:hover {
-      background: #f1f5f9;
+      background: $bg-surface-hover;
       color: $text-main;
     }
 
@@ -740,7 +740,7 @@ onUnmounted(() => {
   gap: 10px;
   flex-wrap: wrap;
   padding-top: 8px;
-  border-top: 1px solid rgba(241, 245, 249, 0.9);
+  border-top: 1px solid $border-light;
 }
 
 .params-group {
@@ -761,9 +761,9 @@ onUnmounted(() => {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1px solid rgba(147, 197, 253, 0.5);
-  background: linear-gradient(135deg, rgba(238, 242, 255, 0.95), rgba(245, 243, 255, 0.95));
-  color: #6366f1;
+  border: 1px solid $accent-border;
+  background: $accent-subtle;
+  color: $accent-primary;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -774,11 +774,10 @@ onUnmounted(() => {
   position: relative;
 
   &:hover:not(:disabled) {
-    border-color: #818cf8;
-    background: linear-gradient(135deg, #e0e7ff, #ede9fe);
-    color: #4f46e5;
-    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.2);
-    transform: translateY(-0.5px);
+    border-color: $accent-primary;
+    background: $accent-soft;
+    color: $accent-primary;
+    box-shadow: 0 2px 10px $accent-glow;
   }
 
   &:disabled {
@@ -787,9 +786,9 @@ onUnmounted(() => {
   }
 
   &.is-optimizing {
-    background: linear-gradient(135deg, rgba(237, 233, 254, 0.95), rgba(245, 243, 255, 0.95));
-    color: #7c3aed;
-    border-color: #c4b5fd;
+    background: $accent-subtle;
+    color: $accent-primary;
+    border-color: $accent-border;
     animation: magic-btn-glow 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
     transform-origin: center center;
     will-change: transform, box-shadow;
@@ -807,23 +806,23 @@ onUnmounted(() => {
   0%, 100% {
     transform: scale(0.9);
     opacity: 0.65;
-    filter: drop-shadow(0 0 2px rgba(124, 58, 237, 0.3));
+    filter: drop-shadow(0 0 2px $accent-glow);
   }
   50% {
     transform: scale(1.18);
     opacity: 1;
-    filter: drop-shadow(0 0 6px rgba(147, 51, 234, 0.8)) drop-shadow(0 0 12px rgba(124, 58, 237, 0.45));
+    filter: drop-shadow(0 0 6px $accent-glow) drop-shadow(0 0 12px $accent-glow);
   }
 }
 
 @keyframes magic-btn-glow {
   0%, 100% {
     transform: scale(1);
-    box-shadow: 0 2px 6px rgba(124, 58, 237, 0.12);
+    box-shadow: 0 2px 6px $accent-glow;
   }
   50% {
     transform: scale(1.06);
-    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.24);
+    box-shadow: 0 4px 12px $accent-glow;
   }
 }
 
@@ -835,8 +834,8 @@ onUnmounted(() => {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  background: #ffffff;
+  border: 1px solid $border-color;
+  background: $bg-surface;
   color: $text-muted;
   display: flex;
   align-items: center;
@@ -846,15 +845,14 @@ onUnmounted(() => {
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    border-color: #93c5fd;
+    border-color: $accent-border;
     color: $accent-primary;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.1);
-    transform: translateY(-0.5px);
+    box-shadow: 0 2px 6px $accent-soft;
   }
 
   &.has-images {
     background: $accent-subtle;
-    border-color: #93c5fd;
+    border-color: $accent-border;
     color: $accent-primary;
   }
 }
@@ -863,7 +861,7 @@ onUnmounted(() => {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1px solid #fecaca;
+  border: 1px solid $danger-border;
   background: $danger-subtle;
   color: $danger;
   display: flex;
@@ -873,7 +871,7 @@ onUnmounted(() => {
   transition: all 0.15s ease;
 
   &:hover {
-    background: #fee2e2;
+    background: $danger-soft;
     transform: scale(1.05);
   }
 }
@@ -884,7 +882,7 @@ onUnmounted(() => {
   border-radius: 50%;
   border: none;
   background: $accent-gradient;
-  color: #ffffff;
+  color: $text-on-fill;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -893,9 +891,9 @@ onUnmounted(() => {
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover:not(:disabled) {
-    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
-    transform: translateY(-1px) scale(1.04);
-    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
+    background: linear-gradient(135deg, $accent-hover 0%, $accent-primary 100%);
+    transform: scale(1.04);
+    box-shadow: $shadow-glow;
   }
 
   &:active:not(:disabled) {

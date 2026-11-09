@@ -199,7 +199,7 @@ onUnmounted(() => {
 .ref-preview-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.4);
+  background: $overlay;
   backdrop-filter: blur(8px);
   z-index: 1000;
   display: flex;
@@ -210,7 +210,7 @@ onUnmounted(() => {
 
   &.is-fullscreen {
     padding: 0;
-    background: #090d16;
+    background: $stage;
     backdrop-filter: none;
 
     .ref-preview-modal-card {
@@ -220,7 +220,7 @@ onUnmounted(() => {
       border-radius: 0;
       border: none;
       box-shadow: none;
-      background: #090d16;
+      background: $stage;
     }
   }
 }
@@ -258,7 +258,7 @@ onUnmounted(() => {
     transition: all 0.15s ease;
 
     &:hover {
-      background: #e2e8f0;
+      background: $bg-surface-hover;
       color: $text-main;
     }
   }

@@ -69,8 +69,8 @@ function isActive(section: SettingSection): boolean {
 .settings-nav {
   width: 168px;
   flex-shrink: 0;
-  background: #f8fafc;
-  border-right: 1px solid rgba(226, 232, 240, 0.8);
+  background: $bg-surface-subtle;
+  border-right: 1px solid $border-color;
   padding: 12px 10px;
   overflow-y: auto;
   display: flex;
@@ -115,15 +115,15 @@ function isActive(section: SettingSection): boolean {
 
   &:hover {
     color: $text-main;
-    background: rgba(255, 255, 255, 0.7);
+    background: $bg-surface-hover;
   }
 
   &.is-active {
-    background: #ffffff;
+    background: $bg-surface;
     color: $accent-primary;
     font-weight: 600;
-    border-color: rgba(226, 232, 240, 0.9);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    border-color: $border-color;
+    box-shadow: $shadow-sm;
   }
 }
 

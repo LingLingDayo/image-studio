@@ -316,8 +316,8 @@ async function handleCopyPrompt() {
 }
 
 .failed-alert-banner {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: $danger-subtle;
+  border: 1px solid $danger-border;
   border-radius: 8px;
   padding: 10px 12px;
   display: flex;
@@ -340,12 +340,12 @@ async function handleCopyPrompt() {
   .alert-headline {
     font-size: 0.82rem;
     font-weight: 700;
-    color: #991b1b;
+    color: $danger;
   }
 
   .alert-detail {
     font-size: 0.76rem;
-    color: #b91c1c;
+    color: $danger;
     line-height: 1.4;
     word-break: break-word;
   }
@@ -394,7 +394,7 @@ async function handleCopyPrompt() {
 
   &:hover {
     color: $favorite;
-    background: rgba(245, 158, 11, 0.1);
+    background: $favorite-subtle;
     transform: scale(1.08);
   }
 
@@ -406,14 +406,14 @@ async function handleCopyPrompt() {
     color: $favorite;
 
     &:hover {
-      background: rgba(245, 158, 11, 0.14);
+      background: $favorite-glow;
     }
   }
 
   .star-filled {
     fill: $favorite;
     color: $favorite;
-    filter: drop-shadow(0 1px 3px rgba(245, 158, 11, 0.28));
+    filter: drop-shadow(0 1px 3px $favorite-glow);
   }
 }
 
@@ -520,7 +520,7 @@ async function handleCopyPrompt() {
   }
 
   &.output-column .spec-column-header .header-title {
-    color: #059669;
+    color: $success;
   }
 }
 
@@ -537,13 +537,13 @@ async function handleCopyPrompt() {
   }
 
   &.is-i2i {
-    background: rgba(168, 85, 247, 0.1);
-    color: #9333ea;
+    background: $accent-subtle;
+    color: $accent-primary;
   }
 
   &.is-transparent {
-    background: rgba(16, 185, 129, 0.1);
-    color: #059669;
+    background: $success-subtle;
+    color: $success;
   }
 }
 

@@ -176,21 +176,21 @@ function handleClear() {
   display: flex;
   align-items: center;
   width: 100%;
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: $bg-surface;
+  border: 1px solid $border-color;
   border-radius: $radius-sm;
   box-shadow: $shadow-xs;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 
   .ui-input-wrapper:not(.is-disabled) &:hover {
-    border-color: #93c5fd;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
+    border-color: $accent-border;
+    box-shadow: 0 2px 6px $accent-soft;
   }
 
   &:focus-within {
     border-color: $accent-primary;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-    background: #ffffff;
+    box-shadow: 0 0 0 3px $accent-soft;
+    background: $bg-surface;
   }
 }
 
@@ -249,7 +249,7 @@ function handleClear() {
 
   &:hover {
     color: $text-main;
-    background: #f1f5f9;
+    background: $bg-surface-hover;
   }
 
   :deep(svg) {
@@ -264,35 +264,35 @@ function handleClear() {
 
   :deep(code) {
     font-family: $font-mono;
-    background: #f1f5f9;
+    background: $bg-surface-hover;
     padding: 1px 4px;
     border-radius: 3px;
     color: $text-secondary;
-    border: 1px solid rgba(226, 232, 240, 0.8);
+    border: 1px solid $border-light;
   }
 }
 
 /* 变体 */
 .variant-default {
   .input-inner {
-    background: #ffffff;
+    background: $bg-surface;
   }
 }
 
 .variant-pill {
   .input-inner {
     border-radius: 9999px;
-    background: #ffffff;
+    background: $bg-surface;
   }
 }
 
 .variant-subtle {
   .input-inner {
     border-color: transparent;
-    background: #f8fafc;
+    background: $bg-surface-subtle;
 
     &:hover {
-      background: #f1f5f9;
+      background: $bg-surface-hover;
     }
   }
 }

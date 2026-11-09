@@ -177,10 +177,10 @@ onUnmounted(() => {
   inset: unset;
   margin: 0;
   padding: 5px 11px;
-  background: var(--theme-tooltip-bg, #ffffff);
-  color: var(--theme-tooltip-text, #0f172a);
-  border: 1px solid var(--theme-tooltip-border, rgba(226, 232, 240, 0.95));
-  box-shadow: 0 4px 14px -1px rgba(15, 23, 42, 0.1), 0 2px 6px -1px rgba(15, 23, 42, 0.05);
+  background: var(--theme-tooltip-bg, $bg-surface);
+  color: var(--theme-tooltip-text, $text-main);
+  border: 1px solid var(--theme-tooltip-border, $border-color);
+  box-shadow: $shadow-md;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   font-family: $font-main;

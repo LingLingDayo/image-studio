@@ -236,12 +236,12 @@ function handleJump() {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 18px;
-  background: rgba(255, 255, 255, 0.92);
+  background: $bg-glass;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  border: 1px solid $border-color;
   border-radius: $radius-lg;
-  box-shadow: 0 4px 20px -4px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-shadow: $shadow-md;
   user-select: none;
   flex-wrap: wrap;
 
@@ -288,8 +288,8 @@ function handleJump() {
   height: 32px;
   padding: 0 6px;
   border-radius: $radius-sm;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: #ffffff;
+  border: 1px solid $border-color;
+  background: $bg-surface;
   color: $text-secondary;
   font-size: 0.825rem;
   font-weight: 500;
@@ -298,30 +298,29 @@ function handleJump() {
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover:not(:disabled) {
-    border-color: #93c5fd;
+    border-color: $accent-border;
     color: $accent-primary;
-    background: #f8fafc;
-    transform: translateY(-0.5px);
+    background: $bg-surface-subtle;
   }
 
   &:disabled {
     opacity: 0.35;
     cursor: not-allowed;
-    background: #f8fafc;
-    border-color: rgba(226, 232, 240, 0.6);
+    background: $bg-surface-subtle;
+    border-color: $border-light;
   }
 
   &.is-active {
     background: $accent-primary;
     border-color: $accent-primary;
-    color: #ffffff;
+    color: $text-on-fill;
     font-weight: 600;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
+    box-shadow: 0 2px 8px $accent-glow;
 
     &:hover {
       background: $accent-hover;
       border-color: $accent-hover;
-      color: #ffffff;
+      color: $text-on-fill;
     }
   }
 }
@@ -369,9 +368,9 @@ function handleJump() {
   .jump-input {
     width: 44px;
     height: 30px;
-    border: 1px solid rgba(226, 232, 240, 0.95);
+    border: 1px solid $border-color;
     border-radius: $radius-sm;
-    background: #ffffff;
+    background: $bg-surface;
     text-align: center;
     font-size: 0.825rem;
     color: $text-main;
@@ -388,16 +387,16 @@ function handleJump() {
 
     &:focus {
       border-color: $accent-primary;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      box-shadow: 0 0 0 3px $accent-soft;
     }
   }
 
   .jump-btn {
     height: 30px;
     padding: 0 9px;
-    border: 1px solid rgba(226, 232, 240, 0.95);
+    border: 1px solid $border-color;
     border-radius: $radius-sm;
-    background: #ffffff;
+    background: $bg-surface;
     color: $text-secondary;
     font-size: 0.775rem;
     font-weight: 500;
@@ -405,9 +404,9 @@ function handleJump() {
     transition: all 0.15s ease;
 
     &:hover:not(:disabled) {
-      border-color: #93c5fd;
+      border-color: $accent-border;
       color: $accent-primary;
-      background: #f8fafc;
+      background: $bg-surface-subtle;
     }
 
     &:disabled {

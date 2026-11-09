@@ -105,12 +105,12 @@ function clearSearch() {
   align-items: center;
   gap: 14px;
   padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.9);
+  background: $bg-glass;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  border: 1px solid $border-color;
   border-radius: $radius-lg;
-  box-shadow: 0 4px 20px -4px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-shadow: $shadow-md;
 }
 
 .header-left {
@@ -124,8 +124,8 @@ function clearSearch() {
   width: 32px;
   height: 32px;
   border-radius: $radius-sm;
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  background: #ffffff;
+  border: 1px solid $border-color;
+  background: $bg-surface;
   color: $text-muted;
   display: flex;
   align-items: center;
@@ -136,14 +136,13 @@ function clearSearch() {
   flex-shrink: 0;
 
   &:hover {
-    border-color: rgba(245, 158, 11, 0.45);
+    border-color: $favorite-border;
     color: $favorite;
-    transform: translateY(-0.5px);
   }
 
   &.active {
     background: $favorite-subtle;
-    border-color: rgba(245, 158, 11, 0.45);
+    border-color: $favorite-border;
     color: $favorite;
     box-shadow: 0 2px 8px $favorite-glow;
   }
@@ -151,7 +150,7 @@ function clearSearch() {
   .star-active {
     fill: $favorite;
     color: $favorite;
-    filter: drop-shadow(0 1px 2px rgba(245, 158, 11, 0.25));
+    filter: drop-shadow(0 1px 2px $favorite-glow);
   }
 }
 
@@ -172,8 +171,8 @@ function clearSearch() {
   gap: 6px;
   font-size: 0.8rem;
   color: $text-secondary;
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: $bg-surface;
+  border: 1px solid $border-color;
   padding: 5px 12px;
   border-radius: 20px;
   font-weight: 500;
@@ -186,8 +185,8 @@ function clearSearch() {
   width: 32px;
   height: 32px;
   border-radius: $radius-sm;
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  background: #ffffff;
+  border: 1px solid $border-color;
+  background: $bg-surface;
   color: $text-muted;
   display: flex;
   align-items: center;
@@ -198,16 +197,15 @@ function clearSearch() {
   flex-shrink: 0;
 
   &:hover {
-    border-color: #93c5fd;
+    border-color: $accent-border;
     color: $accent-primary;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.1);
-    transform: translateY(-0.5px);
+    box-shadow: 0 2px 6px $accent-glow;
   }
 
   &.needs-config {
-    border-color: #fca5a5;
-    background: #fef2f2;
-    color: #ef4444;
+    border-color: $danger-border;
+    background: $danger-subtle;
+    color: $danger;
   }
 
   .dot-warn {
@@ -217,7 +215,7 @@ function clearSearch() {
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: #ef4444;
+    background: $danger;
   }
 }
 

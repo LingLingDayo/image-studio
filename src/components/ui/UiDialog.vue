@@ -221,7 +221,7 @@ onUnmounted(() => {
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: $overlay;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 1100;
@@ -236,7 +236,7 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   background: $bg-surface;
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  border: 1px solid $border-color;
   border-radius: 20px;
   box-shadow: $shadow-float;
   padding: 24px;
@@ -327,7 +327,7 @@ onUnmounted(() => {
   .dialog-icon-badge {
     background: $warning-subtle;
     color: $warning;
-    border: 1px solid rgba(245, 158, 11, 0.25);
+    border: 1px solid $favorite-border;
   }
 }
 
@@ -336,7 +336,7 @@ onUnmounted(() => {
   .dialog-icon-badge {
     background: $accent-subtle;
     color: $accent-primary;
-    border: 1px solid rgba(37, 99, 235, 0.2);
+    border: 1px solid $accent-glow;
   }
 }
 
@@ -344,7 +344,7 @@ onUnmounted(() => {
   .dialog-icon-badge {
     background: $success-subtle;
     color: $success;
-    border: 1px solid rgba(16, 185, 129, 0.25);
+    border: 1px solid $success-border;
   }
 }
 
@@ -353,7 +353,7 @@ onUnmounted(() => {
   .dialog-icon-badge {
     background: $danger-subtle;
     color: $danger;
-    border: 1px solid rgba(239, 68, 68, 0.25);
+    border: 1px solid $danger-border;
   }
 }
 </style>

@@ -220,9 +220,9 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  background: $bg-surface;
+  border: 1px solid $border-color;
+  box-shadow: $shadow-xs;
   border-radius: 9999px;
   padding: 3px 8px 3px 10px;
   min-height: 28px;
@@ -232,15 +232,14 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
   line-height: 1;
 
   &:hover {
-    border-color: #93c5fd;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
-    transform: translateY(-0.5px);
+    border-color: $accent-border;
+    box-shadow: 0 2px 6px $accent-soft;
   }
 
   &:focus-within {
-    background: #ffffff;
+    background: $bg-surface;
     border-color: $accent-primary;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 3px $accent-soft;
   }
 }
 
@@ -257,7 +256,7 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
 
   &:focus-visible {
     border-color: $accent-primary;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 3px $accent-soft;
   }
 }
 

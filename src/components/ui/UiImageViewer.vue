@@ -472,8 +472,8 @@ defineExpose({
 @use '@/styles/variables.scss' as *;
 
 .modal-image-panel {
-  background: #f8fafc;
-  background-image: radial-gradient(#e2e8f0 1.2px, transparent 1.2px);
+  background: $bg-surface-subtle;
+  background-image: radial-gradient($border-strong 1.2px, transparent 1.2px);
   background-size: 20px 20px;
   position: relative;
   display: flex;
@@ -526,12 +526,12 @@ defineExpose({
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
+  background: $bg-glass;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.12), 0 2px 6px -1px rgba(15, 23, 42, 0.06);
-  color: #475569;
+  border: 1px solid $border-color;
+  box-shadow: $shadow-lg;
+  color: $text-secondary;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -540,8 +540,8 @@ defineExpose({
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    background: #ffffff;
-    color: #0f172a;
+    background: $bg-surface;
+    color: $text-main;
     transform: scale(1.08);
   }
 
@@ -569,22 +569,22 @@ defineExpose({
   .failed-card-box {
     max-width: 480px;
     width: 100%;
-    background: #ffffff;
-    border: 1px solid rgba(239, 68, 68, 0.25);
+    background: $bg-surface;
+    border: 1px solid $danger-border;
     border-radius: 12px;
     padding: 28px 24px;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 10px 25px -5px $danger-soft, $shadow-xs;
   }
 
   .failed-icon-wrap {
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    background: #fef2f2;
+    background: $danger-subtle;
     color: $danger;
     display: flex;
     align-items: center;
@@ -595,15 +595,15 @@ defineExpose({
   .failed-title {
     font-size: 1.15rem;
     font-weight: 700;
-    color: #991b1b;
+    color: $danger;
     margin: 0 0 10px 0;
   }
 
   .failed-message {
     font-size: 0.88rem;
-    color: #dc2626;
-    background: #fff5f5;
-    border: 1px solid #fee2e2;
+    color: $danger-hover;
+    background: $danger-subtle;
+    border: 1px solid $danger-subtle;
     border-radius: 6px;
     padding: 10px 14px;
     margin: 0 0 14px 0;
@@ -638,7 +638,7 @@ defineExpose({
     object-fit: contain;
     border-radius: $radius-md;
     box-shadow: $shadow-md;
-    border: 1px solid rgba(0, 0, 0, 0.04);
+    border: 1px solid $border-subtle;
     will-change: transform;
     user-select: none;
   }
@@ -652,19 +652,19 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.88);
+  background: $bg-glass;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   padding: 4px 10px;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.1), 0 2px 6px -1px rgba(15, 23, 42, 0.05);
+  border: 1px solid $media-glass-border;
+  box-shadow: $shadow-lg;
   z-index: 10;
 
   .btn-lightbox-nav {
     background: transparent;
     border: none;
-    color: #475569;
+    color: $text-secondary;
     width: 28px;
     height: 28px;
     border-radius: 50%;
@@ -675,14 +675,14 @@ defineExpose({
     transition: all 0.15s ease;
 
     &:hover {
-      background: rgba(241, 245, 249, 0.95);
-      color: #0f172a;
+      background: $border-light;
+      color: $text-main;
       transform: scale(1.1);
     }
   }
 
   .lightbox-counter {
-    color: #334155;
+    color: $text-secondary;
     font-family: $font-mono;
     font-size: 0.8rem;
     font-weight: 600;
@@ -695,11 +695,11 @@ defineExpose({
   bottom: 20px;
   left: 50%;
   transform: translate(-50%, 10px);
-  background: rgba(255, 255, 255, 0.9);
+  background: $bg-glass;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.12), 0 4px 12px -2px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border: 1px solid $border-color;
+  box-shadow: $shadow-lg;
   border-radius: 9999px;
   padding: 5px 8px;
   display: flex;
@@ -719,7 +719,7 @@ defineExpose({
   .tool-btn {
     background: transparent;
     border: none;
-    color: #475569;
+    color: $text-secondary;
     height: 30px;
     width: 30px;
     padding: 0;
@@ -733,7 +733,7 @@ defineExpose({
 
     &:hover {
       background: transparent; /* hover 无背景色 */
-      color: #0f172a;
+      color: $text-main;
       transform: scale(1.06);
     }
 
@@ -753,7 +753,7 @@ defineExpose({
 
       &:hover {
         background: transparent; /* hover 无背景色 */
-        color: #1d4ed8;
+        color: $accent-hover;
       }
     }
   }
@@ -761,7 +761,7 @@ defineExpose({
   .tool-divider {
     width: 1px;
     height: 14px;
-    background: #e2e8f0;
+    background: $border-strong;
     margin: 0 2px;
   }
 }

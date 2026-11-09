@@ -331,7 +331,7 @@ onUnmounted(() => {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.4);
+  background: $overlay;
   backdrop-filter: blur(8px);
   z-index: 1000;
   display: flex;
@@ -342,7 +342,7 @@ onUnmounted(() => {
 
   &.is-fullscreen {
     padding: 0;
-    background: #090d16;
+    background: $stage;
     backdrop-filter: none;
 
     .modal-card {
@@ -354,7 +354,7 @@ onUnmounted(() => {
       border-radius: 0;
       border: none;
       box-shadow: none;
-      background: #090d16;
+      background: $stage;
     }
 
     .modal-body {
@@ -404,12 +404,12 @@ onUnmounted(() => {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid $media-glass-border;
+  background: $media-glass;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.12), 0 2px 6px -1px rgba(15, 23, 42, 0.06);
-  color: $text-secondary;
+  box-shadow: $shadow-scrim;
+  color: $media-text;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -417,9 +417,9 @@ onUnmounted(() => {
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    background: #ffffff;
+    background: $bg-surface;
     color: $text-main;
-    border-color: #93c5fd;
+    border-color: $accent-border;
     transform: translateY(-50%) scale(1.06);
   }
 
@@ -467,7 +467,7 @@ onUnmounted(() => {
   transition: all 0.15s ease;
 
   &:hover {
-    background: #e2e8f0;
+    background: $bg-surface-hover;
     color: $text-main;
   }
 }

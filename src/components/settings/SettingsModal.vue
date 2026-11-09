@@ -233,7 +233,7 @@ onUnmounted(() => {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.4);
+  background: $overlay;
   backdrop-filter: blur(8px);
   z-index: 1000;
   display: flex;

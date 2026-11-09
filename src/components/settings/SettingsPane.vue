@@ -82,8 +82,8 @@ const hasDeploymentPreset = computed(() => props.section?.groups.some((group) =>
 .pane-empty {
   font-size: 0.85rem;
   color: $text-muted;
-  background: #f8fafc;
-  border: 1px dashed rgba(226, 232, 240, 0.95);
+  background: $bg-surface-subtle;
+  border: 1px dashed $border-color;
   border-radius: $radius-md;
   padding: 18px 16px;
   text-align: center;

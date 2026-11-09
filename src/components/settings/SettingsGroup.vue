@@ -59,8 +59,8 @@ const isSubcard = computed(() => props.group.layout === 'subcard');
   gap: 12px;
 
   &.is-subcard {
-    background: #f8fafc;
-    border: 1px solid rgba(226, 232, 240, 0.9);
+    background: $bg-surface-subtle;
+    border: 1px solid $border-color;
     border-radius: $radius-lg;
     padding: 14px;
   }

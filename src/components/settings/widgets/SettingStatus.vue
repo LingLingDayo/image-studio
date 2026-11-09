@@ -50,21 +50,21 @@ const status = computed<{ type: string; message: string } | null>(() => {
 
   &.success {
     background: $success-subtle;
-    color: #059669;
-    border: 1px solid #a7f3d0;
+    color: $success;
+    border: 1px solid $success-border;
   }
 
   &.error {
     background: $danger-subtle;
-    color: #dc2626;
-    border: 1px solid #fecaca;
+    color: $danger-hover;
+    border: 1px solid $danger-border;
   }
 
   &.info,
   &.warning {
     background: $accent-subtle;
     color: $accent-primary;
-    border: 1px solid rgba(37, 99, 235, 0.18);
+    border: 1px solid $accent-glow;
   }
 }
 </style>

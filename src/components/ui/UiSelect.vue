@@ -316,8 +316,8 @@ function handleKeyDown(e: KeyboardEvent) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: $bg-surface;
+  border: 1px solid $border-color;
   box-shadow: $shadow-xs;
   cursor: pointer;
   font-family: inherit;
@@ -338,20 +338,19 @@ function handleKeyDown(e: KeyboardEvent) {
 /* 变体: pill (用于 Prompt 底部控制台，纯净白底 + 晶亮微边框) */
 .variant-pill {
   .select-trigger {
-    background: #ffffff;
-    border: 1px solid rgba(226, 232, 240, 0.95);
+    background: $bg-surface;
+    border: 1px solid $border-color;
     border-radius: 9999px;
     padding: 4px 11px;
     min-height: 28px;
     font-size: 0.75rem;
     color: $text-secondary;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    box-shadow: $shadow-xs;
 
     &:hover:not(:disabled) {
-      background: #ffffff;
-      border-color: #93c5fd;
-      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
-      transform: translateY(-0.5px);
+      background: $bg-surface;
+      border-color: $accent-border;
+      box-shadow: 0 2px 6px $accent-soft;
 
       .select-arrow {
         color: $accent-primary;
@@ -360,14 +359,14 @@ function handleKeyDown(e: KeyboardEvent) {
   }
 
   &.is-open .select-trigger {
-    background: #ffffff;
+    background: $bg-surface;
     border-color: $accent-primary;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 3px $accent-soft;
   }
 
   &:focus-visible .select-trigger {
     border-color: $accent-primary;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 3px $accent-soft;
   }
 
   .select-label {
@@ -388,8 +387,8 @@ function handleKeyDown(e: KeyboardEvent) {
 /* 变体: default (用于 Header 或常规表单) */
 .variant-default {
   .select-trigger {
-    background: #ffffff;
-    border: 1px solid rgba(226, 232, 240, 0.95);
+    background: $bg-surface;
+    border: 1px solid $border-color;
     border-radius: $radius-sm;
     padding: 6px 12px;
     font-size: 0.85rem;
@@ -397,21 +396,20 @@ function handleKeyDown(e: KeyboardEvent) {
     font-weight: 500;
 
     &:hover:not(:disabled) {
-      border-color: #93c5fd;
-      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
+      border-color: $accent-border;
+      box-shadow: 0 2px 6px $accent-soft;
       color: $text-main;
-      transform: translateY(-0.5px);
     }
   }
 
   &.is-open .select-trigger {
     border-color: $accent-primary;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 3px $accent-soft;
   }
 
   &:focus-visible .select-trigger {
     border-color: $accent-primary;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 3px $accent-soft;
   }
 
   .select-label {
@@ -438,7 +436,7 @@ function handleKeyDown(e: KeyboardEvent) {
     color: $text-secondary;
 
     &:hover:not(:disabled) {
-      background: rgba(241, 245, 249, 0.8);
+      background: $bg-surface-hover;
       color: $text-main;
     }
   }
@@ -507,8 +505,8 @@ function handleKeyDown(e: KeyboardEvent) {
   min-width: 90px;
   width: max-content;
   max-width: 280px;
-  background: rgba(255, 255, 255, 0.98);
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: $bg-glass;
+  border: 1px solid $border-color;
   border-radius: $radius-lg;
   box-shadow: $shadow-lg;
   padding: 5px;
@@ -539,7 +537,7 @@ function handleKeyDown(e: KeyboardEvent) {
     width: 4px;
   }
   &::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: $border-strong;
     border-radius: 2px;
   }
 }
@@ -558,12 +556,12 @@ function handleKeyDown(e: KeyboardEvent) {
 
   &:hover,
   &.is-highlighted {
-    background: #f8fafc;
+    background: $bg-surface-subtle;
     color: $text-main;
   }
 
   &.is-active {
-    background: rgba(37, 99, 235, 0.08);
+    background: $accent-soft;
     color: $accent-primary;
     font-weight: 600;
   }

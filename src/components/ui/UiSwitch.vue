@@ -69,7 +69,7 @@ function handleKeyDown(e: KeyboardEvent) {
   }
 
   &:focus-visible .switch-track {
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 0 0 2px $accent-glow;
   }
 }
 
@@ -83,7 +83,7 @@ function handleKeyDown(e: KeyboardEvent) {
   position: relative;
   width: 32px;
   height: 18px;
-  background: #cbd5e1;
+  background: $border-strong;
   border-radius: 9999px;
   transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -94,9 +94,9 @@ function handleKeyDown(e: KeyboardEvent) {
   left: 2px;
   width: 14px;
   height: 14px;
-  background: #ffffff;
+  background: $text-on-scrim;
   border-radius: 50%;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: $shadow-sm;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 

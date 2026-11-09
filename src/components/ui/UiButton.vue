@@ -91,7 +91,7 @@ function handleClick(e: MouseEvent) {
 /* 变体 */
 .variant-primary {
   background: $accent-primary;
-  color: #ffffff;
+  color: $text-on-fill;
 
   &:hover:not(:disabled) {
     background: $accent-hover;
@@ -106,23 +106,23 @@ function handleClick(e: MouseEvent) {
 
   &:hover:not(:disabled) {
     background: $bg-surface-subtle;
-    border-color: #cbd5e1;
+    border-color: $border-strong;
     color: $text-main;
   }
 }
 
 .variant-danger {
   background: $danger;
-  color: #ffffff;
+  color: $text-on-fill;
 
   &:hover:not(:disabled) {
-    background: #dc2626;
+    background: $danger-hover;
   }
 }
 
 .variant-danger-outline {
   background: transparent;
-  border-color: #fca5a5;
+  border-color: $danger-border;
   color: $danger;
 
   &:hover:not(:disabled) {
@@ -149,7 +149,7 @@ function handleClick(e: MouseEvent) {
 
   &:hover:not(:disabled) {
     background: $bg-surface-subtle;
-    border-color: #cbd5e1;
+    border-color: $border-strong;
     color: $text-main;
   }
 }

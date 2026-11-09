@@ -288,7 +288,7 @@ useClickOutside(rootRef, closeDropdown);
 
   &:focus-within {
     border-color: $accent-primary;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 3px $accent-soft;
   }
 }
 
@@ -306,7 +306,7 @@ useClickOutside(rootRef, closeDropdown);
   font-size: 0.875rem;
 
   &::placeholder {
-    color: $text-dim;
+    color: $text-placeholder;
   }
 
   &:disabled {

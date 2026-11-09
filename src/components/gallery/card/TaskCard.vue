@@ -225,8 +225,8 @@ const failDetail = computed(() => {
 @use '@/styles/variables.scss' as *;
 
 .gallery-card {
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: $bg-surface;
+  border: 1px solid $border-color;
   border-radius: $radius-xl;
   overflow: hidden;
   display: flex;
@@ -234,33 +234,32 @@ const failDetail = computed(() => {
   min-height: 148px;
   max-height: 148px;
   box-sizing: border-box;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: $shadow-sm;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 
   &:hover {
-    border-color: #93c5fd;
-    box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08);
-    transform: translateY(-2px);
+    border-color: $accent-border;
+    box-shadow: $shadow-lg;
   }
 }
 
 .task-card {
-  border: 1px dashed rgba(147, 197, 253, 0.9);
-  background: #ffffff;
+  border: 1px dashed $accent-border;
+  background: $bg-surface;
 
   &.status-processing {
-    border-color: #60a5fa;
-    box-shadow: 0 4px 16px -2px rgba(37, 99, 235, 0.08);
+    border-color: $accent-light;
+    box-shadow: $shadow-glow;
   }
 
   &.status-failed {
-    border-color: #fca5a5;
-    background: #ffffff;
+    border-color: $danger-border;
+    background: $bg-surface;
   }
 }
 
 .task-visual-wrapper {
-  background: #f8fafc;
+  background: $bg-surface-subtle;
   position: relative;
   width: 140px;
   min-width: 140px;
@@ -279,7 +278,7 @@ const failDetail = computed(() => {
   .shimmer-background {
     position: absolute;
     inset: 0;
-    background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+    background: linear-gradient(90deg, $bg-surface-hover 0%, $border-strong 50%, $bg-surface-hover 100%);
     background-size: 200% 100%;
     animation: shimmerEffect 1.8s infinite linear;
   }
@@ -298,7 +297,7 @@ const failDetail = computed(() => {
       font-size: 0.72rem;
       font-weight: 600;
       color: $text-secondary;
-      background: rgba(255, 255, 255, 0.85);
+      background: $bg-glass;
       padding: 1px 6px;
       border-radius: 4px;
       backdrop-filter: blur(4px);
@@ -315,7 +314,7 @@ const failDetail = computed(() => {
   width: 100%;
   height: 100%;
   color: $danger;
-  background: #fff5f5;
+  background: $danger-subtle;
 
   .fail-status-text {
     font-size: 0.72rem;
@@ -335,8 +334,8 @@ const failDetail = computed(() => {
   z-index: 2;
 
   .size-pill, .count-pill {
-    background: rgba(15, 23, 42, 0.75);
-    color: #ffffff;
+    background: $scrim;
+    color: $text-on-scrim;
     font-size: 0.65rem;
     font-weight: 500;
     padding: 1px 6px;
@@ -388,8 +387,8 @@ const failDetail = computed(() => {
   gap: 3px;
   font-size: 0.70rem;
   color: $text-muted;
-  background: #f8fafc;
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: $bg-surface-subtle;
+  border: 1px solid $border-color;
   padding: 1.5px 5px;
   border-radius: 4px;
   font-weight: 500;
@@ -397,14 +396,14 @@ const failDetail = computed(() => {
 
   &.ref-tag {
     background: $accent-subtle;
-    border-color: #bfdbfe;
+    border-color: $accent-border;
     color: $accent-primary;
   }
 
   &.batch-tag {
-    background: #f0fdf4;
-    border-color: #bbf7d0;
-    color: #16a34a;
+    background: $success-subtle;
+    border-color: $success-border;
+    color: $success;
     font-weight: 600;
   }
 
@@ -442,7 +441,7 @@ const failDetail = computed(() => {
   .progress-track {
     flex: 1;
     height: 4px;
-    background: #e2e8f0;
+    background: $border-strong;
     border-radius: 2px;
     overflow: hidden;
   }
@@ -522,7 +521,7 @@ const failDetail = computed(() => {
 
     &:hover {
       background: $danger-subtle;
-      border-color: #fca5a5;
+      border-color: $danger-border;
       color: $danger;
     }
   }
@@ -533,20 +532,20 @@ const failDetail = computed(() => {
     color: $text-secondary;
 
     &:hover {
-      background: #eff6ff;
-      border-color: #bfdbfe;
+      background: $accent-subtle;
+      border-color: $accent-border;
       color: $accent-primary;
     }
   }
 
   &.btn-retry-task {
     background: $accent-subtle;
-    border-color: #bfdbfe;
+    border-color: $accent-border;
     color: $accent-primary;
 
     &:hover {
-      background: #dbeafe;
-      border-color: #93c5fd;
+      background: $accent-soft;
+      border-color: $accent-border;
     }
   }
 

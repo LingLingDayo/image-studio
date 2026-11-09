@@ -356,8 +356,8 @@ async function handleDownload() {
 @use '@/styles/variables.scss' as *;
 
 .gallery-card {
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: $bg-surface;
+  border: 1px solid $border-color;
   border-radius: $radius-xl;
   overflow: hidden;
   display: flex;
@@ -365,13 +365,12 @@ async function handleDownload() {
   min-height: 148px;
   max-height: 148px;
   box-sizing: border-box;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: $shadow-sm;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 
   &:hover {
-    border-color: #93c5fd;
-    box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08);
-    transform: translateY(-2px);
+    border-color: $accent-border;
+    box-shadow: $shadow-lg;
   }
 }
 
@@ -381,7 +380,7 @@ async function handleDownload() {
   width: 140px;
   min-width: 140px;
   height: 100%;
-  background: #f8fafc;
+  background: $bg-surface-subtle;
   cursor: pointer;
   overflow: hidden;
   box-sizing: border-box;
@@ -415,7 +414,7 @@ async function handleDownload() {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: #fff5f5;
+  background: $danger-subtle;
   color: $danger;
 
   .fail-status-text {
@@ -436,8 +435,8 @@ async function handleDownload() {
   z-index: 2;
 
   .size-pill, .count-pill {
-    background: rgba(15, 23, 42, 0.75);
-    color: #ffffff;
+    background: $scrim;
+    color: $text-on-scrim;
     font-size: 0.65rem;
     font-weight: 500;
     padding: 1px 6px;
@@ -456,7 +455,7 @@ async function handleDownload() {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  background: rgba(15, 23, 42, 0.76);
+  background: $scrim;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   padding: 1.5px 5px;
@@ -465,7 +464,7 @@ async function handleDownload() {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  box-shadow: $shadow-scrim, 0 0 0 1px $media-glass-border;
   transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
               transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
               visibility 0.2s ease;
@@ -473,7 +472,7 @@ async function handleDownload() {
   .carousel-arrow {
     background: transparent;
     border: none;
-    color: #ffffff;
+    color: $text-on-scrim;
     width: 16px;
     height: 16px;
     border-radius: 50%;
@@ -496,7 +495,7 @@ async function handleDownload() {
   }
 
   .carousel-counter {
-    color: #ffffff;
+    color: $text-on-scrim;
     font-family: $font-mono;
     font-size: 0.62rem;
     font-weight: 600;
@@ -555,8 +554,8 @@ async function handleDownload() {
   gap: 3px;
   font-size: 0.70rem;
   color: $text-muted;
-  background: #f8fafc;
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: $bg-surface-subtle;
+  border: 1px solid $border-color;
   padding: 1.5px 5px;
   border-radius: 4px;
   font-weight: 500;
@@ -564,14 +563,14 @@ async function handleDownload() {
 
   &.ref-tag {
     background: $accent-subtle;
-    border-color: #bfdbfe;
+    border-color: $accent-border;
     color: $accent-primary;
   }
 
   &.batch-tag {
-    background: #f0fdf4;
-    border-color: #bbf7d0;
-    color: #16a34a;
+    background: $success-subtle;
+    border-color: $success-border;
+    color: $success;
     font-weight: 600;
   }
 
@@ -617,7 +616,7 @@ async function handleDownload() {
   }
 
   &:hover {
-    background: #f1f5f9;
+    background: $bg-surface-hover;
     color: $text-main;
   }
 
@@ -625,15 +624,15 @@ async function handleDownload() {
     color: $favorite;
 
     &:hover {
-      background: rgba(245, 158, 11, 0.1);
-      color: #d97706;
+      background: $favorite-subtle;
+      color: $favorite;
     }
   }
 
   .star-filled {
     fill: $favorite;
     color: $favorite;
-    filter: drop-shadow(0 1px 2px rgba(245, 158, 11, 0.25));
+    filter: drop-shadow(0 1px 2px $favorite-glow);
   }
 
   &.btn-delete:hover {
