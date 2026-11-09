@@ -1,6 +1,7 @@
 import {
   ASPECT_RATIO_OPTIONS,
   RESOLUTION_OPTIONS,
+  type AspectRatioOption,
   type ResolutionTier
 } from '@/utils/imageSize';
 
@@ -35,7 +36,7 @@ export interface ModelProfile {
   description?: string;
   supportedModes: ('t2i' | 'i2i')[];
   resolutionOptions: { label: string; value: ResolutionTier }[];
-  aspectRatioOptions: { label: string; value: string; description?: string }[];
+  aspectRatioOptions: AspectRatioOption[];
   qualityOptions: { label: string; value: ModelQuality }[];
   formatOptions: { label: string; value: ModelFormat }[];
   moderationOptions: { label: string; value: ModelModeration }[];

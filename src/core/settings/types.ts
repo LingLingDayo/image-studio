@@ -4,6 +4,8 @@ export interface SettingSelectOption {
   label: string;
   value: string | number | boolean;
   description?: string;
+  /** 选项 hover 时显示的 tooltip（透传给 UiSelect）。 */
+  tip?: string;
   disabled?: boolean;
 }
 

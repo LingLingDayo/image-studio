@@ -385,7 +385,7 @@ describe('imageSize (imageSize.ts)', () => {
     expect(ASPECT_RATIO_OPTIONS).toContainEqual({
       label: '同参考图',
       value: 'reference',
-      description: '与第一张参考图比例相同'
+      tip: '与第一张参考图比例相同'
     });
     expect(isReferenceRatio('reference')).toBe(true);
     expect(isReferenceRatio('same_as_reference')).toBe(true);

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createApp, h, nextTick, ref } from 'vue';
 import { Cpu, Scaling } from '@lucide/vue';
 import { WHEEL_ADJUST_TIP } from '@/utils/wheelStep';
+import { ASPECT_RATIO_OPTIONS } from '@/utils/imageSize';
 import UiSelect from './UiSelect.vue';
 import UiStepper from './UiStepper.vue';
 import UiInput from './UiInput.vue';
@@ -135,6 +136,75 @@ describe('UI Components (src/components/ui)', () => {
 
     expect(opened).toBe(1);
     expect(container.querySelector('.select-dropdown')).not.toBeNull();
+
+    app.unmount();
+  });
+
+  it('UiSelect 选项可通过 tip 配置 hover 提示，且不影响 description 副标题', async () => {
+    const app = createApp({
+      render() {
+        return h(UiSelect, {
+          modelValue: 'a',
+          label: '示例',
+          options: [
+            { label: '带提示', value: 'a', tip: '这是该选项的说明' },
+            { label: '带副标题', value: 'b', description: '第二行小字' },
+            { label: '普通项', value: 'c' }
+          ]
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+    (container.querySelector('.select-trigger') as HTMLButtonElement).click();
+    await nextTick();
+
+    const items = [...container.querySelectorAll<HTMLElement>('.dropdown-item')];
+    expect(items).toHaveLength(3);
+
+    // Tooltip 沿 composedPath 向上找第一个 data-tip，closest 等价于该查找过程
+    expect(items[0].getAttribute('data-tip')).toBe('这是该选项的说明');
+    const labelEl = items[0].querySelector('.item-label') as HTMLElement;
+    expect(labelEl.closest('[data-tip]')).toBe(items[0]);
+
+    // 未配置 tip 的选项不应渲染出空的提示属性
+    expect(items[1].hasAttribute('data-tip')).toBe(false);
+    expect(items[2].hasAttribute('data-tip')).toBe(false);
+
+    // 既有的第二行 description 能力保持不变
+    expect(items[1].querySelector('.item-desc')?.textContent).toBe('第二行小字');
+    expect(items[0].querySelector('.item-desc')).toBeNull();
+
+    app.unmount();
+  });
+
+  it('比例下拉的「同参考图」只显示一行文字，描述改为 hover 提示', async () => {
+    const app = createApp({
+      render() {
+        return h(UiSelect, {
+          modelValue: 'auto',
+          label: '比例',
+          options: ASPECT_RATIO_OPTIONS
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+    (container.querySelector('.select-trigger') as HTMLButtonElement).click();
+    await nextTick();
+
+    const items = [...container.querySelectorAll<HTMLElement>('.dropdown-item')];
+    const reference = items.find((el) => el.textContent?.includes('同参考图'))!;
+    expect(reference).toBeDefined();
+    expect(reference.textContent?.trim()).toBe('同参考图');
+    expect(reference.querySelector('.item-desc')).toBeNull();
+    expect(reference.getAttribute('data-tip')).toBe('与第一张参考图比例相同');
+
+    // 其余选项不受影响
+    const auto = items.find((el) => el.textContent?.includes('自动'))!;
+    expect(auto.hasAttribute('data-tip')).toBe(false);
 
     app.unmount();
   });

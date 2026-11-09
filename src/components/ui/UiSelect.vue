@@ -6,7 +6,10 @@ import { useClickOutside } from '@/composables/useClickOutside';
 export interface SelectOption {
   label: string;
   value: string | number | boolean;
+  /** 选项第二行的说明文字。 */
   description?: string;
+  /** 选项 hover 时显示的 tooltip，由全局 Tooltip 通过 data-tip 委托渲染。 */
+  tip?: string;
   disabled?: boolean;
 }
 
@@ -245,6 +248,7 @@ function handleKeyDown(e: KeyboardEvent) {
               'is-highlighted': idx === highlightedIndex,
               'is-disabled': opt.disabled 
             }"
+            :data-tip="opt.tip || undefined"
             role="option"
             :aria-selected="opt.value === modelValue"
             @mouseenter="highlightedIndex = idx"
@@ -553,6 +557,11 @@ function handleKeyDown(e: KeyboardEvent) {
   font-size: 0.8rem;
   color: $text-secondary;
   transition: all 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* 全局 [data-tip] 会给元素加 help 光标，下拉选项仍应保持可点击的 pointer */
+  &[data-tip] {
+    cursor: pointer;
+  }
 
   &:hover,
   &.is-highlighted {
