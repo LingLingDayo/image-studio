@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createApp, h, nextTick, ref } from 'vue';
 import { Cpu, Scaling } from '@lucide/vue';
+import { WHEEL_ADJUST_TIP } from '@/utils/wheelStep';
 import UiSelect from './UiSelect.vue';
 import UiStepper from './UiStepper.vue';
 import UiInput from './UiInput.vue';
@@ -302,6 +303,53 @@ describe('UI Components (src/components/ui)', () => {
     (container.querySelector('.size-label') as HTMLElement).click();
     await nextTick();
     expect(document.activeElement).toBe(widthInput);
+
+    app.unmount();
+  });
+
+  it('数量控件无批次说明时 hover 标签文字也能命中滚轮提示', async () => {
+    const app = createApp({
+      render() {
+        return h(UiStepper, { modelValue: 2, label: '数量' });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const controls = container.querySelector('.stepper-controls') as HTMLElement;
+    const stepInput = container.querySelector('.step-input') as HTMLInputElement;
+    expect(controls.getAttribute('data-tip')).toBe(WHEEL_ADJUST_TIP);
+    expect(stepInput.getAttribute('data-tip')).toBe(WHEEL_ADJUST_TIP);
+
+    // Tooltip 沿 composedPath 向上找第一个 data-tip，closest 等价于该查找过程
+    const labelEl = container.querySelector('.stepper-label') as HTMLElement;
+    expect(labelEl.closest('[data-tip]')).toBe(controls);
+    expect(labelEl.closest('[data-tip]')?.getAttribute('data-tip')).toBe(WHEEL_ADJUST_TIP);
+
+    app.unmount();
+  });
+
+  it('尺寸编辑态 hover 标签文字同样能命中滚轮提示', async () => {
+    const app = createApp({
+      render() {
+        return h(UiSizeInput, { width: 1024, height: 768, label: '尺寸' });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const controls = container.querySelector('.size-controls.is-editing') as HTMLElement;
+    expect(controls.getAttribute('data-tip')).toBe(WHEEL_ADJUST_TIP);
+
+    const labelEl = container.querySelector('.size-label') as HTMLElement;
+    expect(labelEl.closest('[data-tip]')).toBe(controls);
+
+    // 具体输入框仍保留更精确的「宽度 / 高度」提示
+    const widthInput = container.querySelector('.dim-input') as HTMLInputElement;
+    expect(widthInput.getAttribute('data-tip')).toContain('宽度');
+    expect(widthInput.closest('[data-tip]')).toBe(widthInput);
 
     app.unmount();
   });

@@ -139,7 +139,7 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
     </button>
 
     <!-- 具体尺寸编辑状态：提供宽度、高度数字输入与设为自动清除按钮 -->
-    <div v-else class="size-controls is-editing">
+    <div v-else class="size-controls is-editing" :data-tip="WHEEL_ADJUST_TIP">
       <component
         v-if="icon"
         :is="icon"
@@ -248,6 +248,11 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
     border-color: $accent-primary;
     box-shadow: 0 0 0 3px $accent-soft;
   }
+}
+
+/* data-tip 会带来 help 光标，编辑态胶囊整体仍应保持可输入的文本光标 */
+.size-controls.is-editing {
+  cursor: text;
 }
 
 .size-auto-trigger {

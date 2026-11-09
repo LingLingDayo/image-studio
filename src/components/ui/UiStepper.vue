@@ -25,8 +25,9 @@ const props = withDefaults(
   }
 );
 
-const controlTip = computed(() => props.tip || undefined);
-const valueTip = computed(() => props.tip || WHEEL_ADJUST_TIP);
+/** 胶囊与数值输入框共用同一提示：hover 标签文字、图标或空白区域时也能看到
+ *  滚轮调整说明；批量模式传入 tip 时改为展示批次信息。 */
+const stepperTip = computed(() => props.tip || WHEEL_ADJUST_TIP);
 
 const stepInputRef = ref<HTMLInputElement | null>(null);
 
@@ -81,7 +82,7 @@ function handleWheel(e: WheelEvent) {
     class="ui-stepper" 
     :class="[`variant-${variant}`, { 'is-disabled': disabled, 'has-icon': Boolean(icon) }]"
   >
-    <label class="stepper-controls" :data-tip="controlTip" @wheel.prevent="handleWheel">
+    <label class="stepper-controls" :data-tip="stepperTip" @wheel.prevent="handleWheel">
       <component
         v-if="icon"
         :is="icon"
@@ -109,7 +110,7 @@ function handleWheel(e: WheelEvent) {
         data-form-type="other"
         ref="stepInputRef"
         class="step-input"
-        :data-tip="valueTip"
+        :data-tip="stepperTip"
         @focus="handleInputFocus"
         @keydown="handleKeyDown"
         @change="handleInputChange"

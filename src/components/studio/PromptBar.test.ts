@@ -5,6 +5,7 @@ import PromptBar from './PromptBar.vue';
 import { useConfigStore } from '@/stores/configStore';
 import { useModelStore } from '@/stores/modelStore';
 import { PromptOptimizerService } from '@/core/services/PromptOptimizerService';
+import { WHEEL_ADJUST_TIP } from '@/utils/wheelStep';
 
 describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
   let container: HTMLDivElement;
@@ -406,7 +407,7 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     app.unmount();
   });
 
-  it('单段提示词或仅单个空行时数量控件文案为数量且无批量说明', async () => {
+  it('单段提示词或仅单个空行时数量控件文案为数量且展示默认滚轮提示', async () => {
     const app = createApp({
       render() {
         return h(PromptBar as any, {
@@ -422,7 +423,9 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
 
     const stepper = container.querySelector('.ui-stepper') as HTMLElement;
     expect(stepper.querySelector('.stepper-label')?.textContent).toBe('数量');
-    expect(stepper.querySelector('.stepper-controls')?.getAttribute('data-tip')).toBeNull();
+    expect(stepper.querySelector('.stepper-controls')?.getAttribute('data-tip')).toBe(
+      WHEEL_ADJUST_TIP
+    );
 
     app.unmount();
   });
