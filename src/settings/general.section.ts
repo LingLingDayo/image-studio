@@ -1,6 +1,7 @@
-import { Sliders, Download, Sparkles, Maximize2 } from '@lucide/vue';
+import { Sliders, Download, Sparkles, Maximize2, Palette } from '@lucide/vue';
 import { useConfigStore } from '@/stores/configStore';
 import BackupSettings from '@/components/settings/BackupSettings.vue';
+import ThemeSettings from '@/components/settings/ThemeSettings.vue';
 import { SETTING_WIDGET, type SettingSection } from '@/core/settings';
 import { SETTING_CATEGORY, SETTING_KEYS, SETTING_SECTION } from './keys';
 
@@ -11,6 +12,21 @@ export const generalSection: SettingSection = {
   description: '调整生成、预览和下载偏好。默认设置即可使用。',
   icon: Sliders,
   groups: [
+    {
+      id: 'general.appearance',
+      title: '外观',
+      icon: Palette,
+      layout: 'stack',
+      fields: [
+        {
+          key: SETTING_KEYS.themeMode,
+          type: SETTING_WIDGET.CUSTOM,
+          label: '主题模式',
+          component: ThemeSettings,
+          persist: false
+        }
+      ]
+    },
     {
       id: 'general.interaction',
       title: '生成交互',

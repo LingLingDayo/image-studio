@@ -8,7 +8,8 @@ export const SETTING_KEYS = {
   clearPromptOnGenerate: 'general.clearPromptOnGenerate',
   downloadFilenamePattern: 'general.downloadFilenamePattern',
   downloadImageFormat: 'general.downloadImageFormat',
-  previewFullscreenMode: 'general.previewFullscreenMode'
+  previewFullscreenMode: 'general.previewFullscreenMode',
+  themeMode: 'general.themeMode'
 } as const;
 
 export const SETTING_RUNTIME = {

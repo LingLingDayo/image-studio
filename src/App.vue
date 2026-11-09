@@ -10,6 +10,7 @@ import { Tooltip, UiDialog } from '@/components/ui';
 import { useGalleryStore } from '@/stores/galleryStore';
 import { useConfigStore } from '@/stores/configStore';
 import { useImageStudio } from '@/composables/useImageStudio';
+import { useTheme } from '@/composables/useTheme';
 import { SETTING_SECTION, type SettingSectionId } from '@/settings/keys';
 import type { ArtworkBatch, MediaAsset } from '@/types/asset';
 import type { GenerationTask, TaskReferenceImage } from '@/types/task';
@@ -43,6 +44,7 @@ function openConfig(tab: SettingSectionId = SETTING_SECTION.general) {
 
 const configStore = useConfigStore();
 
+useTheme();
 
 const galleryStore = useGalleryStore();
 const {
@@ -325,7 +327,8 @@ async function confirmPendingDelete() {
 .app-layout {
   min-height: 100%;
   min-height: 100dvh;
-  background-color: $bg-primary;
+  /* 透出 body 的主题渐变光晕，避免纯色铺底盖掉明暗两套背景 */
+  background-color: transparent;
   display: flex;
   flex-direction: column;
 }
