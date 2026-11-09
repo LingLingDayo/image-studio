@@ -1,4 +1,8 @@
-import { Globe, Key, Cpu, Route, RefreshCw } from '@lucide/vue';
+/**
+ * 提示词优化配置片段。
+ * 与生图凭据同处「生图服务」分区展示，只提供可组合的生命周期，不注册为独立菜单项。
+ */
+import { Globe, Key, Route, RefreshCw, Sparkles } from '@lucide/vue';
 import { useConfigStore } from '@/stores/configStore';
 import { PromptOptimizerService } from '@/core/services/PromptOptimizerService';
 import { COMMON_OPTIMIZER_ENDPOINTS, ENV_OPTIMIZER_API_KEY_HINT } from '@/types/config';
@@ -10,7 +14,20 @@ import {
   type SettingValue,
   type SettingsMutator
 } from '@/core/settings';
-import { SETTING_CATEGORY, SETTING_KEYS, SETTING_RUNTIME, SETTING_SECTION } from './keys';
+import { SETTING_KEYS, SETTING_RUNTIME } from './keys';
+
+/** Extension Point: 片段与宿主分区共用生命周期签名，便于按变更范围独立处理。 */
+export type SettingSectionFragment = Pick<
+  SettingSection,
+  'groups' | 'hydrate' | 'commit' | 'validate' | 'onOpen'
+>;
+
+export const OPTIMIZER_FIELD_KEYS = [
+  SETTING_KEYS.optimizerBaseUrl,
+  SETTING_KEYS.optimizerApiKey,
+  SETTING_KEYS.optimizerModel,
+  SETTING_KEYS.optimizerEndpoint
+] as const;
 
 const FETCH_REQUEST_ID = 'optimizer.fetchRequestId';
 let nextFetchRequestId = 0;
@@ -105,28 +122,19 @@ function resetOptimizerModels(_value: SettingValue, ctx: SettingsMutator): void 
   ctx.setRuntime(SETTING_RUNTIME.optimizerIsFetching, false);
 }
 
-export const optimizerSection: SettingSection = {
-  id: SETTING_SECTION.optimizer,
-  category: SETTING_CATEGORY.service,
-  title: '提示词优化',
-  description: '可选功能。配置语言模型后，可一键优化提示词；不影响正常生图。',
-  icon: Cpu,
-  badge(ctx) {
-    const url = String(ctx.values[SETTING_KEYS.optimizerBaseUrl] ?? '').trim();
-    const key = String(ctx.values[SETTING_KEYS.optimizerApiKey] ?? '').trim();
-    const model = String(ctx.values[SETTING_KEYS.optimizerModel] ?? '').trim();
-    if (!url && !key) return 'none';
-    return isHttpUrl(url) && key && model ? 'ready' : 'warn';
-  },
+export const optimizerSettings: SettingSectionFragment = {
   groups: [
     {
-      id: 'optimizer.credentials',
-      layout: 'stack',
+      id: 'optimizer.service',
+      title: '提示词优化（可选）',
+      description: '配置语言模型后可一键优化提示词；不使用请留空，不影响正常生图。',
+      icon: Sparkles,
+      layout: 'subcard',
       fields: [
         {
           key: SETTING_KEYS.optimizerBaseUrl,
           type: SETTING_WIDGET.TEXT,
-          label: '接口地址',
+          label: '优化接口地址',
           placeholder: 'https://api.example.com',
           hint: '填写语言模型服务地址，可带或不带 /v1。',
           icon: Globe,
@@ -137,20 +145,14 @@ export const optimizerSection: SettingSection = {
         {
           key: SETTING_KEYS.optimizerApiKey,
           type: SETTING_WIDGET.PASSWORD,
-          label: 'API Key',
+          label: '优化 API Key',
           placeholder: 'sk-...',
           icon: Key,
           hint: ENV_OPTIMIZER_API_KEY_HINT,
           props: { mono: true, showPasswordToggle: true },
           visibleWhen: { lock: SETTING_KEYS.optimizerApiKey, eq: false },
           onChange: resetOptimizerModels
-        }
-      ]
-    },
-    {
-      id: 'optimizer.models',
-      layout: 'stack',
-      fields: [
+        },
         {
           key: SETTING_KEYS.optimizerModel,
           type: SETTING_WIDGET.COMBOBOX,
@@ -188,14 +190,14 @@ export const optimizerSection: SettingSection = {
     },
     {
       id: 'optimizer.advanced',
-      title: '高级选项',
+      title: '优化高级选项',
+      icon: Route,
       collapsible: true,
       fields: [
         {
           key: SETTING_KEYS.optimizerEndpoint,
           type: SETTING_WIDGET.SELECT,
           label: '调用端点',
-          icon: Route,
           options: COMMON_OPTIMIZER_ENDPOINTS,
           onChange: resetOptimizerModels
         }

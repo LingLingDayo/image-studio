@@ -5,6 +5,7 @@ import { UiButton, UiDialog } from '@/components/ui';
 import { useSettingsSession } from '@/composables/useSettingsSession';
 import { firstInvalidSection } from '@/core/settings';
 import { ensureSettingsCatalog } from '@/settings/catalog';
+import { SETTING_SECTION } from '@/settings/keys';
 import { registerSettingWidgets } from './registerWidgets';
 import SettingsNav from './SettingsNav.vue';
 import SettingsPane from './SettingsPane.vue';
@@ -16,7 +17,7 @@ const props = withDefaults(
     isOpen: boolean;
     initialTab?: string;
   }>(),
-  { initialTab: 'image' }
+  { initialTab: SETTING_SECTION.general }
 );
 
 const emit = defineEmits<{
@@ -41,8 +42,9 @@ const activeSection = computed(() => catalog.get(activeSectionId.value) ?? secti
 const changedSections = computed(() => session.changedSections(sections.value));
 const validationMessage = computed(() => {
   if (!saveAttempted.value) return '';
-  const invalid = firstInvalidSection(changedSections.value, session.ctx);
-  return invalid?.validate?.(session.ctx).message ?? '';
+  const keys = session.changedKeys.value;
+  const invalid = firstInvalidSection(changedSections.value, session.ctx, keys);
+  return invalid?.validate?.(session.ctx, keys).message ?? '';
 });
 
 function resolveSectionId(preferred?: string): string {
@@ -100,7 +102,7 @@ function handleSave(): void {
   if (!hasChanges.value) return;
   saveAttempted.value = true;
   saveError.value = '';
-  const invalid = firstInvalidSection(changedSections.value, session.ctx);
+  const invalid = firstInvalidSection(changedSections.value, session.ctx, session.changedKeys.value);
   if (invalid) {
     selectSection(invalid.id);
     void nextTick(() => dialogEl.value?.querySelector<HTMLElement>('.settings-error')?.focus());

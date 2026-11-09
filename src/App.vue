@@ -10,11 +10,12 @@ import { Tooltip, UiDialog } from '@/components/ui';
 import { useGalleryStore } from '@/stores/galleryStore';
 import { useConfigStore } from '@/stores/configStore';
 import { useImageStudio } from '@/composables/useImageStudio';
+import { SETTING_SECTION, type SettingSectionId } from '@/settings/keys';
 import type { ArtworkBatch, MediaAsset } from '@/types/asset';
 import type { GenerationTask, TaskReferenceImage } from '@/types/task';
 
 const isConfigOpen = ref(false);
-const configInitialTab = ref<'image' | 'optimizer'>('image');
+const configInitialTab = ref<SettingSectionId>(SETTING_SECTION.general);
 const activeLightboxItem = ref<MediaAsset | null>(null);
 const activeLightboxBatch = ref<MediaAsset[]>([]);
 const activePreviewRefImage = ref<TaskReferenceImage | null>(null);
@@ -35,7 +36,7 @@ const deleteDialogDescription = computed(() => {
   return '删除后无法恢复，确定要删除这张图片吗？';
 });
 
-function openConfig(tab: 'image' | 'optimizer' = 'image') {
+function openConfig(tab: SettingSectionId = SETTING_SECTION.general) {
   configInitialTab.value = tab;
   isConfigOpen.value = true;
 }
@@ -213,7 +214,7 @@ async function confirmPendingDelete() {
   <div class="app-layout">
     <div class="app-main-content">
       <!-- 顶部导航与搜索栏 -->
-      <AppHeader @open-config="openConfig('image')" />
+      <AppHeader @open-config="openConfig()" />
 
       <!-- 主画廊相册展示区 -->
       <main class="content-area">
@@ -256,7 +257,7 @@ async function confirmPendingDelete() {
         @preview-image="handlePreviewReferenceImage"
         @generate="handleGenerate"
         @cancel="cancel"
-        @open-config-optimizer="openConfig('optimizer')"
+        @open-config-optimizer="openConfig('image')"
         @show-toast="showToast"
       />
     </div>

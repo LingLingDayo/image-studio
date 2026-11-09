@@ -19,9 +19,10 @@ export const SETTING_RUNTIME = {
 
 export const SETTING_SECTION = {
   general: 'general',
-  image: 'image',
-  optimizer: 'optimizer'
+  image: 'image'
 } as const;
+
+export type SettingSectionId = (typeof SETTING_SECTION)[keyof typeof SETTING_SECTION];
 
 export const SETTING_CATEGORY = {
   service: '服务',
