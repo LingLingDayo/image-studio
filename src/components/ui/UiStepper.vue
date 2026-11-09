@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, type Component } from 'vue';
+import { computed, ref, type Component } from 'vue';
 import { applyWheelStep, WHEEL_ADJUST_TIP } from '@/utils/wheelStep';
 
 const props = withDefaults(
@@ -27,6 +27,15 @@ const props = withDefaults(
 
 const controlTip = computed(() => props.tip || undefined);
 const valueTip = computed(() => props.tip || WHEEL_ADJUST_TIP);
+
+const stepInputRef = ref<HTMLInputElement | null>(null);
+
+/** 点击「数量 / 批量」标签时聚焦并选中数值，方便直接输入或滚轮调整。 */
+function focusStepInput() {
+  if (props.disabled) return;
+  stepInputRef.value?.focus();
+  stepInputRef.value?.select();
+}
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: number): void;
@@ -72,7 +81,7 @@ function handleWheel(e: WheelEvent) {
     class="ui-stepper" 
     :class="[`variant-${variant}`, { 'is-disabled': disabled, 'has-icon': Boolean(icon) }]"
   >
-    <div class="stepper-controls" :data-tip="controlTip" @wheel.prevent="handleWheel">
+    <label class="stepper-controls" :data-tip="controlTip" @wheel.prevent="handleWheel">
       <component
         v-if="icon"
         :is="icon"
@@ -80,7 +89,7 @@ function handleWheel(e: WheelEvent) {
         :size="13"
         aria-hidden="true"
       />
-      <span v-if="label" class="stepper-label">{{ label }}</span>
+      <span v-if="label" class="stepper-label" @click="focusStepInput">{{ label }}</span>
 
       <input 
         type="number" 
@@ -98,13 +107,14 @@ function handleWheel(e: WheelEvent) {
         data-lpignore="true"
         data-bwignore="true"
         data-form-type="other"
+        ref="stepInputRef"
         class="step-input"
         :data-tip="valueTip"
         @focus="handleInputFocus"
         @keydown="handleKeyDown"
         @change="handleInputChange"
       />
-    </div>
+    </label>
   </div>
 </template>
 
@@ -127,6 +137,7 @@ function handleWheel(e: WheelEvent) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  cursor: text;
   background: $bg-surface;
   border: 1px solid $border-color;
   box-shadow: $shadow-xs;
@@ -160,6 +171,15 @@ function handleWheel(e: WheelEvent) {
   color: $text-muted;
   font-weight: 500;
   margin-right: 2px;
+  cursor: pointer;
+
+  &:hover {
+    color: $text-main;
+  }
+
+  .is-disabled & {
+    cursor: not-allowed;
+  }
 }
 
 @media (max-width: 640px) {

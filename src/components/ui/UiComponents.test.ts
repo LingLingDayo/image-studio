@@ -246,6 +246,66 @@ describe('UI Components (src/components/ui)', () => {
     app.unmount();
   });
 
+  it('点击 UiStepper 标签应聚焦数量输入框', async () => {
+    const app = createApp({
+      render() {
+        return h(UiStepper, { modelValue: 2, label: '数量', min: 1, max: 4 });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const controls = container.querySelector('.stepper-controls') as HTMLLabelElement;
+    const stepInput = container.querySelector('.step-input') as HTMLInputElement;
+    // label 包裹输入框形成隐式关联，点击标签或胶囊空白区域都会聚焦到数值
+    expect(controls.tagName).toBe('LABEL');
+    expect(controls.contains(stepInput)).toBe(true);
+
+    (container.querySelector('.stepper-label') as HTMLElement).click();
+    await nextTick();
+    expect(document.activeElement).toBe(stepInput);
+
+    app.unmount();
+  });
+
+  it('UiStepper 禁用时点击标签不应聚焦输入框', async () => {
+    const app = createApp({
+      render() {
+        return h(UiStepper, { modelValue: 2, label: '数量', disabled: true });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const stepInput = container.querySelector('.step-input') as HTMLInputElement;
+    (container.querySelector('.stepper-label') as HTMLElement).click();
+    await nextTick();
+    expect(document.activeElement).not.toBe(stepInput);
+
+    app.unmount();
+  });
+
+  it('点击 UiSizeInput 标签应聚焦宽度输入框', async () => {
+    const app = createApp({
+      render() {
+        return h(UiSizeInput, { width: 1024, height: 768, label: '尺寸' });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const widthInput = container.querySelector('.dim-input') as HTMLInputElement;
+    expect(widthInput).not.toBeNull();
+    (container.querySelector('.size-label') as HTMLElement).click();
+    await nextTick();
+    expect(document.activeElement).toBe(widthInput);
+
+    app.unmount();
+  });
+
   it('should render UiSizeInput in auto mode as a unified clickable trigger button', async () => {
     let materialized = 0;
     const app = createApp({

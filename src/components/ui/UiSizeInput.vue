@@ -91,6 +91,13 @@ function handleMaterialize() {
   emit('materialize');
 }
 
+/** 编辑态点击「尺寸」标签时聚焦宽度输入框，与数量控件的交互保持一致。 */
+function focusWidthInput() {
+  if (props.disabled) return;
+  widthInputRef.value?.focus();
+  widthInputRef.value?.select();
+}
+
 function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
   if (props.disabled) return;
   e.preventDefault();
@@ -140,7 +147,7 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
         :size="13"
         aria-hidden="true"
       />
-      <span v-if="label" class="size-label">{{ label }}</span>
+      <span v-if="label" class="size-label" @click="focusWidthInput">{{ label }}</span>
 
       <input
         ref="widthInputRef"
@@ -271,6 +278,15 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
   color: $text-muted;
   font-weight: 500;
   margin-right: 2px;
+  cursor: pointer;
+
+  &:hover {
+    color: $text-main;
+  }
+
+  .is-disabled & {
+    cursor: not-allowed;
+  }
 }
 
 @media (max-width: 640px) {
