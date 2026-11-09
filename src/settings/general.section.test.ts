@@ -21,6 +21,13 @@ describe('general section schema', () => {
     expect(backupGroup?.fields[0].type).toBe(SETTING_WIDGET.CUSTOM);
     expect(backupGroup?.fields[0].persist).toBe(false);
 
+    const appearanceGroup = generalSection.groups.find((group) => group.id === 'general.appearance');
+    expect(appearanceGroup).toBeDefined();
+    expect(appearanceGroup?.fields[0].key).toBe(SETTING_KEYS.themeMode);
+    expect(appearanceGroup?.fields[0].type).toBe(SETTING_WIDGET.CUSTOM);
+    expect(appearanceGroup?.fields[0].persist).toBe(false);
+    expect(appearanceGroup?.fields[0].component).toBeDefined();
+
     const interactionGroup = generalSection.groups.find((g) => g.id === 'general.interaction');
     expect(interactionGroup).toBeDefined();
     const switchField = interactionGroup?.fields.find((f) => f.key === SETTING_KEYS.clearPromptOnGenerate);
