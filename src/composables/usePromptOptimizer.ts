@@ -29,7 +29,7 @@ export function usePromptOptimizer(options: PromptOptimizerOptions) {
     options.getPrompt() === previousPrompt.value
   );
   const tooltip = computed(() => {
-    if (!options.isConfigured()) return '请先在「设置 -> 提示词优化」中配置 API Key';
+    if (!options.isConfigured()) return '请先在「设置 -> 生图服务」中配置 API Key';
     if (isOptimizing.value) return '优化中...';
     if (!options.getPrompt().trim()) return '请先输入提示词后再进行 AI 优化';
     return '使用大模型智能优化提示词 (精准描写与AI易读)';
@@ -70,7 +70,7 @@ export function usePromptOptimizer(options: PromptOptimizerOptions) {
   async function optimize(): Promise<void> {
     if (disposed || isOptimizing.value) return;
     if (!options.isConfigured()) {
-      options.onMessage('请先在「设置 -> 提示词优化」中配置 API Key', 'info');
+      options.onMessage('请先在「设置 -> 生图服务」中配置 API Key', 'info');
       return;
     }
     const original = options.getPrompt();

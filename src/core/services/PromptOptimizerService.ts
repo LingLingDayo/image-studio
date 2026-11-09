@@ -47,10 +47,10 @@ export class PromptOptimizerService {
     signal?: AbortSignal
   ): Promise<string> {
     if (!config.baseUrl || !config.baseUrl.trim()) {
-      throw new Error('请先在右上角「设置 -> 提示词优化」中配置 API 地址');
+      throw new Error('请先在右上角「设置 -> 生图服务」中配置 API 地址');
     }
     if (!config.apiKey || !config.apiKey.trim()) {
-      throw new Error('请先在右上角「设置 -> 提示词优化」中配置 API Key');
+      throw new Error('请先在右上角「设置 -> 生图服务」中配置 API Key');
     }
     if (!isHttpUrl(config.baseUrl)) {
       throw new Error('优化接口地址需以 http:// 或 https:// 开头');
