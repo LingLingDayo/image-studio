@@ -88,6 +88,8 @@ describe('Model Profile Specification (model.ts)', () => {
     expect(isImageGenerationModel('gpt-image-2.6-flare')).toBe(true);
     expect(isImageGenerationModel('gpt-image-2.5-flare')).toBe(true);
     expect(isImageGenerationModel('dall-e-3')).toBe(true);
+    expect(isImageGenerationModel('flux-1-schnell')).toBe(true);
+    expect(isImageGenerationModel('sdxl-turbo')).toBe(true);
     expect(isImageGenerationModel('gpt-4o')).toBe(false);
   });
 

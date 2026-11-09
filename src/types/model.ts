@@ -91,7 +91,7 @@ export function formatImageModelName(id: string): string {
 }
 
 export function isImageGenerationModel(id: string): boolean {
-  return /image|dall-e|dalle/i.test(id);
+  return /image|dall-e|dalle|flux|diffusion|sdxl|midjourney|recraft|ideogram/i.test(id);
 }
 
 /** 优先保留生图模型；若 Key 未返回任何生图模型则回退完整列表。 */

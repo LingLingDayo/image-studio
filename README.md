@@ -1,4 +1,4 @@
-# GPT Image Studio
+# Image Studio
 
 一个简约、轻量的生图工作台：输入描述，按需添加参考图，生成并整理作品。基于 Vue 3、TypeScript 和 Pinia，浏览器直接调用 OpenAI Images 兼容接口，无需工作台后端。
 
