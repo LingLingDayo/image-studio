@@ -382,10 +382,9 @@ onUnmounted(() => {
           ref="textareaRef"
           :value="prompt"
           :rows="TEXTAREA_MIN_ROWS"
-          placeholder="描述想生成的画面，或拖入参考图…"
+          placeholder="描述想生成的画面，或拖入参考图…（两个空行可分批生成）"
           aria-label="画面描述"
           aria-description="支持粘贴或拖入参考图；Ctrl+Enter 生成；连续两个空行分隔可分批生成。"
-          data-tip="Ctrl+Enter 生成 · 连续两个空行分批"
           @input="handlePromptInput"
           @keydown="handleKeyDown"
         ></textarea>
