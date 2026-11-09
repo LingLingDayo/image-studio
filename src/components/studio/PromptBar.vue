@@ -385,6 +385,7 @@ onUnmounted(() => {
           placeholder="描述想生成的画面，或拖入参考图…"
           aria-label="画面描述"
           aria-description="支持粘贴或拖入参考图；Ctrl+Enter 生成；连续两个空行分隔可分批生成。"
+          data-tip="Ctrl+Enter 生成 · 连续两个空行分批"
           @input="handlePromptInput"
           @keydown="handleKeyDown"
         ></textarea>
@@ -400,10 +401,6 @@ onUnmounted(() => {
           <X :size="14" />
         </button>
       </div>
-
-      <p v-if="!prompt" class="prompt-hint" data-tip="连续两个空行分隔即可分批生成，单个空行不会拆分。">
-        Ctrl+Enter 生成 · 连续两个空行分批
-      </p>
 
       <!-- 底部参数与操作栏 -->
       <div class="toolbar">
@@ -681,10 +678,6 @@ onUnmounted(() => {
   }
 }
 
-.prompt-hint {
-  color: $text-muted;
-  font-size: 0.72rem;
-}
 
 .input-wrapper {
   position: relative;

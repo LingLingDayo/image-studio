@@ -196,7 +196,6 @@ export const optimizerSection: SettingSection = {
           type: SETTING_WIDGET.SELECT,
           label: '调用端点',
           icon: Route,
-          hint: '默认使用聊天端点，仅在服务要求其他协议时修改。',
           options: COMMON_OPTIMIZER_ENDPOINTS,
           onChange: resetOptimizerModels
         }

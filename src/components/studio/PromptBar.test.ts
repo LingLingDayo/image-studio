@@ -385,7 +385,7 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     app.unmount();
   });
 
-  it('空输入时以轻量说明保留连续两个空行分批提示', async () => {
+  it('输入框通过 tooltip 与无障碍说明保留快捷生成与分批提示', async () => {
     const app = createApp({
       render() {
         return h(PromptBar as any, defaultProps);
@@ -397,7 +397,8 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
 
     const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
     expect(textarea.placeholder.length).toBeLessThanOrEqual(30);
-    expect(container.querySelector('.prompt-hint')?.textContent).toContain('连续两个空行');
+    expect(textarea.getAttribute('data-tip')).toBe('Ctrl+Enter 生成 · 连续两个空行分批');
+    expect(container.querySelector('.prompt-hint')).toBeNull();
     expect(textarea.getAttribute('aria-description')).toContain('连续两个空行分隔');
 
     app.unmount();
