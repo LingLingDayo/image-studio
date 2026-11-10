@@ -37,7 +37,7 @@
   --is-accent-border: #93c5fd;
   --is-accent-glow: rgba(37, 99, 235, 0.16);
   --is-accent-ink: #ffffff;
-  --is-accent-gradient: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  --is-accent-gradient: #2563eb;
 
   --is-danger: #ef4444;
   --is-danger-hover: #dc2626;
@@ -69,7 +69,7 @@
   --is-shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -1px rgba(15, 23, 42, 0.03);
   --is-shadow-lg: 0 12px 32px -4px rgba(15, 23, 42, 0.1), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
   --is-shadow-float: 0 20px 45px -10px rgba(15, 23, 42, 0.09), 0 2px 8px -2px rgba(15, 23, 42, 0.04);
-  --is-shadow-glow: 0 4px 14px rgba(37, 99, 235, 0.25);
+  --is-shadow-glow: none;
   --is-shadow-scrim: 0 2px 8px rgba(0, 0, 0, 0.25);
 
   --is-scrollbar-thumb: rgba(148, 163, 184, 0.4);
@@ -111,7 +111,7 @@
   --is-accent-border: rgba(106, 180, 255, 0.48);
   --is-accent-glow: rgba(106, 180, 255, 0.28);
   --is-accent-ink: #0a0a0a;
-  --is-accent-gradient: linear-gradient(135deg, #3b82f6 0%, #6ab4ff 100%);
+  --is-accent-gradient: #6ab4ff;
 
   --is-danger: #ff7070;
   --is-danger-hover: #ff9b9b;
@@ -143,7 +143,7 @@
   --is-shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.7), 0 2px 4px -1px rgba(0, 0, 0, 0.5);
   --is-shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.8), 0 4px 12px -2px rgba(0, 0, 0, 0.6);
   --is-shadow-float: 0 20px 45px -10px rgba(0, 0, 0, 0.85), 0 2px 8px -2px rgba(0, 0, 0, 0.6);
-  --is-shadow-glow: 0 4px 14px rgba(106, 180, 255, 0.3);
+  --is-shadow-glow: none;
   --is-shadow-scrim: 0 2px 8px rgba(0, 0, 0, 0.6);
 
   --is-scrollbar-thumb: #3d3d3d;

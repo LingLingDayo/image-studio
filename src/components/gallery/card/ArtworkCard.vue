@@ -24,6 +24,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  (e: 'preview', item: MediaAsset, allAssets: MediaAsset[]): void;
   (e: 'view', item: MediaAsset, allAssets: MediaAsset[]): void;
   (e: 'regenerate', item: MediaAsset): void;
   (e: 'toggleFavorite', id: number): void;
@@ -181,7 +182,15 @@ function handleNextImage(e: Event) {
 }
 
 
-function handleCardClick() {
+// 点击缩略图：仅进入图片预览（不含右侧详情面板）
+function handleImageClick() {
+  if (currentAsset.value) {
+    emit('preview', currentAsset.value, assetsList.value);
+  }
+}
+
+// 点击标题：进入作品详情（预览 + 信息面板）
+function handleTitleClick() {
   if (currentAsset.value) {
     emit('view', currentAsset.value, assetsList.value);
   }
@@ -225,7 +234,7 @@ async function handleDownload() {
 <template>
   <div v-if="currentAsset" class="gallery-card artwork-card">
     <!-- 左侧图片缩略图区 -->
-    <div class="card-image-wrapper" @click="handleCardClick">
+    <div class="card-image-wrapper" @click="handleImageClick">
       <img 
         v-if="currentAsset.status !== 'failed' && currentAsset.url"
         :src="currentAsset.url" 
@@ -271,7 +280,7 @@ async function handleDownload() {
     <!-- 右侧内容与操作区 -->
     <div class="card-content">
       <!-- 提示词 -->
-      <p class="card-prompt" :data-tip="promptText" @click="handleCardClick">
+      <p class="card-prompt" :data-tip="promptText" @click="handleTitleClick">
         {{ promptText }}
       </p>
 

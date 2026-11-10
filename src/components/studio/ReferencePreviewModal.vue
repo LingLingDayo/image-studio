@@ -3,14 +3,14 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { X } from '@lucide/vue';
 import { UiImageViewer } from '@/components/ui';
 import { useConfigStore } from '@/stores/configStore';
-import type { TaskReferenceImage } from '@/types/task';
+import type { ReferencePreviewItem } from '@/types/task';
 
 const props = defineProps<{
-  item: TaskReferenceImage | null;
-  images: TaskReferenceImage[];
+  item: ReferencePreviewItem | null;
+  images: ReferencePreviewItem[];
 }>();
 const emit = defineEmits<{
-  (e: 'update:item', item: TaskReferenceImage): void;
+  (e: 'update:item', item: ReferencePreviewItem): void;
   (e: 'close'): void;
 }>();
 

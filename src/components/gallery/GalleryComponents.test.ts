@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createApp, h, nextTick } from 'vue';
+import { createApp, h, nextTick, ref } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import GalleryCard from './GalleryCard.vue';
 import GalleryGrid from './GalleryGrid.vue';
@@ -8,12 +8,13 @@ import TaskCard from './card/TaskCard.vue';
 import ArtworkCard from './card/ArtworkCard.vue';
 import LightboxViewport from './lightbox/LightboxViewport.vue';
 import LightboxDetailPanel from './lightbox/LightboxDetailPanel.vue';
+import ReferencePreviewModal from '@/components/studio/ReferencePreviewModal.vue';
 import { useGalleryStore } from '@/stores/galleryStore';
 import { useConfigStore } from '@/stores/configStore';
 import { useTaskStore } from '@/stores/taskStore';
 import AppHeader from '@/components/layout/AppHeader.vue';
 import type { MediaAsset } from '@/types/asset';
-import type { GenerationTask } from '@/types/task';
+import type { GenerationTask, ReferencePreviewItem } from '@/types/task';
 
 function createMockAsset(id: number, prompt: string): MediaAsset {
   return {
@@ -968,6 +969,251 @@ describe('LightboxModal 作品切换箭头', () => {
     closeBtn.click();
     await nextTick();
     expect(closed).toBe(true);
+
+    app.unmount();
+  });
+});
+
+describe('图片预览与作品详情的入口区分', () => {
+  let container: HTMLDivElement;
+
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    if (container && container.parentNode) {
+      container.parentNode.removeChild(container);
+    }
+  });
+
+  it('点击卡片缩略图只触发图片预览，点击标题才触发作品详情', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const asset = createMockAsset(1, '入口区分的提示词');
+    const batch = {
+      id: 'batch_entry',
+      prompt: asset.prompt,
+      model: asset.model,
+      size: asset.size,
+      quality: asset.quality,
+      duration: asset.duration,
+      timestamp: asset.timestamp,
+      assets: [asset]
+    };
+    const previews: MediaAsset[] = [];
+    const views: MediaAsset[] = [];
+
+    const app = createApp({
+      render() {
+        return h(ArtworkCard, {
+          batch,
+          onPreview: (item: MediaAsset) => previews.push(item),
+          onView: (item: MediaAsset) => views.push(item)
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    (container.querySelector('.card-image-wrapper') as HTMLElement).click();
+    await nextTick();
+    expect(previews).toHaveLength(1);
+    expect(views).toHaveLength(0);
+
+    (container.querySelector('.card-prompt') as HTMLElement).click();
+    await nextTick();
+    expect(views).toHaveLength(1);
+    expect(previews).toHaveLength(1);
+
+    app.unmount();
+  });
+
+  it('预览模式不渲染右侧详情面板，关闭后直接回到首页', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGalleryStore();
+    store.items = [createMockAsset(1, '预览模式作品')];
+    let closed = false;
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: store.items[0],
+          allAssets: [store.items[0]],
+          mode: 'preview',
+          onClose: () => { closed = true; }
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    expect(container.querySelector('.modal-body')?.classList.contains('is-preview')).toBe(true);
+    expect(container.querySelector('.modal-image-panel')).not.toBeNull();
+    expect(container.querySelector('.info-scroll')).toBeNull();
+
+    (container.querySelector('.modal-close-btn') as HTMLButtonElement).click();
+    await nextTick();
+    expect(closed).toBe(true);
+
+    app.unmount();
+  });
+
+  it('详情模式仍渲染右侧详情面板', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGalleryStore();
+    store.items = [createMockAsset(1, '详情模式作品')];
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: store.items[0],
+          allAssets: [store.items[0]],
+          mode: 'detail'
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    expect(container.querySelector('.modal-body')?.classList.contains('is-preview')).toBe(false);
+    expect(container.querySelector('.info-scroll')).not.toBeNull();
+    expect(container.querySelector('.prompt-box')?.textContent).toContain('详情模式作品');
+
+    app.unmount();
+  });
+});
+
+describe('作品详情中的参考图', () => {
+  let container: HTMLDivElement;
+  const refUrls = [
+    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=',
+    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIi8+'
+  ];
+
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    if (container && container.parentNode) {
+      container.parentNode.removeChild(container);
+    }
+  });
+
+  it('有参考图时按数量渲染缩略图，点击派发对应下标的预览请求', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const asset = { ...createMockAsset(2, '图生图作品'), type: 'i2i' as const, referenceImages: refUrls };
+    const requests: Array<{ urls: string[]; index: number }> = [];
+
+    const app = createApp({
+      render() {
+        return h(LightboxDetailPanel, {
+          item: asset,
+          rotation: 0,
+          onPreviewReference: (urls: string[], index: number) => requests.push({ urls, index })
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const thumbs = container.querySelectorAll('.ref-thumb');
+    expect(thumbs).toHaveLength(2);
+    expect(container.querySelector('.block-count')?.textContent).toContain('2 张');
+    expect((thumbs[0].querySelector('img') as HTMLImageElement).getAttribute('src')).toBe(refUrls[0]);
+
+    (thumbs[1] as HTMLButtonElement).click();
+    await nextTick();
+    expect(requests).toEqual([{ urls: refUrls, index: 1 }]);
+
+    app.unmount();
+  });
+
+  it('无参考图的作品不渲染参考图区块', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const app = createApp({
+      render() {
+        return h(LightboxDetailPanel, { item: createMockAsset(3, '文生图作品'), rotation: 0 });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    expect(container.querySelector('.ref-thumb-grid')).toBeNull();
+    app.unmount();
+  });
+
+  it('点击参考图打开独立预览弹窗，Esc 只关预览并保留作品详情', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGalleryStore();
+    const asset = { ...createMockAsset(4, '带参考图的作品'), type: 'i2i' as const, referenceImages: refUrls };
+    store.items = [asset];
+
+    const previewItem = ref<ReferencePreviewItem | null>(null);
+    const previewList = ref<ReferencePreviewItem[]>([]);
+    let lightboxClosed = false;
+
+    const app = createApp({
+      render() {
+        return h('div', [
+          h(LightboxModal, {
+            item: asset,
+            allAssets: [asset],
+            mode: 'detail',
+            onClose: () => { lightboxClosed = true; },
+            onPreviewReference: (urls: string[], index: number) => {
+              const list = urls.map((url, i) => ({ id: `artwork-ref-${i}`, previewUrl: url }));
+              previewList.value = list;
+              previewItem.value = list[index] ?? null;
+            }
+          }),
+          previewItem.value
+            ? h(ReferencePreviewModal, {
+                item: previewItem.value,
+                images: previewList.value,
+                'onUpdate:item': (value: ReferencePreviewItem) => { previewItem.value = value; },
+                onClose: () => { previewItem.value = null; previewList.value = []; }
+              })
+            : null
+        ]);
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    (container.querySelectorAll('.ref-thumb')[1] as HTMLButtonElement).click();
+    await nextTick();
+
+    expect(container.querySelector('.ref-preview-backdrop')).not.toBeNull();
+    expect(container.querySelector('.modal-info-panel')).not.toBeNull();
+    const viewerImg = container.querySelector('.ref-preview-backdrop .image-stage img') as HTMLImageElement;
+    expect(viewerImg.getAttribute('src')).toBe(refUrls[1]);
+
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    await nextTick();
+    expect(container.querySelector('.ref-preview-backdrop')).toBeNull();
+    expect(container.querySelector('.modal-info-panel')).not.toBeNull();
+    expect(lightboxClosed).toBe(false);
 
     app.unmount();
   });

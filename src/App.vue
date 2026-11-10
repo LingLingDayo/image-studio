@@ -13,14 +13,16 @@ import { useImageStudio } from '@/composables/useImageStudio';
 import { useTheme } from '@/composables/useTheme';
 import { SETTING_SECTION, type SettingSectionId } from '@/settings/keys';
 import type { ArtworkBatch, MediaAsset } from '@/types/asset';
-import type { GenerationTask, TaskReferenceImage } from '@/types/task';
+import type { GenerationTask, ReferencePreviewItem, TaskReferenceImage } from '@/types/task';
 
 const isConfigOpen = ref(false);
 const configInitialTab = ref<SettingSectionId>(SETTING_SECTION.general);
 const activeLightboxItem = ref<MediaAsset | null>(null);
 const activeLightboxBatch = ref<MediaAsset[]>([]);
-const activePreviewRefImage = ref<TaskReferenceImage | null>(null);
-const activePreviewRefBatch = ref<TaskReferenceImage[]>([]);
+// 灯箱模式：点缩略图进入纯看图预览，点标题进入作品详情
+const activeLightboxMode = ref<'preview' | 'detail'>('detail');
+const activePreviewRefImage = ref<ReferencePreviewItem | null>(null);
+const activePreviewRefBatch = ref<ReferencePreviewItem[]>([]);
 const toasts = ref<Array<{ id: number; message: string; type: 'success' | 'error' | 'info' }>>([]);
 const pendingDelete = ref<
   | { kind: 'item'; id: number; closeLightbox: boolean }
@@ -165,9 +167,24 @@ function showToast(message: string, type: 'success' | 'error' | 'info' = 'info')
   }, 4000);
 }
 
-function handleOpenLightbox(item: MediaAsset, allAssets?: MediaAsset[]) {
+function handleOpenLightbox(
+  item: MediaAsset,
+  allAssets?: MediaAsset[],
+  mode: 'preview' | 'detail' = 'detail'
+) {
   activeLightboxItem.value = item;
   activeLightboxBatch.value = allAssets || [item];
+  activeLightboxMode.value = mode;
+}
+
+// 外部点击缩略图：直接进入图片预览，关闭即回到首页
+function handlePreviewArtwork(item: MediaAsset, allAssets?: MediaAsset[]) {
+  handleOpenLightbox(item, allAssets, 'preview');
+}
+
+// 点击标题：进入作品详情
+function handleOpenArtworkDetail(item: MediaAsset, allAssets?: MediaAsset[]) {
+  handleOpenLightbox(item, allAssets, 'detail');
 }
 
 function handleCloseLightbox() {
@@ -178,6 +195,16 @@ function handleCloseLightbox() {
 function handlePreviewReferenceImage(img: TaskReferenceImage, all: TaskReferenceImage[]) {
   activePreviewRefImage.value = img;
   activePreviewRefBatch.value = all;
+}
+
+// 作品详情里的参考图以 data URL 保存，映射成预览弹窗所需的最小结构后独立预览
+function handlePreviewArtworkReferences(urls: string[], index: number) {
+  const list: ReferencePreviewItem[] = urls.map((url, i) => ({
+    id: `artwork-ref-${i}`,
+    previewUrl: url
+  }));
+  activePreviewRefImage.value = list[index] ?? null;
+  activePreviewRefBatch.value = list;
 }
 
 function handleCloseRefPreview() {
@@ -226,7 +253,8 @@ async function confirmPendingDelete() {
       <main class="content-area">
         <GalleryGrid 
           @open-config="openConfig('image')"
-          @view="handleOpenLightbox"
+          @preview="handlePreviewArtwork"
+          @view="handleOpenArtworkDetail"
           @regenerate="handleRegenerate"
           @reuse="handleReuse"
           @edit-as-reference="handleEditAsReference"
@@ -284,7 +312,9 @@ async function confirmPendingDelete() {
     <LightboxModal 
       :item="activeLightboxItem"
       :all-assets="activeLightboxBatch"
+      :mode="activeLightboxMode"
       @close="handleCloseLightbox"
+      @preview-reference="handlePreviewArtworkReferences"
       @reuse="handleReuse"
       @edit-as-reference="handleEditAsReference"
       @toggle-favorite="id => galleryStore.toggleFavorite(id)"

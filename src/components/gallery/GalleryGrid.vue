@@ -11,6 +11,7 @@ import { ImageOff, Loader2 } from '@lucide/vue';
 
 const emit = defineEmits<{
   (e: 'openConfig'): void;
+  (e: 'preview', item: MediaAsset, allAssets: MediaAsset[]): void;
   (e: 'view', item: MediaAsset, allAssets: MediaAsset[]): void;
   (e: 'regenerate', item: MediaAsset | GenerationTask): void;
   (e: 'reuse', item: MediaAsset | GenerationTask): void;
@@ -129,6 +130,7 @@ function handlePageSizeChange(size: number) {
           v-for="batch in galleryStore.paginatedBatches"
           :key="batch.id || batch.timestamp"
           :batch="batch"
+          @preview="(item, all) => emit('preview', item, all)"
           @view="(item, all) => emit('view', item, all)"
           @regenerate="emit('regenerate', $event)"
           @toggle-favorite="handleToggleFavorite"

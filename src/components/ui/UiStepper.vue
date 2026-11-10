@@ -29,6 +29,16 @@ const props = withDefaults(
  *  滚轮调整说明；批量模式传入 tip 时改为展示批次信息。 */
 const stepperTip = computed(() => props.tip || WHEEL_ADJUST_TIP);
 
+/** 数字框按取值范围的最大位数定宽（ch 为等宽字体的单字符宽度）。
+ *  只依据 min/max，不随当前值变化，避免数值位数改变时胶囊宽度抖动。 */
+const inputWidth = computed(() => {
+  const digits = Math.max(
+    String(Math.abs(props.min)).length,
+    String(Math.abs(props.max)).length
+  );
+  return `calc(${Math.min(4, Math.max(2, digits))}ch + 2px)`;
+});
+
 const stepInputRef = ref<HTMLInputElement | null>(null);
 
 /** 点击「数量 / 批量」标签时聚焦并选中数值，方便直接输入或滚轮调整。 */
@@ -110,6 +120,7 @@ function handleWheel(e: WheelEvent) {
         data-form-type="other"
         ref="stepInputRef"
         class="step-input"
+        :style="{ width: inputWidth }"
         :data-tip="stepperTip"
         @focus="handleInputFocus"
         @keydown="handleKeyDown"
@@ -196,13 +207,15 @@ function handleWheel(e: WheelEvent) {
 }
 
 .step-input {
-  width: 20px;
+  width: calc(3ch + 2px);
   height: 18px;
+  box-sizing: border-box;
   background: transparent;
   border: none;
   font-family: $font-mono;
   font-size: 0.75rem;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: $text-main;
   text-align: center;
   outline: none;

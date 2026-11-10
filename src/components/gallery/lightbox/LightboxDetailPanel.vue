@@ -26,10 +26,16 @@ const emit = defineEmits<{
   (e: 'editAsReference', item: MediaAsset): void;
   (e: 'delete', id: number): void;
   (e: 'download'): void;
+  (e: 'previewReference', images: string[], index: number): void;
   (e: 'showToast', message: string, type: 'success' | 'error' | 'info'): void;
 }>();
 
 const isCopied = ref(false);
+
+// 作品里的参考图以 data URL 持久化；过滤空值避免渲染破图
+const referenceImages = computed<string[]>(() =>
+  (props.item.referenceImages ?? []).filter((url) => typeof url === 'string' && url.trim().length > 0)
+);
 
 const isFailed = computed(() => props.item.status === 'failed');
 const failHeadline = computed(() => getErrorHeadline(props.item.errorMessage));
@@ -168,6 +174,27 @@ async function handleCopyPrompt() {
           </button>
         </div>
         <div class="prompt-box">{{ item.prompt }}</div>
+      </section>
+
+      <!-- 参考图：仅图生图作品展示，点击缩略图用独立预览弹窗查看 -->
+      <section v-if="referenceImages.length > 0" class="info-block">
+        <div class="block-label">
+          <span>参考图</span>
+          <span class="block-count">{{ referenceImages.length }} 张</span>
+        </div>
+        <div class="ref-thumb-grid">
+          <button
+            v-for="(url, idx) in referenceImages"
+            :key="idx"
+            type="button"
+            class="ref-thumb"
+            :data-tip="`预览参考图 ${idx + 1}`"
+            :aria-label="`预览参考图 ${idx + 1}`"
+            @click="emit('previewReference', referenceImages, idx)"
+          >
+            <img :src="url" :alt="`参考图 ${idx + 1}`" loading="lazy" />
+          </button>
+        </div>
       </section>
 
       <!-- 规格：以单列属性表分段呈现设定与结果 -->
@@ -434,45 +461,98 @@ async function handleCopyPrompt() {
   flex-direction: column;
 }
 
+// 各区块统一为「标题 + 细线 + 内容」的文档式分节，不把内容装进卡片
 .block-label {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: $text-muted;
+  padding-bottom: 9px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid $border-light;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: $text-main;
 }
 
+// 中性文字按钮，替代蓝色链接 + 下划线；hover 只改变文字色，不产生位移
 .btn-text-copy {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 0;
+  gap: 5px;
+  padding: 4px 7px;
+  margin: -4px -7px -4px 0; // 抵消内边距，保持文字与正文右边缘对齐
   border: none;
+  border-radius: $radius-sm;
   background: transparent;
-  color: $accent-primary;
+  color: $text-muted;
   font-size: 0.72rem;
   font-weight: 500;
   letter-spacing: 0;
   line-height: normal;
   cursor: pointer;
+  transition: color 0.12s ease;
 
   &:hover {
-    text-decoration: underline;
+    color: $text-main;
+  }
+
+  &:focus-visible {
+    outline: 1px solid $accent-border;
+    outline-offset: 1px;
   }
 }
 
 .prompt-box {
-  margin-top: 12px;
   max-height: 150px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  font-size: 0.88rem;
-  line-height: 1.8;
-  color: $text-main;
+  font-size: 0.82rem;
+  line-height: 1.75;
+  color: $text-secondary;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+// 参考图沿用「标题 + 细线 + 内容」的分节，不额外套卡片
+.block-count {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: $text-muted;
+}
+
+.ref-thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 72px);
+  gap: 8px;
+}
+
+.ref-thumb {
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  background: $bg-surface-subtle;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.12s ease;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &:hover {
+    border-color: $accent-border;
+  }
+
+  &:focus-visible {
+    outline: 1px solid $accent-border;
+    outline-offset: 2px;
+  }
 }
 
 .specs-section {

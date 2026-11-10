@@ -3,10 +3,14 @@ import type { ModelComplexity, ModelFormat, ModelModeration, ModelQuality, Resol
 export type TaskStatus = 'idle' | 'queued' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
 export type TaskType = 't2i' | 'i2i';
 
-export interface TaskReferenceImage {
+/** 预览弹窗所需的最小结构：作品里持久化的参考图只有地址，没有 File。 */
+export interface ReferencePreviewItem {
   id: string;
-  file: File;
   previewUrl: string;
+}
+
+export interface TaskReferenceImage extends ReferencePreviewItem {
+  file: File;
   width?: number;
   height?: number;
   ratio?: string;

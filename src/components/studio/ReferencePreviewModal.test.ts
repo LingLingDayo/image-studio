@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp, h, nextTick, ref, type App } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import ReferencePreviewModal from './ReferencePreviewModal.vue';
-import type { TaskReferenceImage } from '@/types/task';
+import type { ReferencePreviewItem, TaskReferenceImage } from '@/types/task';
 
 const refs: TaskReferenceImage[] = [1, 2, 3].map((index) => ({
   id: String(index), file: new File(['image'], `ref-${index}.png`, { type: 'image/png' }), previewUrl: `blob:reference-${index}`
@@ -54,10 +54,10 @@ describe('ReferencePreviewModal', () => {
   });
 
   async function mount() {
-    const item = ref<TaskReferenceImage | null>(refs[0]);
+    const item = ref<ReferencePreviewItem | null>(refs[0]);
     const close = vi.fn(() => { item.value = null; });
     app = createApp(() => h(ReferencePreviewModal, {
-      item: item.value, images: refs, 'onUpdate:item': (value: TaskReferenceImage) => { item.value = value; }, onClose: close
+      item: item.value, images: refs, 'onUpdate:item': (value: ReferencePreviewItem) => { item.value = value; }, onClose: close
     }));
     app.use(createPinia());
     app.mount(container);

@@ -12,6 +12,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  (e: 'preview', item: MediaAsset, allAssets: MediaAsset[]): void;
   (e: 'view', item: MediaAsset, allAssets: MediaAsset[]): void;
   (e: 'regenerate', item: MediaAsset | GenerationTask): void;
   (e: 'toggleFavorite', id: number): void;
@@ -45,6 +46,7 @@ const isTaskMode = computed(() => Boolean(props.task));
     v-else
     :item="item"
     :batch="batch"
+    @preview="(current, all) => emit('preview', current, all)"
     @view="(current, all) => emit('view', current, all)"
     @regenerate="emit('regenerate', $event)"
     @toggle-favorite="emit('toggleFavorite', $event)"

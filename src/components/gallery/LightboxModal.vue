@@ -9,13 +9,21 @@ import { X, ChevronLeft, ChevronRight } from '@lucide/vue';
 import LightboxViewport from './lightbox/LightboxViewport.vue';
 import LightboxDetailPanel from './lightbox/LightboxDetailPanel.vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   item: MediaAsset | null;
   allAssets?: MediaAsset[];
-}>();
+  // preview: 仅看图（点缩略图进入）；detail: 看图 + 右侧作品详情（点标题进入）
+  mode?: 'preview' | 'detail';
+}>(), {
+  mode: 'detail'
+});
+
+// 详情面板仅在 detail 模式挂载，预览模式保持纯看图
+const showDetailPanel = computed(() => props.mode === 'detail');
 
 const emit = defineEmits<{
   (e: 'close'): void;
+  (e: 'previewReference', images: string[], index: number): void;
   (e: 'reuse', item: MediaAsset): void;
   (e: 'editAsReference', item: MediaAsset): void;
   (e: 'toggleFavorite', id: number): void;
@@ -251,7 +259,7 @@ onUnmounted(() => {
   <div 
     v-if="currentActiveItem" 
     class="modal-backdrop" 
-    :class="{ 'is-fullscreen': isFullscreen }" 
+    :class="{ 'is-fullscreen': isFullscreen }"
     @click.self="handleClose"
   >
     <button
@@ -286,7 +294,7 @@ onUnmounted(() => {
         <X :size="18" />
       </button>
 
-      <div class="modal-body">
+      <div class="modal-body" :class="{ 'is-preview': !showDetailPanel }">
         <!-- 左侧大图展示与交互视口 -->
         <LightboxViewport
           ref="viewportRef"
@@ -315,18 +323,21 @@ onUnmounted(() => {
           @dblclick="handleDoubleClick"
         />
 
-        <!-- 右侧信息与操作 -->
-        <LightboxDetailPanel
-          v-show="!isFullscreen"
-          :item="currentActiveItem"
-          :rotation="rotation"
-          @toggle-favorite="emit('toggleFavorite', $event)"
-          @reuse="handleReuse"
-          @edit-as-reference="handleEditAsReference"
-          @delete="handleDelete"
-          @download="handleDownload"
-          @show-toast="(msg, type) => emit('showToast', msg, type)"
-        />
+        <!-- 右侧信息与操作（仅作品详情模式） -->
+        <template v-if="showDetailPanel">
+          <LightboxDetailPanel
+            v-show="!isFullscreen"
+            :item="currentActiveItem"
+            :rotation="rotation"
+            @toggle-favorite="emit('toggleFavorite', $event)"
+            @reuse="handleReuse"
+            @edit-as-reference="handleEditAsReference"
+            @delete="handleDelete"
+            @download="handleDownload"
+            @show-toast="(msg, type) => emit('showToast', msg, type)"
+            @preview-reference="(images, index) => emit('previewReference', images, index)"
+          />
+        </template>
       </div>
     </div>
   </div>
@@ -339,7 +350,7 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   background: $overlay;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(4px);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -386,8 +397,8 @@ onUnmounted(() => {
   max-height: 90vh;
   background: $bg-surface;
   border: 1px solid $border-color;
-  border-radius: $radius-xl;
-  box-shadow: $shadow-float;
+  border-radius: $radius-lg;
+  box-shadow: none;
   position: relative;
   overflow: hidden;
   display: flex;
@@ -466,7 +477,7 @@ onUnmounted(() => {
   justify-content: center;
   cursor: pointer;
   z-index: 10;
-  transition: all 0.15s ease;
+  transition: color 0.12s ease, background-color 0.12s ease;
 
   &:hover {
     background: $bg-surface-hover;
@@ -481,10 +492,27 @@ onUnmounted(() => {
   grid-template-columns: 1fr 380px;
   overflow: hidden;
 
+  // 预览模式无详情面板，画面独占整个弹窗
+  &.is-preview {
+    grid-template-columns: 1fr;
+
+    // 独占时不需要与详情面板之间的分隔线
+    :deep(.modal-image-panel) {
+      border-right: none;
+    }
+  }
+
   @media (max-width: 860px) {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+
+    // 窄屏下预览模式让画面占满可视高度，而不是被压到 36vh
+    &.is-preview :deep(.modal-image-panel) {
+      flex: 1 1 auto;
+      height: 100%;
+      max-height: none;
+    }
   }
 }
 </style>

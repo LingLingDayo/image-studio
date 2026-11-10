@@ -5,7 +5,7 @@ import {
   ZoomOut, 
   RotateCcw,
   RotateCw, 
-  LocateFixed,
+  Scaling,
   Maximize2, 
   Minimize2,
   X,
@@ -472,7 +472,7 @@ defineExpose({
       <div class="tool-divider"></div>
 
       <button class="tool-btn" data-tip="重置视图 (100% 居中)" @click="handleResetView">
-        <LocateFixed :size="15" />
+        <Scaling :size="15" />
       </button>
 
       <button
@@ -706,7 +706,7 @@ defineExpose({
   position: absolute;
   bottom: 20px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, 10px);
   background: $bg-glass;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -720,11 +720,11 @@ defineExpose({
   z-index: 10;
   opacity: 0;
   pointer-events: none;
-  // 显隐只做淡入淡出，不做位移，避免鼠标移入时整条工具栏上下滑动
-  transition: opacity 0.18s ease;
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 
   &.is-visible {
     opacity: 1;
+    transform: translate(-50%, 0);
     pointer-events: auto;
   }
 
@@ -740,7 +740,7 @@ defineExpose({
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: color 0.12s ease;
+    transition: color 0.12s ease, background-color 0.12s ease;
     user-select: none;
 
     // 覆盖浏览器默认的粗黑 focus 描边，键盘导航时仅保留一条极细提示线
@@ -754,6 +754,7 @@ defineExpose({
     }
 
     &:hover {
+      background: $bg-surface-hover;
       color: $text-main;
     }
 
@@ -767,10 +768,6 @@ defineExpose({
       font-weight: 600;
       font-variant-numeric: tabular-nums;
       color: $accent-primary;
-
-      &:hover {
-        color: $accent-primary;
-      }
     }
   }
 
@@ -791,6 +788,7 @@ defineExpose({
 
   .image-floating-toolbar {
     opacity: 1;
+    transform: translate(-50%, 0);
     pointer-events: auto;
     bottom: 12px;
   }
