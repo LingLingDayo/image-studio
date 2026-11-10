@@ -7,6 +7,7 @@ import SettingsGroup from './SettingsGroup.vue';
 import SettingsField from './SettingsField.vue';
 import { PromptOptimizerService } from '@/core/services/PromptOptimizerService';
 import { THEME_STORAGE_KEY } from '@/core/theme';
+import { useTheme } from '@/composables/useTheme';
 
 vi.mock('@/core/services/PromptOptimizerService', () => ({
   PromptOptimizerService: {
@@ -45,6 +46,9 @@ describe('Settings components', () => {
     vi.mocked(PromptOptimizerService.fetchModels).mockReset();
     setActivePinia(createPinia());
     localStorage.clear();
+    // 主题运行时是模块级单例，先复位到浅色，避免用例之间互相污染
+    useTheme().setMode('light');
+    localStorage.removeItem(THEME_STORAGE_KEY);
     container = document.createElement('div');
     document.body.appendChild(container);
   });
@@ -263,24 +267,75 @@ describe('Settings components', () => {
     app.unmount();
   });
 
-  it('通用设置提供主题切换，点击后立即应用并持久化', async () => {
+  it('主题模式只改草稿，未点击保存时界面与存储都不变化', async () => {
     const app = await mountModal('general');
 
     expect(container.textContent).toContain('外观');
     expect(container.textContent).toContain('主题模式');
+    expect(container.querySelector('.theme-hint')).toBeNull();
     const options = [...container.querySelectorAll<HTMLButtonElement>('.theme-option')];
     expect(options.map((el) => el.textContent?.trim())).toEqual(['浅色', '深色', '跟随系统']);
 
     const dark = options.find((el) => el.textContent?.includes('深色'))!;
     dark.click();
     await nextTick();
+
+    // 选中态跟随草稿，但运行时主题与持久化都未发生
+    expect(dark.getAttribute('aria-checked')).toBe('true');
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
+
+    const save = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (el) => el.textContent?.trim() === '保存设置'
+    )!;
+    expect(save.disabled).toBe(false);
+
+    // 丢弃草稿重新打开，选中态回到已保存值
+    app.unmount();
+    const reopened = await mountModal('general');
+    const reopenedOptions = [...container.querySelectorAll<HTMLButtonElement>('.theme-option')];
+    expect(reopenedOptions[0].getAttribute('aria-checked')).toBe('true');
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
+    reopened.unmount();
+  });
+
+  it('主题模式在点击保存后才应用并持久化', async () => {
+    const app = await mountModal('general');
+
+    const dark = [...container.querySelectorAll<HTMLButtonElement>('.theme-option')].find(
+      (el) => el.textContent?.includes('深色')
+    )!;
+    dark.click();
+    await nextTick();
+
+    const save = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (el) => el.textContent?.trim() === '保存设置'
+    )!;
+    save.click();
+    await nextTick();
+
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
-    expect(dark.getAttribute('aria-checked')).toBe('true');
+    app.unmount();
+  });
 
-    options[0].click();
+  it('普通偏好未点击保存时同样不会写入配置存储', async () => {
+    const app = await mountModal('general');
+
+    const switchEl = container.querySelector('.ui-switch-wrapper') as HTMLElement;
+    switchEl.click();
     await nextTick();
-    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(switchEl.getAttribute('aria-checked')).toBe('true');
+    expect(localStorage.getItem('gpt_image_clear_prompt_on_generate')).toBeNull();
+
+    const save = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (el) => el.textContent?.trim() === '保存设置'
+    )!;
+    expect(save.disabled).toBe(false);
+    save.click();
+    await nextTick();
+    expect(localStorage.getItem('gpt_image_clear_prompt_on_generate')).toBe('true');
     app.unmount();
   });
 });

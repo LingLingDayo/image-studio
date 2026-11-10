@@ -1,7 +1,9 @@
 import { Sliders, Download, Sparkles, Maximize2, Palette } from '@lucide/vue';
 import { useConfigStore } from '@/stores/configStore';
+import { useTheme } from '@/composables/useTheme';
 import BackupSettings from '@/components/settings/BackupSettings.vue';
 import ThemeSettings from '@/components/settings/ThemeSettings.vue';
+import { isThemeMode, readStoredThemeMode } from '@/core/theme';
 import { SETTING_WIDGET, type SettingSection } from '@/core/settings';
 import { SETTING_CATEGORY, SETTING_KEYS, SETTING_SECTION } from './keys';
 
@@ -22,8 +24,7 @@ export const generalSection: SettingSection = {
           key: SETTING_KEYS.themeMode,
           type: SETTING_WIDGET.CUSTOM,
           label: '主题模式',
-          component: ThemeSettings,
-          persist: false
+          component: ThemeSettings
         }
       ]
     },
@@ -107,6 +108,7 @@ export const generalSection: SettingSection = {
     const store = useConfigStore();
     return {
       values: {
+        [SETTING_KEYS.themeMode]: readStoredThemeMode() ?? 'light',
         [SETTING_KEYS.clearPromptOnGenerate]: store.clearPromptOnGenerate,
         [SETTING_KEYS.previewFullscreenMode]: store.previewFullscreenMode,
         [SETTING_KEYS.downloadFilenamePattern]: store.downloadFilenamePattern,
@@ -122,5 +124,8 @@ export const generalSection: SettingSection = {
       downloadFilenamePattern: String(ctx.values[SETTING_KEYS.downloadFilenamePattern] ?? '').trim() || '{prefix}_{date}_{time}_{id}',
       downloadImageFormat: String(ctx.values[SETTING_KEYS.downloadImageFormat] ?? 'auto').trim() || 'auto'
     });
+    // 主题与其它偏好一样只在保存后应用；普通配置写盘失败时也不应提前切换界面。
+    const nextMode = ctx.values[SETTING_KEYS.themeMode];
+    if (isThemeMode(nextMode)) useTheme().setMode(nextMode);
   }
 };

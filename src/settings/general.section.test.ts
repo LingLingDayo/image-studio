@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { createSettingsMutator, SETTING_WIDGET } from '@/core/settings';
 import { useConfigStore } from '@/stores/configStore';
+import { useTheme } from '@/composables/useTheme';
+import { THEME_STORAGE_KEY } from '@/core/theme';
 import { generalSection } from './general.section';
 import { SETTING_CATEGORY, SETTING_KEYS, SETTING_SECTION } from './keys';
 
@@ -9,6 +11,8 @@ describe('general section schema', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     localStorage.clear();
+    useTheme().setMode('light');
+    localStorage.removeItem(THEME_STORAGE_KEY);
   });
 
   it('has correct section metadata and fields', () => {
@@ -25,7 +29,7 @@ describe('general section schema', () => {
     expect(appearanceGroup).toBeDefined();
     expect(appearanceGroup?.fields[0].key).toBe(SETTING_KEYS.themeMode);
     expect(appearanceGroup?.fields[0].type).toBe(SETTING_WIDGET.CUSTOM);
-    expect(appearanceGroup?.fields[0].persist).toBe(false);
+    expect(appearanceGroup?.fields[0].persist).toBeUndefined();
     expect(appearanceGroup?.fields[0].component).toBeDefined();
 
     const interactionGroup = generalSection.groups.find((g) => g.id === 'general.interaction');
@@ -62,6 +66,7 @@ describe('general section schema', () => {
     expect(store.previewFullscreenMode).toBe('window');
 
     const slice = generalSection.hydrate!();
+    expect(slice.values[SETTING_KEYS.themeMode]).toBe('light');
     expect(slice.values[SETTING_KEYS.clearPromptOnGenerate]).toBe(false);
     expect(slice.values[SETTING_KEYS.previewFullscreenMode]).toBe('window');
     expect(slice.values[SETTING_KEYS.downloadFilenamePattern]).toBe('{prefix}_{date}_{time}_{id}');
@@ -83,5 +88,25 @@ describe('general section schema', () => {
     expect(store.previewFullscreenMode).toBe('native');
     expect(store.downloadFilenamePattern).toBe('{type}_{prompt}_{time}');
     expect(store.downloadImageFormat).toBe('webp');
+  });
+
+  it('主题模式只在 commit 时应用，草稿值不直接影响界面', () => {
+    const ctx = createSettingsMutator(
+      {
+        [SETTING_KEYS.themeMode]: 'dark',
+        [SETTING_KEYS.clearPromptOnGenerate]: false,
+        [SETTING_KEYS.previewFullscreenMode]: 'window',
+        [SETTING_KEYS.downloadFilenamePattern]: '{prefix}_{date}_{time}_{id}',
+        [SETTING_KEYS.downloadImageFormat]: 'auto'
+      },
+      {}
+    );
+
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
+
+    generalSection.commit!(ctx);
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
   });
 });
