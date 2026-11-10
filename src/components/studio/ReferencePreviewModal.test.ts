@@ -200,6 +200,26 @@ describe('ReferencePreviewModal', () => {
     expect(state.close).not.toHaveBeenCalled();
   });
 
+  it('非全屏时右上角 X 点击后关闭参考图预览', async () => {
+    const state = await mount();
+    const closeBtn = container.querySelector('.modal-close-btn') as HTMLButtonElement;
+    expect(closeBtn).not.toBeNull();
+    closeBtn.click();
+    await nextTick();
+    expect(state.close).toHaveBeenCalledOnce();
+  });
+
+  it('全屏时 X 与 Escape 一样只退出全屏而不关闭预览', async () => {
+    const state = await mount();
+    await fullscreen();
+    const closeBtn = container.querySelector('.fullscreen-close-btn') as HTMLButtonElement;
+    expect(closeBtn).not.toBeNull();
+    closeBtn.click();
+    await nextTick();
+    expect(container.querySelector('.ref-preview-backdrop')?.classList.contains('is-fullscreen')).toBe(false);
+    expect(state.close).not.toHaveBeenCalled();
+  });
+
   it('不退出非预览组件拥有的原生全屏，迟到全屏请求在卸载后会退出', async () => {
     localStorage.setItem('gpt_image_preview_fullscreen_mode', 'native');
     fullscreenElement = document.createElement('video');

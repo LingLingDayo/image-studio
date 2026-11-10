@@ -941,4 +941,34 @@ describe('LightboxModal 作品切换箭头', () => {
 
     app.unmount();
   });
+
+  it('非全屏时右上角 X 点击后关闭图片查看器', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGalleryStore();
+    store.items = [createMockAsset(1, '待关闭作品')];
+    let closed = false;
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: store.items[0],
+          allAssets: [store.items[0]],
+          onClose: () => { closed = true; }
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const closeBtn = container.querySelector('.modal-close-btn') as HTMLButtonElement;
+    expect(closeBtn).not.toBeNull();
+    expect(closeBtn.getAttribute('data-tip')).toContain('关闭');
+    closeBtn.click();
+    await nextTick();
+    expect(closed).toBe(true);
+
+    app.unmount();
+  });
 });

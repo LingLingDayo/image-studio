@@ -328,4 +328,69 @@ describe('UiImageViewer (src/components/ui/UiImageViewer.vue)', () => {
     app.unmount();
     vi.useRealTimers();
   });
+
+  it('全屏退出按钮的指针事件不冒泡到画布，点击可正常退出全屏', async () => {
+    const isFullscreen = ref(true);
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, {
+          src: 'https://example.com/test.png',
+          isFullscreen: isFullscreen.value,
+          'onUpdate:isFullscreen': (val: boolean) => {
+            isFullscreen.value = val;
+          }
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+    const closeBtn = container.querySelector('.fullscreen-close-btn') as HTMLButtonElement;
+    expect(closeBtn).not.toBeNull();
+
+    // 真实浏览器里容器 setPointerCapture 会把 click 派发到容器，因此按钮必须截断指针事件
+    let bubbled = 0;
+    panel.addEventListener('pointerdown', () => { bubbled++; });
+    panel.addEventListener('mousedown', () => { bubbled++; });
+    closeBtn.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
+    closeBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    await nextTick();
+    expect(bubbled).toBe(0);
+
+    closeBtn.click();
+    await nextTick();
+    expect(isFullscreen.value).toBe(false);
+
+    app.unmount();
+  });
+
+  it('按 Escape 退出全屏后不会在全屏按钮上残留焦点描边', async () => {
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, { src: 'https://example.com/test.png' });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+    const fullscreenBtn = container.querySelector('.image-floating-toolbar [data-tip="全屏显示"]') as HTMLButtonElement;
+    fullscreenBtn.click();
+    await nextTick();
+    expect(panel.classList.contains('is-fullscreen')).toBe(true);
+
+    fullscreenBtn.focus();
+    expect(document.activeElement).toBe(fullscreenBtn);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await nextTick();
+
+    expect(panel.classList.contains('is-fullscreen')).toBe(false);
+    expect(document.activeElement).not.toBe(fullscreenBtn);
+
+    app.unmount();
+  });
 });
