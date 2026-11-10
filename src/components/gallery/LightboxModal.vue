@@ -421,17 +421,12 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
 
   &:hover {
     background: $bg-surface;
     color: $text-main;
     border-color: $accent-border;
-    transform: translateY(-50%) scale(1.06);
-  }
-
-  &:active {
-    transform: translateY(-50%) scale(0.96);
   }
 
   &.is-prev {

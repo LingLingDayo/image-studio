@@ -555,16 +555,11 @@ defineExpose({
   justify-content: center;
   cursor: pointer;
   z-index: 50;
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: color 0.12s ease, background-color 0.12s ease;
 
   &:hover {
     background: $bg-surface;
     color: $text-main;
-    transform: scale(1.08);
-  }
-
-  &:active {
-    transform: scale(0.94);
   }
 
   @media (max-width: 860px) {
@@ -690,12 +685,11 @@ defineExpose({
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: color 0.12s ease, background-color 0.12s ease;
 
     &:hover {
       background: $border-light;
       color: $text-main;
-      transform: scale(1.1);
     }
   }
 
@@ -712,7 +706,7 @@ defineExpose({
   position: absolute;
   bottom: 20px;
   left: 50%;
-  transform: translate(-50%, 10px);
+  transform: translateX(-50%);
   background: $bg-glass;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -726,11 +720,11 @@ defineExpose({
   z-index: 10;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  // 显隐只做淡入淡出，不做位移，避免鼠标移入时整条工具栏上下滑动
+  transition: opacity 0.18s ease;
 
   &.is-visible {
     opacity: 1;
-    transform: translate(-50%, 0);
     pointer-events: auto;
   }
 
@@ -746,7 +740,7 @@ defineExpose({
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: color 0.12s ease;
     user-select: none;
 
     // 覆盖浏览器默认的粗黑 focus 描边，键盘导航时仅保留一条极细提示线
@@ -760,28 +754,22 @@ defineExpose({
     }
 
     &:hover {
-      background: transparent; /* hover 无背景色 */
       color: $text-main;
-      transform: scale(1.06);
-    }
-
-    &:active {
-      background: transparent;
-      transform: scale(0.94);
     }
 
     &.scale-indicator {
       font-family: $font-mono;
       font-size: 0.72rem;
-      width: auto;
-      min-width: 48px;
-      padding: 0 6px;
+      // 固定宽度 + 等宽数字：百分比位数变化时不会推着整条工具栏左右抖动
+      width: 52px;
+      min-width: 52px;
+      padding: 0 4px;
       font-weight: 600;
+      font-variant-numeric: tabular-nums;
       color: $accent-primary;
 
       &:hover {
-        background: transparent; /* hover 无背景色 */
-        color: $accent-hover;
+        color: $accent-primary;
       }
     }
   }
@@ -803,7 +791,6 @@ defineExpose({
 
   .image-floating-toolbar {
     opacity: 1;
-    transform: translate(-50%, 0);
     pointer-events: auto;
     bottom: 12px;
   }
