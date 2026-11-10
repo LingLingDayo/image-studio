@@ -3,18 +3,14 @@ import { ref, computed } from 'vue';
 import type { MediaAsset } from '@/types/asset';
 import { formatFullTime } from '@/utils/download';
 import { formatQualityLabel, getResolutionDisplay, inferResolutionTier, formatDisplayRatio, formatActualRatio } from '@/utils/imageSize';
-import { 
-  Download, 
-  CornerUpLeft, 
-  Trash2, 
-  Copy, 
-  Edit3, 
-  Star, 
+import {
+  Download,
+  CornerUpLeft,
+  Trash2,
+  Copy,
+  Edit3,
+  Star,
   Check,
-  Sliders,
-  Image as ImageIcon,
-  Timer,
-  Clock,
   AlertCircle
 } from '@lucide/vue';
 import { getErrorHeadline } from '@/utils/apiError';
@@ -127,22 +123,34 @@ async function handleCopyPrompt() {
     <div class="info-header">
       <div class="header-title-wrap">
         <h3>作品详情</h3>
-        <button 
+        <button
           v-if="!isFailed"
-          class="btn-fav" 
-          :class="{ 'is-fav': item.isFavorite }" 
+          type="button"
+          class="btn-fav"
+          :class="{ 'is-fav': item.isFavorite }"
           :data-tip="item.isFavorite ? '取消收藏' : '收藏此图'"
           @click="item.id && emit('toggleFavorite', item.id)"
         >
-          <Star :size="17" :class="{ 'star-filled': item.isFavorite }" />
+          <Star :size="16" :class="{ 'star-filled': item.isFavorite }" />
         </button>
+      </div>
+      <div class="header-meta">
+        <span class="meta-entry" :data-tip="`生成耗时: ${item.duration || '-'}`">
+          <span class="meta-k">耗时</span>
+          <span class="meta-v">{{ item.duration || '-' }}</span>
+        </span>
+        <span class="meta-separator" aria-hidden="true"></span>
+        <span class="meta-entry" :data-tip="`创建时间: ${formatFullTime(item.timestamp)}`">
+          <span class="meta-k">时间</span>
+          <span class="meta-v">{{ formatFullTime(item.timestamp) }}</span>
+        </span>
       </div>
     </div>
 
     <div class="info-scroll">
-      <!-- 失败状态提示横幅 -->
+      <!-- 失败状态提示 -->
       <div v-if="isFailed" class="failed-alert-banner">
-        <AlertCircle :size="16" class="alert-icon" />
+        <AlertCircle :size="15" class="alert-icon" />
         <div class="alert-text-wrap">
           <span class="alert-headline">{{ failHeadline }}</span>
           <span class="alert-detail">{{ item.errorMessage || '生图失败' }}</span>
@@ -150,108 +158,80 @@ async function handleCopyPrompt() {
       </div>
 
       <!-- 提示词 -->
-      <div class="info-block">
+      <section class="info-block">
         <div class="block-label">
           <span>提示词</span>
-          <button class="btn-text-copy" @click="handleCopyPrompt">
-            <Check v-if="isCopied" :size="13" />
-            <Copy v-else :size="13" />
+          <button type="button" class="btn-text-copy" @click="handleCopyPrompt">
+            <Check v-if="isCopied" :size="12" />
+            <Copy v-else :size="12" />
             <span>{{ isCopied ? '已复制' : '复制' }}</span>
           </button>
         </div>
-        <div class="prompt-box">
-          {{ item.prompt }}
-        </div>
-      </div>
+        <div class="prompt-box">{{ item.prompt }}</div>
+      </section>
 
-      <!-- 参数与规格看板 (单层一体化布局) -->
-      <div class="params-dashboard">
-        <!-- 核心规格双栏对比区 -->
-        <div class="specs-grid">
-          <!-- 左栏：生图设定 (4项核心维度) -->
-          <div class="spec-column preset-column">
-            <div class="spec-column-header">
-              <div class="header-title">
-                <Sliders :size="12" />
-                <span>生图设定</span>
-              </div>
-              <span class="mode-mini-tag" :class="presetTypeLabel === '图生图' ? 'is-i2i' : 'is-t2i'">
-                {{ presetTypeLabel }}
-              </span>
+      <!-- 规格：以单列属性表分段呈现设定与结果 -->
+      <section class="specs-section">
+        <div class="spec-group">
+          <div class="spec-group-head">
+            <span class="group-name">生图设定</span>
+            <span class="group-tag">{{ presetTypeLabel }}</span>
+          </div>
+          <dl class="spec-list">
+            <div class="spec-item">
+              <dt class="spec-k">设定分辨率</dt>
+              <dd class="spec-v">{{ presetResolution }}</dd>
             </div>
             <div class="spec-item">
-              <span class="spec-k">设定分辨率</span>
-              <span class="spec-v">{{ presetResolution }}</span>
+              <dt class="spec-k">设定比例</dt>
+              <dd class="spec-v">{{ presetRatio }}</dd>
             </div>
             <div class="spec-item">
-              <span class="spec-k">设定比例</span>
-              <span class="spec-v">{{ presetRatio }}</span>
+              <dt class="spec-k">设定尺寸</dt>
+              <dd class="spec-v">{{ presetSize }}</dd>
             </div>
             <div class="spec-item">
-              <span class="spec-k">设定尺寸</span>
-              <span class="spec-v">{{ presetSize }}</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-k">设定画质</span>
-              <span class="spec-v">{{ presetQuality }}</span>
+              <dt class="spec-k">设定画质</dt>
+              <dd class="spec-v">{{ presetQuality }}</dd>
             </div>
             <div v-if="item.moderation" class="spec-item">
-              <span class="spec-k">设定审核</span>
-              <span class="spec-v">{{ item.moderation === 'low' ? '低' : '默认' }}</span>
+              <dt class="spec-k">设定审核</dt>
+              <dd class="spec-v">{{ item.moderation === 'low' ? '低' : '默认' }}</dd>
             </div>
-          </div>
-
-          <!-- 右栏：实际结果 (4项核心维度) -->
-          <div class="spec-column output-column">
-            <div class="spec-column-header">
-              <div class="header-title">
-                <ImageIcon :size="12" />
-                <span>实际结果</span>
-              </div>
-              <span v-if="item.transparent" class="mode-mini-tag is-transparent">
-                透明底
-              </span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-k">实际分辨率</span>
-              <span class="spec-v">{{ actualResolution }}</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-k">实际比例</span>
-              <span class="spec-v">{{ actualRatio }}</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-k">真实尺寸</span>
-              <span class="spec-v highlight-mono">{{ actualDimension }}</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-k">图像格式</span>
-              <span class="spec-v">{{ actualFormat }}</span>
-            </div>
-          </div>
+          </dl>
         </div>
 
-        <!-- 底部一体化元数据栏 -->
-        <div class="meta-footer">
-          <div class="meta-stat-item" :data-tip="`生成耗时: ${item.duration || '-'}`">
-            <Timer :size="12" class="stat-icon" />
-            <span class="stat-k">耗时</span>
-            <span class="stat-v">{{ item.duration || '-' }}</span>
+        <div class="spec-group">
+          <div class="spec-group-head">
+            <span class="group-name">实际结果</span>
+            <span v-if="item.transparent" class="group-tag">透明底</span>
           </div>
-          <div class="meta-stat-divider"></div>
-          <div class="meta-stat-item" :data-tip="`创建时间: ${formatFullTime(item.timestamp)}`">
-            <Clock :size="12" class="stat-icon" />
-            <span class="stat-k">时间</span>
-            <span class="stat-v">{{ formatFullTime(item.timestamp) }}</span>
-          </div>
+          <dl class="spec-list">
+            <div class="spec-item">
+              <dt class="spec-k">实际分辨率</dt>
+              <dd class="spec-v">{{ actualResolution }}</dd>
+            </div>
+            <div class="spec-item">
+              <dt class="spec-k">实际比例</dt>
+              <dd class="spec-v">{{ actualRatio }}</dd>
+            </div>
+            <div class="spec-item">
+              <dt class="spec-k">真实尺寸</dt>
+              <dd class="spec-v is-mono">{{ actualDimension }}</dd>
+            </div>
+            <div class="spec-item">
+              <dt class="spec-k">图像格式</dt>
+              <dd class="spec-v">{{ actualFormat }}</dd>
+            </div>
+          </dl>
         </div>
-      </div>
+      </section>
     </div>
 
-    <!-- 底部操作按钮 -->
+    <!-- 底部操作区 -->
     <div class="modal-actions">
-      <button 
-        class="btn-primary full-width" 
+      <button
+        class="btn-primary full-width"
         :class="{ 'is-disabled': isFailed }"
         :disabled="isFailed"
         :data-tip="isFailed ? '当前图片未生成成功，无法下载' : undefined"
@@ -267,8 +247,8 @@ async function handleCopyPrompt() {
           <span>复用参数</span>
         </button>
 
-        <button 
-          class="btn-secondary flex-1" 
+        <button
+          class="btn-secondary flex-1"
           :class="{ 'is-disabled': isFailed }"
           :disabled="isFailed"
           :data-tip="isFailed ? '无可用参考图' : undefined"
@@ -290,39 +270,137 @@ async function handleCopyPrompt() {
 @use '@/styles/variables.scss' as *;
 
 .modal-info-panel {
-  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
   min-height: 0;
   overflow: hidden;
   border-left: 1px solid $border-color;
+  background: $bg-surface;
 
   @media (max-width: 860px) {
     flex: 1 1 auto;
-    padding: 14px 16px 16px;
     border-left: none;
+    border-top: 1px solid $border-color;
   }
+}
+
+.info-header {
+  flex-shrink: 0;
+  padding: 18px 52px 14px 28px; // 右侧留出关闭按钮的位置
+  border-bottom: 1px solid $border-color;
+
+  .header-title-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    h3 {
+      margin: 0;
+      font-size: 1.06rem;
+      font-weight: 650;
+      line-height: 1.3;
+      color: $text-main;
+    }
+  }
+
+  @media (max-width: 860px) {
+    padding: 16px 50px 12px 18px;
+  }
+}
+
+.btn-fav {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: $text-dim;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    color: $favorite;
+    background: $favorite-subtle;
+  }
+
+  &.is-fav {
+    color: $favorite;
+  }
+
+  .star-filled {
+    fill: $favorite;
+    color: $favorite;
+  }
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.meta-entry {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+
+  .meta-k {
+    font-size: 0.72rem;
+    color: $text-muted;
+    white-space: nowrap;
+  }
+
+  .meta-v {
+    font-family: $font-mono;
+    font-size: 0.7rem;
+    color: $text-secondary;
+    white-space: nowrap;
+  }
+}
+
+.meta-separator {
+  width: 1px;
+  height: 10px;
+  flex-shrink: 0;
+  background: $border-color;
 }
 
 .info-scroll {
   flex: 1;
   min-height: 0;
+  padding: 18px 28px 20px;
   overflow-y: auto;
   overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+
+  @media (max-width: 860px) {
+    padding: 16px 18px 18px;
+    gap: 18px;
+  }
+}
+
+.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+  pointer-events: none;
 }
 
 .failed-alert-banner {
-  background: $danger-subtle;
-  border: 1px solid $danger-border;
-  border-radius: 8px;
-  padding: 10px 12px;
   display: flex;
   gap: 10px;
   align-items: flex-start;
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid $danger;
 
   .alert-icon {
     color: $danger;
@@ -339,109 +417,45 @@ async function handleCopyPrompt() {
 
   .alert-headline {
     font-size: 0.82rem;
-    font-weight: 700;
+    font-weight: 650;
     color: $danger;
   }
 
   .alert-detail {
     font-size: 0.76rem;
-    color: $danger;
-    line-height: 1.4;
+    line-height: 1.5;
+    color: $text-muted;
     word-break: break-word;
-  }
-}
-
-.is-disabled {
-  opacity: 0.55;
-  cursor: not-allowed !important;
-  pointer-events: none;
-}
-
-.info-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-right: 36px; // 避开右上角关闭按钮区域
-  min-height: 32px;
-
-  .header-title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    h3 {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: $text-main;
-      margin: 0;
-    }
-  }
-}
-
-.btn-fav {
-  background: transparent;
-  border: none;
-  color: $text-dim;
-  cursor: pointer;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: $radius-sm;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-
-  &:hover {
-    color: $favorite;
-    background: $favorite-subtle;
-    transform: scale(1.08);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-
-  &.is-fav {
-    color: $favorite;
-
-    &:hover {
-      background: $favorite-glow;
-    }
-  }
-
-  .star-filled {
-    fill: $favorite;
-    color: $favorite;
-    filter: drop-shadow(0 1px 3px $favorite-glow);
   }
 }
 
 .info-block {
   display: flex;
   flex-direction: column;
-  gap: 6px;
 }
 
 .block-label {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  font-size: 0.75rem;
+  justify-content: space-between;
+  font-size: 0.72rem;
   font-weight: 600;
+  letter-spacing: 0.06em;
   color: $text-muted;
 }
 
 .btn-text-copy {
-  background: none;
-  border: none;
-  color: $accent-primary;
-  font-size: 0.75rem;
-  line-height: normal;
-  font-weight: 500;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  color: $accent-primary;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: normal;
   cursor: pointer;
 
   &:hover {
@@ -450,195 +464,110 @@ async function handleCopyPrompt() {
 }
 
 .prompt-box {
-  font-size: 0.85rem;
-  color: $text-main;
-  background: $bg-surface-subtle;
-  border: 1px solid $border-color;
-  border-radius: $radius-md;
-  padding: 10px 12px;
-  line-height: 1.5;
-  max-height: 140px;
+  margin-top: 12px;
+  max-height: 150px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  font-size: 0.88rem;
+  line-height: 1.8;
+  color: $text-main;
+  white-space: pre-wrap;
   word-break: break-word;
 }
 
-.params-dashboard {
-  background: $bg-surface-subtle;
-  padding: 12px 14px;
-  border-radius: $radius-lg;
-  border: 1px solid $border-color;
+.specs-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.spec-group {
   display: flex;
   flex-direction: column;
 }
 
-.specs-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+.spec-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 9px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid $border-light;
 
-  @media (max-width: 360px) {
-    grid-template-columns: 1fr;
-    gap: 12px;
+  .group-name {
+    font-size: 0.78rem;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    color: $text-main;
+  }
+
+  .group-tag {
+    font-size: 0.72rem;
+    color: $text-muted;
+    white-space: nowrap;
   }
 }
 
-.spec-column {
+.spec-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-
-  &:first-child {
-    padding-right: 4px;
-    border-right: 1px solid $border-color;
-
-    @media (max-width: 360px) {
-      padding-right: 0;
-      border-right: none;
-      padding-bottom: 8px;
-      border-bottom: 1px solid $border-color;
-    }
-  }
-
-  .spec-column-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 0.73rem;
-    font-weight: 600;
-    padding-bottom: 5px;
-    margin-bottom: 2px;
-    border-bottom: 1px solid $border-light;
-
-    .header-title {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      line-height: normal;
-    }
-  }
-
-  &.preset-column .spec-column-header .header-title {
-    color: $accent-primary;
-  }
-
-  &.output-column .spec-column-header .header-title {
-    color: $success;
-  }
-}
-
-.mode-mini-tag {
-  font-size: 0.68rem;
-  padding: 1px 5px;
-  border-radius: 4px;
-  font-weight: 500;
-  line-height: 1.2;
-
-  &.is-t2i {
-    background: $accent-subtle;
-    color: $accent-primary;
-  }
-
-  &.is-i2i {
-    background: $accent-subtle;
-    color: $accent-primary;
-  }
-
-  &.is-transparent {
-    background: $success-subtle;
-    color: $success;
-  }
 }
 
 .spec-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.74rem;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  align-items: baseline;
+  gap: 12px;
+  padding: 4px 0;
 
   .spec-k {
+    font-size: 0.76rem;
+    line-height: 1.5;
     color: $text-muted;
-    white-space: nowrap;
-    flex-shrink: 0;
   }
 
   .spec-v {
-    color: $text-main;
+    font-size: 0.82rem;
     font-weight: 500;
-    white-space: nowrap;
-    text-align: right;
+    line-height: 1.5;
+    color: $text-main;
+    word-break: break-word;
 
-    &.highlight-mono {
+    &.is-mono {
       font-family: $font-mono;
-      font-size: 0.72rem;
+      font-size: 0.78rem;
     }
   }
-}
 
-.meta-footer {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid $border-color;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.74rem;
-}
-
-.meta-stat-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  line-height: normal;
-  color: $text-muted;
-
-  .stat-icon {
-    color: $text-dim;
-    flex-shrink: 0;
+  @media (max-width: 360px) {
+    grid-template-columns: 88px 1fr;
+    gap: 8px;
   }
-
-  .stat-k {
-    color: $text-muted;
-  }
-
-  .stat-v {
-    color: $text-main;
-    font-weight: 500;
-    font-family: $font-mono;
-  }
-}
-
-.meta-stat-divider {
-  width: 1px;
-  height: 12px;
-  background: $border-color;
 }
 
 .modal-actions {
-  margin-top: 0;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-top: 12px;
+  gap: 8px;
+  padding: 14px 28px 16px;
+  border-top: 1px solid $border-color;
+
+  @media (max-width: 860px) {
+    padding: 12px 18px 14px;
+  }
 }
 
 .action-btn-row {
   display: flex;
   gap: 8px;
   align-items: center;
-
-  .btn-danger-outline {
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    aspect-ratio: 1 / 1;
-    flex-shrink: 0;
-  }
 }
 
 .flex-1 {
   flex: 1;
+  min-width: 0;
 }
 
 .full-width {
