@@ -1,6 +1,6 @@
 import type { MediaAsset } from '@/types/asset';
 import { assetRepository } from './AssetRepository';
-import { dataUrlToBlob, detectImageMimeType, fileToDataUrl, mimeToImageFormat } from './imageBlob';
+import { dataUrlToBlob, detectBlobImageMimeType, fileToDataUrl, imageFormatToMimeType, mimeToImageFormat } from './imageBlob';
 import { assetIdentity, equalImageBytes } from './backup/assetIdentity';
 import { loadImageDimensions } from '@/utils/image';
 import { formatFullTime } from '@/utils/download';
@@ -56,7 +56,7 @@ function readMetadata(value: unknown, index: number): AssetMetadata {
     isFavorite: raw.isFavorite === true,
     referenceImages: []
   };
-  const strings = ['batchId', 'revisedPrompt', 'ratio', 'targetRatio', 'targetSize', 'targetFormat', 'format', 'moderation'] as const;
+  const strings = ['batchId', 'revisedPrompt', 'ratio', 'targetRatio', 'targetSize', 'targetFormat', 'format', 'moderation', 'complexity'] as const;
   for (const key of strings) {
     if (raw[key] !== undefined) meta[key] = text(raw[key], key, key === 'revisedPrompt' ? 100000 : 1024);
   }
@@ -69,6 +69,13 @@ function readMetadata(value: unknown, index: number): AssetMetadata {
     if (val !== undefined) {
       if (typeof val !== 'number' || !Number.isInteger(val) || val <= 0 || val > 16384) throw new Error('图片尺寸无效');
       meta[key] = val;
+    }
+  }
+  for (const key of ['outputCompression', 'frameCount', 'frameDurationMs'] as const) {
+    const value = raw[key];
+    if (value !== undefined) {
+      if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw new Error(`${key}字段无效`);
+      meta[key] = value;
     }
   }
   for (const key of ['transparent', 'isFavorite'] as const) {
@@ -95,7 +102,7 @@ function addImageBudget(budget: { bytes: number }, size: number): void {
 }
 
 async function validateImage(blob: Blob, mime: string): Promise<void> {
-  const actualMime = detectImageMimeType(new Uint8Array(await blob.slice(0, 12).arrayBuffer()));
+  const actualMime = await detectBlobImageMimeType(blob);
   if (!actualMime || actualMime !== mime) throw new Error('图片内容无效或与格式声明不一致');
   const url = URL.createObjectURL(blob);
   try {
@@ -110,8 +117,8 @@ async function validateImage(blob: Blob, mime: string): Promise<void> {
 
 async function decodeImage(mimeValue: unknown, base64Value: unknown, budget: { bytes: number }): Promise<Blob> {
   const format = mimeToImageFormat(text(mimeValue, '图片格式', 128));
-  if (!format) throw new Error('图片仅支持 PNG、JPEG 或 WebP');
-  const mime = `image/${format}`;
+  if (!format) throw new Error('图片仅支持 PNG、JPEG、WebP、GIF 或 SVG');
+  const mime = imageFormatToMimeType(format);
   const base64 = text(base64Value, 'Base64', MAX_BACKUP_FILE_BYTES);
   if (!base64 || base64.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(base64)) throw new Error('图片 Base64 数据无效');
   const size = (base64.length / 4) * 3 - (base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0);
@@ -123,8 +130,8 @@ async function decodeImage(mimeValue: unknown, base64Value: unknown, budget: { b
 
 async function validateReferences(references: string[], budget: { bytes: number }): Promise<void> {
   for (const reference of references) {
-    const parts = /^data:(image\/(?:png|jpeg|jpg|webp));base64,([A-Za-z0-9+/=]+)$/i.exec(reference);
-    if (!parts) throw new Error('参考图仅支持 PNG、JPEG、WebP 的本地 Data URL，不会自动下载远程图片');
+    const parts = /^data:(image\/(?:png|jpeg|jpg|webp|gif|svg\+xml));base64,([A-Za-z0-9+/=]+)$/i.exec(reference);
+    if (!parts) throw new Error('参考图仅支持 PNG、JPEG、WebP、GIF、SVG 的本地 Data URL，不会自动下载远程图片');
     await decodeImage(parts[1], parts[2], budget);
   }
 }
@@ -164,7 +171,7 @@ export async function createBackup(): Promise<{ blob: Blob; count: number; filen
   const assets: SerializedAsset[] = [];
   for (const [index, asset] of snapshot.assets.entries()) {
     const metadata = readMetadata(asset, index);
-    const mime = detectImageMimeType(new Uint8Array(await asset.blob.slice(0, 12).arrayBuffer()));
+    const mime = await detectBlobImageMimeType(asset.blob);
     if (!mime) throw new Error(`第 ${index + 1} 张作品图片格式无法识别，未导出不完整备份`);
     addImageBudget(budget, asset.blob.size);
     await validateImage(asset.blob, mime);

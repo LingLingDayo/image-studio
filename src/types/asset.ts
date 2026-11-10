@@ -20,6 +20,10 @@ export interface MediaAsset {
   format?: string;
   transparent?: boolean;
   moderation?: string;
+  complexity?: string;
+  outputCompression?: number;
+  frameCount?: number;
+  frameDurationMs?: number;
   duration: string;
   timestamp: number;
   isFavorite?: boolean;
@@ -47,6 +51,10 @@ export interface ArtworkBatch {
   format?: string;
   transparent?: boolean;
   moderation?: string;
+  complexity?: string;
+  outputCompression?: number;
+  frameCount?: number;
+  frameDurationMs?: number;
   duration: string;
   timestamp: number;
   isFavorite?: boolean;

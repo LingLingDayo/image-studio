@@ -1,6 +1,8 @@
 import type { IImageProviderAdapter, ProviderConfig, ProviderExecutionResult, ProviderItemResult, ProviderExecuteOptions } from '@/types/provider';
 import type { TaskGenerationParams } from '@/types/task';
-import { resolveTransparentOutputFormat } from '@/types/model';
+import { createImageModelProfile, resolveTransparentOutputFormat, type ModelFormat } from '@/types/model';
+import { validateModelGenerationParams } from '@/core/models/settings';
+import { imageFormatToMimeType } from '@/core/storage/imageBlob';
 import { applySizePromptHint, buildSizePromptHint, parseSizeString } from '@/utils/imageSize';
 import {
   categorizeErrorDetail,
@@ -41,11 +43,13 @@ function normalizeEndpoint(baseUrl: string, path: string): string {
   return `${base}/v1${path}`;
 }
 
-function parseResponseBody(data: any, actionName = '生图'): ProviderExecutionResult {
+function parseResponseBody(data: any, actionName = '生图', outputFormat: ModelFormat = 'png'): ProviderExecutionResult {
   if (!data) {
     throw new Error(`${actionName}失败: 提供商返回了空响应`);
   }
 
+  const responseFormat = typeof data.output_format === 'string' ? data.output_format : outputFormat;
+  const mime = imageFormatToMimeType(responseFormat);
   const payloadError = extractJsonErrorMessage(data);
   const itemErrors: string[] = [];
   let items: ProviderItemResult[] = [];
@@ -63,7 +67,7 @@ function parseResponseBody(data: any, actionName = '生图'): ProviderExecutionR
       if (!url && item?.b64_json) {
         url = item.b64_json.startsWith('data:image/')
           ? item.b64_json
-          : `data:image/png;base64,${item.b64_json}`;
+          : `data:${mime};base64,${item.b64_json}`;
       }
       return {
         url,
@@ -76,7 +80,7 @@ function parseResponseBody(data: any, actionName = '生图'): ProviderExecutionR
   } else if (data.b64_json) {
     const url = data.b64_json.startsWith('data:image/')
       ? data.b64_json
-      : `data:image/png;base64,${data.b64_json}`;
+      : `data:${mime};base64,${data.b64_json}`;
     items = [{ url, b64_json: data.b64_json }];
   }
 
@@ -93,6 +97,28 @@ function parseResponseBody(data: any, actionName = '生图'): ProviderExecutionR
     created: data.created || Math.floor(Date.now() / 1000),
     items: validItems
   };
+}
+
+function buildRequestParameters(params: TaskGenerationParams): Record<string, string | number> {
+  const profile = createImageModelProfile(params.model);
+  const payload: Record<string, string | number> = { model: params.model, prompt: resolveRequestPrompt(params), n: 1 };
+  if (profile.supportsResponseFormat) payload.response_format = 'b64_json';
+  if (params.size && params.size !== 'auto') payload.size = params.size;
+  if (profile.qualityOptions.length > 0 && params.quality && params.quality !== 'auto') payload.quality = params.quality;
+  if (params.format) payload.output_format = params.format;
+  if (params.transparent) payload.background = 'transparent';
+  if (params.moderation && profile.moderationOptions.length > 0) payload.moderation = params.moderation;
+  if (params.complexity && profile.complexityOptions.length > 0) payload.complexity = params.complexity;
+  if (params.outputCompression !== undefined && profile.compression.formats.includes(params.format)) {
+    payload.output_compression = params.outputCompression;
+  }
+  if (params.format === 'gif' && profile.animation) {
+    const frameCount = params.frameCount ?? profile.defaultParams.frameCount;
+    const frameDurationMs = params.frameDurationMs ?? profile.defaultParams.frameDurationMs;
+    if (frameCount !== undefined) payload.frame_count = frameCount;
+    if (frameDurationMs !== undefined) payload.frame_duration_ms = frameDurationMs;
+  }
+  return payload;
 }
 
 /**
@@ -116,6 +142,9 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
         ? { signal: signalOrOptions }
         : signalOrOptions || {};
 
+    params = { ...params, model: params.model || config.model || 'gpt-image-2', format: resolveOutputFormat(params) as ModelFormat };
+    validateModelGenerationParams(createImageModelProfile(params.model), params);
+
     const isEditMode = params.type === 'i2i' || (params.referenceImages && params.referenceImages.length > 0);
 
     if (isEditMode) {
@@ -131,29 +160,7 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
   ): Promise<ProviderExecutionResult> {
     const endpoint = normalizeEndpoint(config.baseUrl, '/images/generations');
 
-    const payload: Record<string, any> = {
-      model: params.model || config.model || 'gpt-image-2',
-      prompt: resolveRequestPrompt(params),
-      n: 1,
-      response_format: 'b64_json'
-    };
-
-    if (params.size && params.size !== 'auto') {
-      payload.size = params.size;
-    }
-    if (params.quality && params.quality !== 'auto') {
-      payload.quality = params.quality;
-    }
-    const outputFormat = resolveOutputFormat(params);
-    if (outputFormat) {
-      payload.output_format = outputFormat;
-    }
-    if (params.transparent) {
-      payload.background = 'transparent';
-    }
-    if (params.moderation) {
-      payload.moderation = params.moderation;
-    }
+    const payload = buildRequestParameters(params);
 
     return this.sendRequest(
       endpoint,
@@ -167,6 +174,7 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
         signal: options?.signal
       },
       '生图',
+      params.format,
       options
     );
   }
@@ -183,26 +191,8 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
     }
 
     const formData = new FormData();
-    formData.append('model', params.model || config.model || 'gpt-image-2');
-    formData.append('prompt', resolveRequestPrompt(params));
-    formData.append('n', '1');
-    formData.append('response_format', 'b64_json');
-
-    if (params.size && params.size !== 'auto') {
-      formData.append('size', params.size);
-    }
-    if (params.quality && params.quality !== 'auto') {
-      formData.append('quality', params.quality);
-    }
-    const outputFormat = resolveOutputFormat(params);
-    if (outputFormat) {
-      formData.append('output_format', outputFormat);
-    }
-    if (params.transparent) {
-      formData.append('background', 'transparent');
-    }
-    if (params.moderation) {
-      formData.append('moderation', params.moderation);
+    for (const [key, value] of Object.entries(buildRequestParameters(params))) {
+      formData.append(key, String(value));
     }
 
     params.referenceImages.forEach((img) => {
@@ -220,6 +210,7 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
         signal: options?.signal
       },
       '图生图/编辑',
+      params.format,
       options
     );
   }
@@ -228,6 +219,7 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
     endpoint: string,
     init: RequestInit,
     actionName: string,
+    outputFormat: ModelFormat,
     options?: ProviderExecuteOptions
   ): Promise<ProviderExecutionResult> {
     const requestSentAt = performance.now();
@@ -277,7 +269,7 @@ export class OpenAICompatibleAdapter implements IImageProviderAdapter {
       data = await parseResponseSafeJson(response, actionName);
     }
 
-    const result = parseResponseBody(data, actionName);
+    const result = parseResponseBody(data, actionName, outputFormat);
 
     // 服务器返回图片完成，通知结束走时
     options?.onImageReceived?.();

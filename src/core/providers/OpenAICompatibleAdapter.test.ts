@@ -81,7 +81,7 @@ describe('OpenAICompatibleAdapter (OpenAICompatibleAdapter.ts)', () => {
     const body = JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string);
     expect(body.size).toBe('1024x1024');
     expect(body.prompt).toBe('a cute anime cat');
-    expect(body.response_format).toBe('b64_json');
+    expect(body.response_format).toBeUndefined();
     expect(body.n).toBe(1);
   });
 
@@ -361,7 +361,7 @@ describe('OpenAICompatibleAdapter (OpenAICompatibleAdapter.ts)', () => {
     const formData = (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as FormData;
     expect(formData.get('background')).toBe('transparent');
     expect(formData.get('output_format')).toBe('png');
-    expect(formData.get('response_format')).toBe('b64_json');
+    expect(formData.get('response_format')).toBeNull();
     expect(formData.get('n')).toBe('1');
     expect(formData.get('transparent_background')).toBeNull();
   });
@@ -589,4 +589,71 @@ describe('OpenAICompatibleAdapter (OpenAICompatibleAdapter.ts)', () => {
     expect(contentStartDuration).toBeGreaterThanOrEqual(0);
     expect(result.items[0].url).toBe('https://example.com/stream-img.png');
   });
+});
+
+
+describe('新模型格式与能力请求', () => {
+  const adapter = new OpenAICompatibleAdapter();
+  const config = { baseUrl: 'https://example.com/v1', apiKey: 'test-key', model: 'gpt-image-2.6-flare' };
+  function params(overrides: Partial<TaskGenerationParams> = {}): TaskGenerationParams {
+    return { model: config.model, prompt: 'a moving cat', type: 't2i', size: 'auto', quality: 'max',
+      format: 'gif', transparent: false, complexity: 'high', count: 2, ...overrides };
+  }
+  beforeEach(() => { vi.restoreAllMocks(); });
+
+  it.each(['t2i', 'i2i'] as const)('GIF %s 请求发送帧参数和复杂度，不发送弃用响应格式', async (type) => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [{ b64_json: btoa('GIF89a-test') }] }) });
+    const references = type === 'i2i' ? [{ id: 'ref', file: new File(['test'], 'ref.png', { type: 'image/png' }), previewUrl: 'blob:ref' }] : undefined;
+    const result = await adapter.execute(config, params({ type, referenceImages: references, frameCount: 12, frameDurationMs: 300 }));
+    const init = vi.mocked(fetch).mock.calls[0][1] as RequestInit;
+    const body = type === 't2i' ? JSON.parse(init.body as string) : Object.fromEntries((init.body as FormData).entries());
+    expect(body).toMatchObject({ quality: 'max', output_format: 'gif', complexity: 'high',
+      frame_count: type === 't2i' ? 12 : '12', frame_duration_ms: type === 't2i' ? 300 : '300' });
+    expect(body.response_format).toBeUndefined();
+    expect(body.output_compression).toBeUndefined();
+    expect(result.items[0].url).toBe(`data:image/gif;base64,${btoa('GIF89a-test')}`);
+  });
+
+  it('SVG 使用正确 MIME，服务端 output_format 优先于请求格式', async () => {
+    const xml = '<svg xmlns="http://www.w3.org/2000/svg"/>';
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ output_format: 'svg', data: [{ b64_json: btoa(xml) }] }) });
+    const result = await adapter.execute(config, params({ format: 'png' }));
+    expect(result.items[0].url).toBe(`data:image/svg+xml;base64,${btoa(xml)}`);
+    const body = JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string);
+    expect(body.frame_count).toBeUndefined();
+    expect(body.frame_duration_ms).toBeUndefined();
+  });
+
+  it('裸顶层 Base64 根据请求格式构造 MIME，GIF 缺省帧参数使用模型默认值', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ b64_json: btoa('GIF87a-test') }) });
+    const result = await adapter.execute(config, params());
+    expect(result.items[0].url).toContain('data:image/gif;base64,');
+    const body = JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toMatchObject({ frame_count: 9, frame_duration_ms: 200 });
+  });
+
+  it('JPEG 压缩值 0 不被当成空值丢弃', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [{ b64_json: 'test' }] }) });
+    await adapter.execute(config, params({ format: 'jpeg', outputCompression: 0 }));
+    const body = JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string);
+    expect(body.output_compression).toBe(0);
+  });
+
+  it('不支持的格式/模式/压缩在发起网络请求前明确拒绝', async () => {
+    globalThis.fetch = vi.fn();
+    await expect(adapter.execute(config, params({ format: 'svg', type: 'i2i' }))).rejects.toThrow('SVG');
+    await expect(adapter.execute(config, params({ format: 'gif', outputCompression: 50 }))).rejects.toThrow('压缩');
+    await expect(adapter.execute(config, params({ model: 'custom', quality: 'medium', complexity: undefined }))).rejects.toThrow('GIF');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('独立 2.5 模型使用 Flare 相同画质与请求配置，保留自身 ID', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [{ url: 'https://example.com/image.jpeg' }] }) });
+    await adapter.execute(config, params({ model: 'gpt-image-2.5', format: 'jpeg', complexity: undefined }));
+    const body = JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toMatchObject({ model: 'gpt-image-2.5', quality: 'max', output_format: 'jpeg' });
+    expect(body.response_format).toBeUndefined();
+    expect(body.complexity).toBeUndefined();
+  });
+
 });

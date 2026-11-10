@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
 import type { MediaAsset } from '@/types/asset';
-import { downloadRotatedImage, generateAssetFilename } from '@/utils/download';
+import { downloadRotatedImage, generateAssetFilename, supportsCanvasImageFormat } from '@/utils/download';
 import { useViewportCanvas } from '@/composables/useViewportCanvas';
 import { useArtworkSwitcher } from '@/composables/useArtworkSwitcher';
 import { useConfigStore } from '@/stores/configStore';
@@ -155,8 +155,15 @@ async function handleDownload() {
     const filename = generateAssetFilename(item, undefined, rotation.value, { pattern, targetFormat });
     const normRot = ((rotation.value % 360) + 360) % 360;
     
-    await downloadRotatedImage(item.url, filename, rotation.value, finalExt, origExt);
-    emit('showToast', normRot !== 0 ? `已下载旋转 (${normRot}°) 后的图片！` : '已开始下载图片！', 'success');
+    try {
+      await downloadRotatedImage(item.url, filename, rotation.value, finalExt, origExt);
+      const message = normRot !== 0 && !supportsCanvasImageFormat(finalExt)
+        ? '已开始下载原件，GIF/SVG 不应用旋转'
+        : normRot !== 0 ? `已下载旋转 (${normRot}°) 后的图片！` : '已开始下载图片！';
+      emit('showToast', message, 'success');
+    } catch (error) {
+      emit('showToast', error instanceof Error ? error.message : '图片下载失败，请重试', 'error');
+    }
   }
 }
 

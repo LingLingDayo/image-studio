@@ -1,3 +1,5 @@
+import { dataUrlToBlob } from '@/core/storage/imageBlob';
+
 /**
  * 安全触发浏览器原生文件下载
  */
@@ -45,6 +47,10 @@ export async function downloadImage(url: string, filename: string): Promise<void
   }
 }
 
+export function supportsCanvasImageFormat(format: string): boolean {
+  return ['png', 'jpg', 'jpeg', 'webp'].includes(format.toLowerCase().replace(/^\./, ''));
+}
+
 export async function downloadRotatedImage(
   url: string,
   filename: string,
@@ -57,23 +63,30 @@ export async function downloadRotatedImage(
   const cleanOriginalFormat = (originalFormat || '').toLowerCase().replace(/^\./, '');
   const needsConversion = cleanOriginalFormat ? cleanTargetFormat !== cleanOriginalFormat : false;
 
+  // Canvas 无法编码 GIF/SVG；原格式下载保留动画与矢量，不能将 PNG 字节伪装为这些格式。
+  if (!supportsCanvasImageFormat(cleanTargetFormat)) {
+    if (!['gif', 'svg'].includes(cleanTargetFormat) ||
+      cleanTargetFormat !== cleanOriginalFormat) {
+      throw new Error('浏览器不支持转换为该格式，请选择 PNG、JPEG 或 WebP');
+    }
+    return downloadImage(url, filename.replace(/_r\d+(?=\.(?:gif|svg)$)/i, ''));
+  }
+
   if (normDeg === 0 && !needsConversion) {
     return downloadImage(url, filename);
   }
 
+  let cleanupUrl: string | null = null;
   try {
     let imgSource = url;
-    let cleanupUrl: string | null = null;
 
     if (!url.startsWith('data:') && !url.startsWith('blob:')) {
-      try {
-        const resp = await fetch(url);
-        const blob = await resp.blob();
-        imgSource = URL.createObjectURL(blob);
-        cleanupUrl = imgSource;
-      } catch {
-        // Fallback to direct url with crossOrigin
-      }
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`读取原图失败: HTTP ${resp.status}`);
+      const blob = await resp.blob();
+      if (blob.size === 0) throw new Error('原图内容为空');
+      imgSource = URL.createObjectURL(blob);
+      cleanupUrl = imgSource;
     }
 
     const img = new Image();
@@ -81,25 +94,13 @@ export async function downloadRotatedImage(
 
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Image load failed'));
+      img.onerror = () => reject(new Error('原图无法解码，请尝试下载原格式'));
       img.src = imgSource;
     });
 
-    if (cleanupUrl) {
-      setTimeout(() => {
-        try {
-          URL.revokeObjectURL(cleanupUrl!);
-        } catch {
-          // ignore
-        }
-      }, 60000);
-    }
-
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      return downloadImage(url, filename);
-    }
+    if (!ctx) throw new Error('当前浏览器无法处理图片，请尝试下载原格式');
 
     const isSwap = normDeg === 90 || normDeg === 270;
     canvas.width = isSwap ? img.naturalHeight : img.naturalWidth;
@@ -120,28 +121,28 @@ export async function downloadRotatedImage(
       canvas.toBlob(resolve, mime, 0.95);
     });
 
-    if (!blob) {
-      return downloadImage(url, filename);
-    }
+    if (!blob || blob.size === 0) throw new Error('图片编码失败，请尝试下载原格式');
+    if (blob.type !== mime) throw new Error(`当前浏览器不支持 ${cleanTargetFormat.toUpperCase()} 编码，请选择其他下载格式`);
 
     const objectUrl = URL.createObjectURL(blob);
     triggerBrowserDownload(objectUrl, filename, true);
   } catch (err) {
-    console.warn('图像导出失败，降级使用原图下载:', err);
-    return downloadImage(url, filename);
+    const detail = err instanceof Error ? err.message : '图片转换或旋转失败';
+    throw new Error(`图像导出失败: ${detail}`, { cause: err });
+  } finally {
+    if (cleanupUrl) {
+      try {
+        URL.revokeObjectURL(cleanupUrl);
+      } catch {
+        // URL 回收失败不能覆盖原始导出错误。
+      }
+    }
   }
 }
 
 export function dataUrlToFile(dataUrl: string, filename: string): File {
-  const arr = dataUrl.split(',');
-  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new File([u8arr], filename, { type: mime });
+  const blob = dataUrlToBlob(dataUrl);
+  return new File([blob], filename, { type: blob.type });
 }
 
 export function formatTime(timestamp: number): string {
@@ -216,13 +217,14 @@ export function generateAssetFilename(
     ? options.targetFormat
     : (asset.format || 'png');
   const ext = rawTargetFormat.toLowerCase().replace(/^\./, '');
-  const cleanExt = ext === 'jpeg' ? 'jpeg' : (ext === 'jpg' ? 'jpg' : (ext === 'webp' ? 'webp' : 'png'));
+  const cleanExt = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext) ? ext : 'png';
+  const effectiveRotSuffix = supportsCanvasImageFormat(cleanExt) ? rotSuffix : '';
 
   const pattern = (options?.pattern || '').trim();
 
   // 若无自定义模式，采用默认规范
   if (!pattern || pattern === '{prefix}_{date}_{time}_{id}') {
-    return `${prefix}_${year}.${month}.${day}_${hours}.${minutes}.${seconds}_${lastFour}${rotSuffix}.${cleanExt}`;
+    return `${prefix}_${year}.${month}.${day}_${hours}.${minutes}.${seconds}_${lastFour}${effectiveRotSuffix}.${cleanExt}`;
   }
 
   // 提示词安全化
@@ -248,9 +250,9 @@ export function generateAssetFilename(
     .replace(/\{prompt\}/gi, sanitizedPrompt || 'image')
     .replace(/\{index\}/gi, typeof batchIndex === 'number' ? String(batchIndex + 1) : '1');
 
-  filename = filename.replace(/\.(png|jpg|jpeg|webp)$/i, '');
+  filename = filename.replace(/\.(png|jpg|jpeg|webp|gif|svg)$/i, '');
 
-  return `${filename}${rotSuffix}.${cleanExt}`;
+  return `${filename}${effectiveRotSuffix}.${cleanExt}`;
 }
 
 

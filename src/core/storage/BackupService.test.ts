@@ -26,7 +26,7 @@ describe('作品备份与合并恢复', () => {
   it('备份包含图片、参考图与生成设定，不包含站点密钥和额外字段', async () => {
     const { repository, createBackup } = await fixture();
     localStorage.setItem('gpt_image_api_key', 'sensitive-key-not-for-backup');
-    await repository.save({ ...asset(), apiKey: 'also-not-for-backup' } as Omit<MediaAsset, 'id'>);
+    await repository.save({ ...asset(), complexity: 'high', outputCompression: 0, frameCount: 9, frameDurationMs: 200, apiKey: 'also-not-for-backup' } as Omit<MediaAsset, 'id'>);
     const backup = await createBackup();
     const text = await backup.blob.text();
     const parsed = JSON.parse(text);
@@ -34,9 +34,31 @@ describe('作品备份与合并恢复', () => {
     expect(parsed.assets).toHaveLength(1);
     expect(parsed.assets[0].metadata).toMatchObject({ prompt: 'backup test', targetFormat: 'jpeg', referenceImages: [PNG] });
     expect(parsed.assets[0].image.mime).toBe('image/png');
+    expect(parsed.assets[0].metadata).toMatchObject({ complexity: 'high', outputCompression: 0, frameCount: 9, frameDurationMs: 200 });
     expect(text).not.toContain('sensitive-key');
     expect(text).not.toContain('also-not-for-backup');
     expect(parsed.assets[0].metadata.id).toBeUndefined();
+  });
+
+
+  it.each([
+    { format: 'gif', mime: 'image/gif', contents: 'GIF89a-test-image-bytes' },
+    { format: 'svg', mime: 'image/svg+xml', contents: '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>' }
+  ])('备份和恢复 $format 原件及参考图不会改变字节与 MIME', async ({ format, mime, contents }) => {
+    const { repository, createBackup, prepareBackup, importBackup } = await fixture();
+    const dataUrl = `data:${mime};base64,${btoa(contents)}`;
+    await repository.save({ ...asset(), blob: dataUrlToBlob(dataUrl), format, targetFormat: format, referenceImages: [dataUrl] });
+    const backup = await createBackup();
+    const serialized = JSON.parse(await backup.blob.text());
+    expect(serialized.assets[0].image.mime).toBe(mime);
+    expect(serialized.assets[0].metadata).toMatchObject({ format, targetFormat: format, referenceImages: [dataUrl] });
+    await repository.clearAll();
+    const preview = await prepareBackup(backup.blob);
+    expect(await importBackup(preview)).toEqual({ added: 1, skipped: 0 });
+    const [restored] = await repository.getAll();
+    expect(restored.blob.type).toBe(mime);
+    expect(await restored.blob.text()).toBe(contents);
+    expect(restored.format).toBe(format);
   });
 
   it('选择备份只预览，不写入；确认后合并新增并跳过重复', async () => {
@@ -164,5 +186,18 @@ describe('作品备份与合并恢复', () => {
     invalid.assets[0].metadata.targetResolution = ['1k'];
     await expect(prepareBackup(new Blob([JSON.stringify(invalid)]))).rejects.toThrow('分辨率');
     expect(await repository.getAll()).toHaveLength(1);
+  });
+});
+
+
+describe('新增生成参数备份', () => {
+  it('复杂度与 GIF 帧参数导入后完整保留', async () => {
+    const { repository, createBackup, prepareBackup, importBackup } = await fixture();
+    await repository.clearAll();
+    await repository.save({ ...asset(), complexity: 'medium', outputCompression: 0, frameCount: 12, frameDurationMs: 300 });
+    const backup = await createBackup();
+    await repository.clearAll();
+    await importBackup(await prepareBackup(backup.blob));
+    expect((await repository.getAll())[0]).toMatchObject({ complexity: 'medium', outputCompression: 0, frameCount: 12, frameDurationMs: 300 });
   });
 });

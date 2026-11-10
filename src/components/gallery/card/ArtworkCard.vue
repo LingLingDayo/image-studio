@@ -194,26 +194,30 @@ async function handleDownload() {
   const pattern = configStore.downloadFilenamePattern;
   const targetFormat = configStore.downloadImageFormat;
 
-  if (assetsList.value.length > 1) {
-    const list = assetsList.value;
-    for (let i = 0; i < list.length; i++) {
-      const a = list[i];
-      const filename = generateAssetFilename(a, i, 0, { pattern, targetFormat });
+  try {
+    if (assetsList.value.length > 1) {
+      const list = assetsList.value;
+      for (let i = 0; i < list.length; i++) {
+        const a = list[i];
+        const filename = generateAssetFilename(a, i, 0, { pattern, targetFormat });
+        const origExt = (a.format || 'png').replace(/^\./, '');
+        const finalExt = targetFormat && targetFormat !== 'auto' ? targetFormat : origExt;
+        await downloadRotatedImage(a.url, filename, 0, finalExt, origExt);
+        if (i < list.length - 1) {
+          await new Promise((r) => setTimeout(r, 200));
+        }
+      }
+      emit('showToast', `已开始批量下载全部 ${list.length} 张原图`, 'success');
+    } else if (currentAsset.value) {
+      const a = currentAsset.value;
+      const filename = generateAssetFilename(a, undefined, 0, { pattern, targetFormat });
       const origExt = (a.format || 'png').replace(/^\./, '');
       const finalExt = targetFormat && targetFormat !== 'auto' ? targetFormat : origExt;
       await downloadRotatedImage(a.url, filename, 0, finalExt, origExt);
-      if (i < list.length - 1) {
-        await new Promise((r) => setTimeout(r, 200));
-      }
+      emit('showToast', '已开始下载原图', 'success');
     }
-    emit('showToast', `已开始批量下载全部 ${list.length} 张原图`, 'success');
-  } else if (currentAsset.value) {
-    const a = currentAsset.value;
-    const filename = generateAssetFilename(a, undefined, 0, { pattern, targetFormat });
-    const origExt = (a.format || 'png').replace(/^\./, '');
-    const finalExt = targetFormat && targetFormat !== 'auto' ? targetFormat : origExt;
-    await downloadRotatedImage(a.url, filename, 0, finalExt, origExt);
-    emit('showToast', '已开始下载原图', 'success');
+  } catch (error) {
+    emit('showToast', error instanceof Error ? error.message : '图片下载失败，请重试', 'error');
   }
 }
 </script>

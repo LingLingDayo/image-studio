@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { downloadImage, dataUrlToFile, formatTime, formatFullTime, generateAssetFilename } from './download';
+import { downloadImage, downloadRotatedImage, supportsCanvasImageFormat, dataUrlToFile, formatTime, formatFullTime, generateAssetFilename } from './download';
 
 describe('download utils', () => {
   beforeEach(() => {
@@ -107,6 +107,85 @@ describe('download utils', () => {
     expect(file).toBeInstanceOf(File);
     expect(file.name).toBe('sample.png');
     expect(file.type).toBe('image/png');
+  });
+
+
+  it.each(['gif', 'svg'])('下载 %s 原件时不丢失扩展名且不添加旋转后缀', async (format) => {
+    const timestamp = new Date('2026-08-31T02:57:33.123').getTime();
+    const filename = generateAssetFilename({ format, timestamp }, undefined, 90);
+    expect(filename).toMatch(new RegExp(`\\.${format}$`));
+    expect(filename).not.toContain('_r90');
+    expect(generateAssetFilename({ format, timestamp }, undefined, 90, { pattern: `custom_{id}.${format}` })).toBe(`custom_${String(timestamp).slice(-4)}.${format}`);
+    expect(supportsCanvasImageFormat(format)).toBe(false);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const createElement = vi.spyOn(document, 'createElement');
+    await downloadRotatedImage('blob:original', filename, 90, format, format);
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(click.mock.instances[0]).toMatchObject({ download: filename });
+    expect(createElement.mock.calls).toEqual([['a']]);
+  });
+
+  it.each(['gif', 'svg'])('拒绝把栅格图伪装成 %s 文件', async (format) => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    await expect(downloadRotatedImage('blob:png', `image.${format}`, 0, format, 'png')).rejects.toThrow('不支持转换');
+    await expect(downloadRotatedImage('blob:unknown', `image.${format}`, 0, format)).rejects.toThrow('不支持转换');
+    expect(click).not.toHaveBeenCalled();
+  });
+
+
+  it.each(['gif', 'svg'])('%s 转 PNG 时 Canvas 不可用也不会下载伪装原件', async (format) => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    await expect(downloadRotatedImage('blob:original', 'converted.png', 0, 'png', format)).rejects.toThrow('图像导出失败');
+    expect(click).not.toHaveBeenCalled();
+  });
+
+  it.each([null, new Blob(['png'], { type: 'image/png' })])('Canvas 编码失败或返回错误 MIME 时拒绝伪装下载', async (blob) => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      translate: vi.fn(), rotate: vi.fn(), drawImage: vi.fn()
+    } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) => callback(blob));
+    await expect(downloadRotatedImage('blob:original', 'converted.webp', 90, 'webp', 'gif')).rejects.toThrow('图像导出失败');
+    expect(click).not.toHaveBeenCalled();
+  });
+
+  it('远程图片解码失败时释放临时 URL，且不下载原件', async () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, blob: async () => new Blob(['gif'], { type: 'image/gif' }) } as Response);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:temporary-source');
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(Image.prototype, 'src', 'set').mockImplementation(function(this: HTMLImageElement) {
+      this.onerror?.(new Event('error'));
+    });
+    await expect(downloadRotatedImage('https://example.com/source.gif', 'converted.png', 0, 'png', 'gif')).rejects.toThrow('图像导出失败');
+    expect(revoke).toHaveBeenCalledWith('blob:temporary-source');
+    expect(click).not.toHaveBeenCalled();
+  });
+
+  it('远程图片转换成功后释放输入 URL，并使用实际目标 MIME 下载', async () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, blob: async () => new Blob(['gif'], { type: 'image/gif' }) } as Response);
+    const createUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValueOnce('blob:temporary-source').mockReturnValueOnce('blob:encoded-output');
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      translate: vi.fn(), rotate: vi.fn(), drawImage: vi.fn()
+    } as unknown as CanvasRenderingContext2D);
+    const encoded = new Blob(['png'], { type: 'image/png' });
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) => callback(encoded));
+    await downloadRotatedImage('https://example.com/source.gif', 'converted.png', 90, 'png', 'gif');
+    expect(createUrl.mock.calls[1]).toEqual([encoded]);
+    expect(click.mock.instances[0]).toMatchObject({ href: 'blob:encoded-output', download: 'converted.png' });
+    expect(revoke).toHaveBeenCalledWith('blob:temporary-source');
+    expect(revoke).not.toHaveBeenCalledWith('blob:encoded-output');
+  });
+
+  it('URL 编码 SVG 可以完整复用为参考文件', async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><text>山海</text></svg>';
+    const file = dataUrlToFile(`data:image/svg+xml,${encodeURIComponent(svg)}`, 'reference.svg');
+    expect(file.name).toBe('reference.svg');
+    expect(file.type).toBe('image/svg+xml');
+    expect(await file.text()).toBe(svg);
   });
 
   it('formats timestamp correctly', () => {
