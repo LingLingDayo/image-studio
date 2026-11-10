@@ -14,19 +14,22 @@ import {
   Blend,
   Scaling,
   Images,
-  ShieldCheck
+  ShieldCheck,
+  Brain,
+  Film,
+  Timer,
+  FileArchive
 } from '@lucide/vue';
 import {
-  TRANSPARENT_DEFAULT_FORMAT,
-  supportsAlphaChannel,
-  formatImageModelName,
   DEFAULT_IMAGE_MODEL_ID,
-  MODERATION_OPTIONS,
+  type ModelComplexity,
   type ModelFormat,
   type ModelModeration,
   type ModelQuality,
   type ResolutionTier
 } from '@/types/model';
+import { getModelFormatOptions } from '@/core/models/settings';
+import { parseSizeString } from '@/utils/imageSize';
 import type { TaskReferenceImage } from '@/types/task';
 import { useModelStore } from '@/stores/modelStore';
 import { useConfigStore } from '@/stores/configStore';
@@ -48,6 +51,10 @@ const props = defineProps<{
   format: ModelFormat;
   transparent: boolean;
   moderation?: ModelModeration;
+  complexity?: ModelComplexity;
+  outputCompression?: number;
+  frameCount?: number;
+  frameDurationMs?: number;
   count: number;
   referenceImages: TaskReferenceImage[];
   isGenerating: boolean;
@@ -67,6 +74,10 @@ const emit = defineEmits<{
   (e: 'update:format', val: ModelFormat): void;
   (e: 'update:transparent', val: boolean): void;
   (e: 'update:moderation', val: ModelModeration): void;
+  (e: 'update:complexity', val: ModelComplexity): void;
+  (e: 'update:outputCompression', val: number | undefined): void;
+  (e: 'update:frameCount', val: number): void;
+  (e: 'update:frameDurationMs', val: number): void;
   (e: 'update:count', val: number): void;
   (e: 'addImages', files: FileList | File[]): void;
   (e: 'removeImage', id: string): void;
@@ -92,10 +103,15 @@ const modelSelectOptions = computed<SelectOption[]>(() => {
     ids.push(DEFAULT_IMAGE_MODEL_ID);
   }
 
-  const options: SelectOption[] = ids.map((id) => ({
-    label: formatImageModelName(id),
-    value: id
-  }));
+  const options: SelectOption[] = ids.map((id) => {
+    const profile = modelStore.getModelProfile(id);
+    const verification = profile.verification;
+    return {
+      label: profile.name,
+      value: id,
+      tip: verification ? [`核实日期：${verification.checkedAt}`, ...verification.notes].join('\n') : profile.description
+    };
+  });
 
   if (modelStore.isFetchingModels && modelStore.availableModels.length <= 1) {
     options.push({ label: '正在获取模型...', value: '__loading', disabled: true });
@@ -155,18 +171,27 @@ const backgroundOptions = [
   { label: '透明', value: true }
 ];
 
-const formatOptions = computed(() => {
-  const options = activeModel.value.formatOptions;
-  if (!props.transparent) return options;
-  return options.filter((item) => supportsAlphaChannel(item.value));
-});
+const formatOptions = computed(() => getModelFormatOptions(
+  activeModel.value, props.referenceImages.length > 0 ? 'i2i' : 't2i', props.transparent
+));
+const sizeOptions = computed(() => [
+  ...(activeModel.value.defaultParams.size === 'auto' ? [{ label: '自动', value: 'auto' }] : []),
+  ...activeModel.value.recommendedSizes.map((value) => ({ label: value.replace('x', '×'), value }))
+]);
 
 function handleTransparentChange(val: unknown) {
   const enabled = Boolean(val);
   emit('update:transparent', enabled);
   if (enabled) {
-    emit('update:format', TRANSPARENT_DEFAULT_FORMAT);
+    const firstFormat = getModelFormatOptions(activeModel.value, props.referenceImages.length > 0 ? 'i2i' : 't2i', true)[0];
+    if (firstFormat) emit('update:format', firstFormat.value);
   }
+}
+
+function handlePresetSizeChange(val: unknown) {
+  const size = parseSizeString(String(val));
+  emit('update:sizeWidth', size?.width ?? null);
+  emit('update:sizeHeight', size?.height ?? null);
 }
 
 const TEXTAREA_MIN_ROWS = 3;
@@ -199,10 +224,18 @@ function triggerFileInput() {
   fileInputRef.value?.click();
 }
 
+function addImageFiles(files: FileList | File[]) {
+  if (!activeModel.value.supportedModes.includes('i2i')) {
+    emit('showToast', '当前模型不支持参考图编辑', 'info');
+    return;
+  }
+  emit('addImages', files);
+}
+
 function handleFileChange(e: Event) {
   const target = e.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
-    emit('addImages', target.files);
+    addImageFiles(target.files);
     target.value = '';
   }
 }
@@ -217,7 +250,7 @@ function handlePaste(e: ClipboardEvent) {
       }
     }
     if (imageFiles.length > 0) {
-      emit('addImages', imageFiles);
+      addImageFiles(imageFiles);
     }
   }
 }
@@ -244,7 +277,7 @@ function handleDrop(e: DragEvent) {
       }
     }
     if (imageFiles.length > 0) {
-      emit('addImages', imageFiles);
+      addImageFiles(imageFiles);
     }
   }
 }
@@ -419,6 +452,7 @@ onUnmounted(() => {
 
           <!-- 分辨率 -->
           <UiSelect
+            v-if="activeModel.resolutionOptions.length > 0"
             :model-value="resolution"
             label="分辨率"
             :icon="Scan"
@@ -430,6 +464,7 @@ onUnmounted(() => {
 
           <!-- 比例 -->
           <UiSelect
+            v-if="activeModel.aspectRatioOptions.length > 0"
             :model-value="aspectRatio"
             label="比例"
             :icon="Ratio"
@@ -441,6 +476,7 @@ onUnmounted(() => {
 
           <!-- 具体宽高 -->
           <UiSizeInput
+            v-if="activeModel.supportsCustomSize"
             :width="sizeWidth"
             :height="sizeHeight"
             :icon="Scaling"
@@ -450,8 +486,20 @@ onUnmounted(() => {
             @materialize="emit('sizeMaterialize')"
           />
 
+          <UiSelect
+            v-else-if="sizeOptions.length > 0"
+            :model-value="sizeWidth && sizeHeight ? `${sizeWidth}x${sizeHeight}` : 'auto'"
+            label="尺寸"
+            :icon="Scaling"
+            :options="sizeOptions"
+            placement="top"
+            variant="pill"
+            @update:model-value="handlePresetSizeChange"
+          />
+
           <!-- 质量选择 -->
           <UiSelect
+            v-if="activeModel.qualityOptions.length > 0"
             :model-value="quality"
             label="质量"
             :icon="Gem"
@@ -459,6 +507,17 @@ onUnmounted(() => {
             placement="top"
             variant="pill"
             @update:model-value="emit('update:quality', $event as ModelQuality)"
+          />
+
+          <UiSelect
+            v-if="activeModel.complexityOptions.length > 0"
+            :model-value="complexity || activeModel.defaultParams.complexity || 'high'"
+            label="复杂度"
+            :icon="Brain"
+            :options="activeModel.complexityOptions"
+            placement="top"
+            variant="pill"
+            @update:model-value="emit('update:complexity', $event as ModelComplexity)"
           />
 
           <!-- 格式选择 -->
@@ -470,6 +529,39 @@ onUnmounted(() => {
             placement="top"
             variant="pill"
             @update:model-value="emit('update:format', $event as ModelFormat)"
+          />
+
+          <UiSelect
+            v-if="activeModel.compression.formats.includes(format)"
+            :model-value="outputCompression ?? 'auto'"
+            label="压缩质量"
+            :icon="FileArchive"
+            :options="activeModel.compression.options"
+            placement="top"
+            variant="pill"
+            @update:model-value="emit('update:outputCompression', $event === 'auto' ? undefined : Number($event))"
+          />
+
+          <UiStepper
+            v-if="format === 'gif' && activeModel.animation"
+            :model-value="frameCount ?? activeModel.defaultParams.frameCount ?? activeModel.animation.frameCount.min"
+            label="帧数"
+            :icon="Film"
+            :min="activeModel.animation.frameCount.min"
+            :max="activeModel.animation.frameCount.max"
+            :step="activeModel.animation.frameCount.step"
+            @update:model-value="emit('update:frameCount', $event)"
+          />
+          <UiStepper
+            v-if="format === 'gif' && activeModel.animation"
+            :model-value="frameDurationMs ?? activeModel.defaultParams.frameDurationMs ?? activeModel.animation.frameDurationMs.min"
+            label="帧时长"
+            :tip="`每帧时长（毫秒），滚轮步进 ${activeModel.animation.frameDurationMs.step}ms`"
+            :icon="Timer"
+            :min="activeModel.animation.frameDurationMs.min"
+            :max="activeModel.animation.frameDurationMs.max"
+            :step="activeModel.animation.frameDurationMs.step"
+            @update:model-value="emit('update:frameDurationMs', $event)"
           />
 
           <!-- 背景 (按模型能力条件渲染) -->
@@ -486,10 +578,11 @@ onUnmounted(() => {
 
           <!-- 审核 -->
           <UiSelect
+            v-if="activeModel.moderationOptions.length > 0"
             :model-value="moderation || 'low'"
             label="审核"
             :icon="ShieldCheck"
-            :options="activeModel.moderationOptions || MODERATION_OPTIONS"
+            :options="activeModel.moderationOptions"
             placement="top"
             variant="pill"
             @update:model-value="emit('update:moderation', $event as ModelModeration)"
@@ -502,7 +595,7 @@ onUnmounted(() => {
             :tip="countTip"
             :icon="Images"
             :min="1"
-            :max="activeModel.maxBatchCount || 4"
+            :max="activeModel.maxBatchCount"
             variant="pill"
             @update:model-value="emit('update:count', $event)"
           />
@@ -527,7 +620,7 @@ onUnmounted(() => {
             ref="fileInputRef" 
             type="file" 
             multiple 
-            accept="image/*" 
+            :accept="activeModel.referenceImageConstraints?.mimeTypes.join(',') || 'image/*'"
             class="hidden-file-input" 
             @change="handleFileChange"
           />
@@ -536,7 +629,8 @@ onUnmounted(() => {
             type="button" 
             class="btn-clip" 
             :class="{ 'has-images': referenceImages.length > 0 }"
-            data-tip="添加参考图片 (支持多图拖拽/剪贴板粘贴)"
+            :disabled="!activeModel.supportedModes.includes('i2i')"
+            :data-tip="activeModel.supportedModes.includes('i2i') ? '添加参考图片 (支持多图拖拽/剪贴板粘贴)' : '当前模型不支持参考图编辑'"
             aria-label="添加参考图"
             @click="triggerFileInput"
           >

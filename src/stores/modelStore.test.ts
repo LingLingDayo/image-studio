@@ -333,3 +333,18 @@ describe('useModelStore', () => {
     expect(store.activeModelId).toBe(initialModel);
   });
 });
+
+
+describe('模型配置加载入口', () => {
+  beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
+  it('恢复日期快照与配置变更都加载对应能力，不受已有兜底缓存影响', () => {
+    localStorage.setItem('gpt_image_model', 'gpt-image-2.6-sunburst-2026-11-01');
+    const store = useModelStore();
+    expect(store.activeModel.formatOptions.map((option) => option.value)).toContain('svg');
+    expect(store.activeModel.name).toBe('GPT-Image-2.6 Sunburst');
+    useConfigStore().updateConfig({ model: 'gpt-image-2.5-flare' });
+    expect(store.activeModelId).toBe('gpt-image-2.5-flare');
+    expect(store.activeModel.qualityOptions.map((option) => option.value)).toContain('max');
+    expect(store.activeModel.formatOptions.map((option) => option.value)).not.toContain('gif');
+  });
+});

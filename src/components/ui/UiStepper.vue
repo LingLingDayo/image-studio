@@ -49,7 +49,7 @@ function handleInputChange(e: Event) {
   if (isNaN(val)) {
     val = props.min;
   } else {
-    val = Math.max(props.min, Math.min(props.max, val));
+    val = Math.max(props.min, Math.min(props.max, Math.round(val / props.step) * props.step));
   }
   target.value = String(val);
   emit('update:modelValue', val);
@@ -70,7 +70,7 @@ function handleKeyDown(e: KeyboardEvent) {
 function handleWheel(e: WheelEvent) {
   if (props.disabled) return;
   e.preventDefault();
-  const next = applyWheelStep(props.modelValue, e, props.min, props.max);
+  const next = applyWheelStep(props.modelValue / props.step, e, props.min / props.step, props.max / props.step) * props.step;
   if (next === props.modelValue) return;
   emit('update:modelValue', next);
   emit('change', next);

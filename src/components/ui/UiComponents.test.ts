@@ -546,6 +546,23 @@ describe('UI Components (src/components/ui)', () => {
 
     app.unmount();
   });
+
+  it('数值控件遵循非默认步长，输入与滚轮都按 10ms 对齐', async () => {
+    const value = ref(200);
+    const app = createApp(() => h(UiStepper, { modelValue: value.value, min: 20, max: 2000, step: 10,
+      'onUpdate:modelValue': (next: number) => { value.value = next; } }));
+    app.mount(container);
+    const input = container.querySelector('input')!;
+    input.value = '203';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    await nextTick();
+    expect(value.value).toBe(200);
+    input.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, bubbles: true, cancelable: true }));
+    await nextTick();
+    expect(value.value).toBe(210);
+    app.unmount();
+  });
+
 });
 
 

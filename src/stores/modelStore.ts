@@ -21,7 +21,7 @@ interface ModelFetchRequest {
 export const useModelStore = defineStore('model', () => {
   const configStore = useConfigStore();
 
-  const registeredModels = ref<ModelProfile[]>([GPT_IMAGE_2_PROFILE]);
+  const registeredModels = ref<ModelProfile[]>([createImageModelProfile(GPT_IMAGE_2_PROFILE.id)]);
   const initialModelId = (configStore.model || DEFAULT_IMAGE_MODEL_ID).trim() || DEFAULT_IMAGE_MODEL_ID;
   if (initialModelId !== GPT_IMAGE_2_PROFILE.id) {
     registeredModels.value.push(createImageModelProfile(initialModelId));
@@ -83,6 +83,10 @@ export const useModelStore = defineStore('model', () => {
       configStore.updateConfig({ model: id });
     }
   }
+
+  watch(() => configStore.model, (id) => {
+    if (id && id.trim() !== activeModelId.value) setActiveModel(id);
+  }, { flush: 'sync' });
 
   function startFetch(baseUrl: string, apiKey: string): ModelFetchRequest {
     const request: ModelFetchRequest = {
@@ -148,6 +152,7 @@ export const useModelStore = defineStore('model', () => {
     isFetchingModels,
     registerModel,
     setActiveModel,
-    refreshAvailableModels
+    refreshAvailableModels,
+    getModelProfile: ensureProfile
   };
 });

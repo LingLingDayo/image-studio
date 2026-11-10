@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createApp, h, nextTick, ref } from 'vue';
 import { setActivePinia, createPinia } from 'pinia';
 import PromptBar from './PromptBar.vue';
+import type { ModelFormat } from '@/types/model';
 import { useConfigStore } from '@/stores/configStore';
 import { useModelStore } from '@/stores/modelStore';
 import { PromptOptimizerService } from '@/core/services/PromptOptimizerService';
@@ -549,5 +550,119 @@ describe('PromptBar (src/components/studio/PromptBar.vue)', () => {
     expect(triggerLabels.some((t) => t?.includes('背景') && t?.includes('默认'))).toBe(true);
 
     app.unmount();
+  });
+});
+
+
+describe('PromptBar 模型设置列表联动', () => {
+  let container: HTMLDivElement;
+  let app: ReturnType<typeof createApp> | undefined;
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+  afterEach(() => { app?.unmount(); container.remove(); });
+  const baseProps = { prompt: 'test', resolution: 'auto' as const, aspectRatio: 'auto', sizeWidth: null, sizeHeight: null,
+    quality: 'medium' as const, format: 'jpeg' as const, transparent: false, count: 1, referenceImages: [], isGenerating: false, elapsedTime: '0s' };
+
+  function findSelect(label: string): HTMLElement | undefined {
+    return Array.from(container.querySelectorAll<HTMLElement>('.ui-select')).find((select) => select.querySelector('.select-label')?.textContent === label);
+  }
+  async function options(label: string): Promise<string[]> {
+    const select = findSelect(label)!;
+    if (!select.classList.contains('is-open')) {
+      select.querySelector<HTMLButtonElement>('.select-trigger')!.click();
+      await nextTick();
+    }
+    return Array.from(select.querySelectorAll('.item-label')).map((option) => option.textContent!.trim());
+  }
+
+  it('切换模型立即替换格式、画质和复杂度选项，未知模型使用旧列表', async () => {
+    app = createApp(() => h(PromptBar, baseProps));
+    app.mount(container);
+    expect(await options('格式')).toEqual(['PNG', 'JPEG', 'WEBP', 'GIF', 'SVG']);
+    expect(await options('质量')).toEqual(['自动', '低', '中', '高', '极高', '最高']);
+    expect(findSelect('复杂度')).toBeDefined();
+    useModelStore().setActiveModel('gpt-image-2');
+    await nextTick();
+    expect(await options('格式')).toEqual(['PNG', 'JPEG', 'WEBP']);
+    expect(await options('质量')).toEqual(['自动', '低', '中', '高']);
+    expect(findSelect('复杂度')).toBeUndefined();
+    useModelStore().setActiveModel('unknown-image');
+    await nextTick();
+    expect(await options('格式')).toEqual(['PNG', 'JPEG', 'WEBP']);
+  });
+
+  it('参考图编辑移除 SVG，透明背景仅展示当前模型透明格式', async () => {
+    const referenceImages = ref<Array<{ id: string; file: File; previewUrl: string }>>([]);
+    const transparent = ref(false);
+    app = createApp(() => h(PromptBar, { ...baseProps, referenceImages: referenceImages.value, transparent: transparent.value }));
+    app.mount(container);
+    referenceImages.value = [{ id: 'ref', file: new File(['test'], 'ref.png', { type: 'image/png' }), previewUrl: 'blob:ref' }];
+    await nextTick();
+    expect(await options('格式')).toEqual(['PNG', 'JPEG', 'WEBP', 'GIF']);
+    transparent.value = true;
+    await nextTick();
+    expect(await options('格式')).toEqual(['PNG', 'WEBP']);
+  });
+
+  it('选择 GIF 显示模型帧设置并按 10ms 滚轮步进，切回 JPEG 恢复压缩列表', async () => {
+    const format = ref<ModelFormat>('jpeg');
+    const duration = ref(200);
+    app = createApp(() => h(PromptBar, { ...baseProps, format: format.value, frameDurationMs: duration.value,
+      'onUpdate:format': (value: ModelFormat) => { format.value = value; },
+      'onUpdate:frameDurationMs': (value: number) => { duration.value = value; } }));
+    app.mount(container);
+    expect(findSelect('压缩质量')).toBeDefined();
+    await options('格式');
+    const gif = Array.from(findSelect('格式')!.querySelectorAll<HTMLElement>('.dropdown-item')).find((option) => option.textContent?.trim() === 'GIF')!;
+    gif.click();
+    await nextTick();
+    expect(findSelect('压缩质量')).toBeUndefined();
+    const steppers = Array.from(container.querySelectorAll<HTMLElement>('.ui-stepper'));
+    const frameCount = steppers.find((stepper) => stepper.textContent?.includes('帧数'))!.querySelector('input')!;
+    const frameDuration = steppers.find((stepper) => stepper.textContent?.includes('帧时长'))!.querySelector('input')!;
+    expect(frameCount.value).toBe('9');
+    expect(frameCount.min).toBe('2');
+    expect(frameCount.max).toBe('16');
+    expect(frameDuration.step).toBe('10');
+    frameDuration.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, bubbles: true, cancelable: true }));
+    await nextTick();
+    expect(duration.value).toBe(210);
+    format.value = 'jpeg';
+    await nextTick();
+    expect(container.textContent).not.toContain('帧时长');
+    expect(await options('压缩质量')).toEqual(['自动', '100%', '75%', '50%', '25%', '0%']);
+  });
+});
+
+
+describe('模型数据核实提示', () => {
+  it('二点五模型保持独立名称并展示相同参数配置说明', async () => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    const models = useModelStore();
+    models.setActiveModel('gpt-image-2.5');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const app = createApp(() => h(PromptBar, { prompt: '', resolution: 'auto', aspectRatio: 'auto', sizeWidth: null,
+      sizeHeight: null, quality: 'medium', format: 'jpeg', transparent: false, count: 1,
+      referenceImages: [], isGenerating: false, elapsedTime: '0s' }));
+    try {
+      app.mount(container);
+      const select = Array.from(container.querySelectorAll<HTMLElement>('.ui-select')).find((element) => element.querySelector('.select-label')?.textContent === '模型')!;
+      select.querySelector<HTMLButtonElement>('.select-trigger')!.click();
+      await nextTick();
+      const modelOption = Array.from(select.querySelectorAll<HTMLElement>('.dropdown-item')).find((item) => item.querySelector('.item-label')?.textContent === 'GPT-Image-2.5')!;
+      expect(modelOption.dataset.tip).toContain('2026-11-10');
+      expect(modelOption.dataset.tip).toContain('参数配置与 gpt-image-2.5-flare 相同');
+      expect(modelOption.dataset.tip).toContain('模型名称和请求 ID 保持 gpt-image-2.5');
+      expect(modelOption.dataset.tip).not.toContain('别名');
+    } finally {
+      app.unmount();
+      container.remove();
+    }
   });
 });

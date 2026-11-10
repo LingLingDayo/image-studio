@@ -64,7 +64,7 @@ describe('useImageStudio - reuseItem (统一生图设定复用)', () => {
     expect(studio.sizeHeight.value).toBeNull();
 
     // 3. 画质、透明度、审核与格式
-    expect(studio.quality.value).toBe('hd');
+    expect(studio.quality.value).toBe('medium');
     expect(studio.transparent.value).toBe(true);
     expect(studio.moderation.value).toBe('auto');
     expect(studio.format.value).toBe('png');
@@ -765,5 +765,114 @@ describe('App - 参考图操作反馈', () => {
         expect(container.querySelector('.toast.error')).toBeNull();
       }
     }, { timeout: 3000 });
+  });
+});
+
+
+describe('生图参数按模型能力同步', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('在 2.6、旧模型和未知模型间切换，兼容选择保留、无效值归一化', () => {
+    const scope = effectScope();
+    const studio = scope.run(() => useImageStudio())!;
+    const models = useModelStore();
+    studio.quality.value = 'max';
+    studio.format.value = 'svg';
+    studio.complexity.value = 'low';
+    models.setActiveModel('gpt-image-2');
+    expect(studio.quality.value).toBe('medium');
+    expect(studio.format.value).toBe('jpeg');
+    expect(studio.complexity.value).toBeUndefined();
+    models.setActiveModel('gpt-image-2.6-sunburst');
+    expect(studio.complexity.value).toBe('high');
+    studio.quality.value = 'low';
+    studio.format.value = 'webp';
+    models.setActiveModel('custom-image-model');
+    expect(studio.quality.value).toBe('low');
+    expect(studio.format.value).toBe('webp');
+    scope.stop();
+  });
+
+  it('模型覆盖的数量与透明格式约束生效', () => {
+    const scope = effectScope();
+    const studio = scope.run(() => useImageStudio())!;
+    const models = useModelStore();
+    models.registerModel({ ...models.getModelProfile('limited-image'), maxBatchCount: 2, transparentFormats: ['webp'] });
+    studio.count.value = 4;
+    models.setActiveModel('limited-image');
+    studio.transparent.value = true;
+    expect(studio.count.value).toBe(2);
+    expect(studio.format.value).toBe('webp');
+    scope.stop();
+  });
+
+  it('添加参考图自动排除 SVG，GIF 保持有效', () => {
+    const scope = effectScope();
+    const studio = scope.run(() => useImageStudio())!;
+    studio.format.value = 'svg';
+    studio.referenceImages.value.push({ id: 'ref', file: new File(['test'], 'ref.png', { type: 'image/png' }), previewUrl: 'blob:ref', width: 1024, height: 1024, ratio: '1:1' });
+    expect(studio.format.value).toBe('jpeg');
+    studio.format.value = 'gif';
+    expect(studio.format.value).toBe('gif');
+    scope.stop();
+  });
+
+  it('生成只携带格式适用的参数，复用保留复杂度和动画设置', async () => {
+    const execute = vi.spyOn(defaultTaskScheduler, 'execute').mockResolvedValue([]);
+    const scope = effectScope();
+    const studio = scope.run(() => useImageStudio())!;
+    useConfigStore().updateConfig({ baseUrl: 'https://example.com', apiKey: 'test-key' });
+    studio.prompt.value = 'animated logo';
+    studio.format.value = 'gif';
+    studio.frameCount.value = 12;
+    studio.frameDurationMs.value = 303;
+    studio.complexity.value = 'medium';
+    const [gifTask] = await studio.generate();
+    expect(gifTask.params).toMatchObject({ format: 'gif', frameCount: 12, frameDurationMs: 300, complexity: 'medium' });
+    expect(gifTask.params.outputCompression).toBeUndefined();
+    expect(execute.mock.calls[0][2].id).toBe(gifTask.params.model);
+    studio.format.value = 'jpeg';
+    studio.outputCompression.value = 0;
+    const [jpegTask] = await studio.generate();
+    expect(jpegTask.params.outputCompression).toBe(0);
+    expect(jpegTask.params.frameCount).toBeUndefined();
+    expect(jpegTask.params.frameDurationMs).toBeUndefined();
+    await studio.reuseItem(gifTask);
+    expect(studio.frameCount.value).toBe(12);
+    expect(studio.frameDurationMs.value).toBe(300);
+    expect(studio.complexity.value).toBe('medium');
+    scope.stop();
+  });
+
+  it('2.5 的自动推导 4K 尺寸按模型像素约束适配，手填无效尺寸明确拒绝', async () => {
+    vi.spyOn(defaultTaskScheduler, 'execute').mockResolvedValue([]);
+    const scope = effectScope();
+    const studio = scope.run(() => useImageStudio())!;
+    useConfigStore().updateConfig({ baseUrl: 'https://example.com', apiKey: 'test-key' });
+    useModelStore().setActiveModel('gpt-image-2.5-flare');
+    studio.prompt.value = '4k test';
+    studio.resolution.value = '4k';
+    studio.aspectRatio.value = '16:9';
+    const [task] = await studio.generate();
+    expect(task.params.size).toBe('3840x2160');
+    studio.sizeWidth.value = 4000;
+    studio.sizeHeight.value = 2200;
+    await expect(studio.generate()).rejects.toThrow('16 的倍数');
+    scope.stop();
+  });
+
+  it('重试历史任务使用任务自己的模型画像，不使用当前选择', () => {
+    const execute = vi.spyOn(defaultTaskScheduler, 'execute').mockResolvedValue([]);
+    const scope = effectScope();
+    const studio = scope.run(() => useImageStudio())!;
+    const task = defaultTaskScheduler.createTask({ model: 'gpt-image-2.6-flare', prompt: 'gif', type: 't2i', size: 'auto', quality: 'max', format: 'gif', transparent: false, count: 1 });
+    useModelStore().setActiveModel('gpt-image-2');
+    studio.retryTask(task);
+    expect(execute.mock.calls[0][2].id).toBe('gpt-image-2.6-flare');
+    scope.stop();
   });
 });

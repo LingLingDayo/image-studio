@@ -6,12 +6,14 @@ import { useGalleryStore } from '@/stores/galleryStore';
 import { defaultTaskScheduler } from '@/core/scheduler/TaskScheduler';
 import type { TaskReferenceImage, TaskGenerationParams, GenerationTask } from '@/types/task';
 import {
-  resolveTransparentOutputFormat,
+  type ModelComplexity,
+  type ModelGenerationSettings,
   type ModelFormat,
   type ModelModeration,
   type ModelQuality,
   type ResolutionTier
 } from '@/types/model';
+import { fitModelGeneratedSize, normalizeModelSettings, validateModelGenerationParams } from '@/core/models/settings';
 import type { MediaAsset, ArtworkBatch } from '@/types/asset';
 import { dataUrlToFile } from '@/utils/download';
 import { calculateImageDimensions, loadImageDimensions } from '@/utils/image';
@@ -62,37 +64,95 @@ export function useImageStudio() {
     }
   });
 
-  const sizeState = reactive<ImageSizeState>({
-    resolution: modelStore.activeModel.defaultParams.resolution,
-    aspectRatio: modelStore.activeModel.defaultParams.aspectRatio,
-    width: null,
-    height: null
-  });
+  const sizeState = reactive<ImageSizeState>(hydrateImageSizeFromSettings(modelStore.activeModel.defaultParams));
+  let hasManualSize = modelStore.activeModel.defaultParams.size !== 'auto';
   const resolution = computed({
     get: () => sizeState.resolution,
-    set: (value: ResolutionTier) =>
-      Object.assign(sizeState, applyResolutionChange(sizeState, value, primaryReferenceRatio.value, primaryReferenceDims.value))
+    set: (value: ResolutionTier) => {
+      hasManualSize = false;
+      Object.assign(sizeState, applyResolutionChange(sizeState, value, primaryReferenceRatio.value, primaryReferenceDims.value));
+      fitDerivedSize();
+    }
   });
   const aspectRatio = computed({
     get: () => sizeState.aspectRatio,
-    set: (value: string) =>
-      Object.assign(sizeState, applyAspectRatioChange(sizeState, value, primaryReferenceRatio.value, primaryReferenceDims.value))
+    set: (value: string) => {
+      hasManualSize = false;
+      Object.assign(sizeState, applyAspectRatioChange(sizeState, value, primaryReferenceRatio.value, primaryReferenceDims.value));
+      fitDerivedSize();
+    }
   });
   const sizeWidth = computed({
     get: () => sizeState.width,
-    set: (value: number | null) =>
-      Object.assign(sizeState, applyWidthChange(sizeState, value, primaryReferenceRatio.value))
+    set: (value: number | null) => {
+      hasManualSize = value !== null;
+      Object.assign(sizeState, applyWidthChange(sizeState, value, primaryReferenceRatio.value));
+    }
   });
   const sizeHeight = computed({
     get: () => sizeState.height,
-    set: (value: number | null) =>
-      Object.assign(sizeState, applyHeightChange(sizeState, value, primaryReferenceRatio.value))
+    set: (value: number | null) => {
+      hasManualSize = value !== null;
+      Object.assign(sizeState, applyHeightChange(sizeState, value, primaryReferenceRatio.value));
+    }
   });
   const quality = ref<ModelQuality>(modelStore.activeModel.defaultParams.quality);
   const format = ref<ModelFormat>(modelStore.activeModel.defaultParams.format);
   const transparent = ref<boolean>(modelStore.activeModel.defaultParams.transparent);
   const moderation = ref<ModelModeration>(modelStore.activeModel.defaultParams.moderation ?? 'low');
   const count = ref<number>(modelStore.activeModel.defaultParams.count);
+
+  const complexity = ref<ModelComplexity | undefined>(modelStore.activeModel.defaultParams.complexity);
+  const outputCompression = ref<number | undefined>(modelStore.activeModel.defaultParams.outputCompression);
+  const frameCount = ref<number | undefined>(modelStore.activeModel.defaultParams.frameCount);
+  const frameDurationMs = ref<number | undefined>(modelStore.activeModel.defaultParams.frameDurationMs);
+  let isSyncingSettings = false;
+  let isRestoringSettings = false;
+
+  function fitDerivedSize() {
+    if (hasManualSize || sizeState.width === null || sizeState.height === null) return;
+    const fitted = fitModelGeneratedSize(modelStore.activeModel, `${sizeState.width}x${sizeState.height}`, format.value);
+    const dimensions = fitted === 'auto' ? null : fitted.split('x').map(Number);
+    sizeState.width = dimensions?.[0] ?? null;
+    sizeState.height = dimensions?.[1] ?? null;
+  }
+
+  function syncModelSettings() {
+    if (isSyncingSettings || isRestoringSettings) return;
+    isSyncingSettings = true;
+    try {
+      const current: ModelGenerationSettings = {
+        size: sizeState.width !== null && sizeState.height !== null ? `${sizeState.width}x${sizeState.height}` : 'auto',
+        resolution: resolution.value, aspectRatio: aspectRatio.value, quality: quality.value, format: format.value,
+        transparent: transparent.value, moderation: moderation.value, count: count.value,
+        complexity: complexity.value, outputCompression: outputCompression.value,
+        frameCount: frameCount.value, frameDurationMs: frameDurationMs.value
+      };
+      const next = normalizeModelSettings(modelStore.activeModel, current, referenceImages.value.length > 0 ? 'i2i' : 't2i');
+      if (next.size !== current.size || next.resolution !== current.resolution || next.aspectRatio !== current.aspectRatio) {
+        const nextSize = next.size === current.size ? 'auto' : next.size;
+        Object.assign(sizeState, hydrateImageSizeFromSettings({ ...next, size: nextSize }));
+        hasManualSize = nextSize !== 'auto';
+      }
+      quality.value = next.quality;
+      format.value = next.format;
+      transparent.value = next.transparent;
+      moderation.value = next.moderation;
+      count.value = next.count;
+      complexity.value = next.complexity;
+      outputCompression.value = next.outputCompression;
+      frameCount.value = next.frameCount;
+      frameDurationMs.value = next.frameDurationMs;
+      fitDerivedSize();
+    } finally {
+      isSyncingSettings = false;
+    }
+  }
+
+  watch([
+    () => modelStore.activeModel, () => referenceImages.value.length, quality, format, transparent, moderation,
+    count, complexity, outputCompression, frameCount, frameDurationMs
+  ], syncModelSettings, { flush: 'sync', deep: true });
 
   const isGenerating = computed(() => taskStore.isGenerating);
   const elapsedTime = computed(() => taskStore.currentElapsedTime);
@@ -216,9 +276,6 @@ export function useImageStudio() {
       throw new Error('请先在顶部设置中填写接口地址与 API Key');
     }
 
-    const isEditMode = referenceImages.value.length > 0;
-    const outputFormat = transparent.value ? resolveTransparentOutputFormat(format.value) : format.value;
-
     // 确保首张参考图真实尺寸已就绪（避免直接点击生成时尺寸未决）
     const firstRef = referenceImages.value[0];
     if (firstRef && (!firstRef.ratio || !firstRef.width || !firstRef.height)) {
@@ -229,6 +286,10 @@ export function useImageStudio() {
         firstRef.ratio = dims.ratioStr;
       } catch (e) {}
     }
+
+    syncModelSettings();
+    const isEditMode = referenceImages.value.length > 0;
+    const outputFormat = format.value;
 
     // 解析生成时实际生效的尺寸与分辨率（同参考图且未设尺寸时自动使用满足分辨率上限的最大尺寸）
     const { size: effectiveSize, resolution: effectiveResolution } = resolveEffectiveGenerationSize({
@@ -245,19 +306,25 @@ export function useImageStudio() {
         model: modelStore.activeModel.id,
         prompt: batchPrompt,
         type: isEditMode ? 'i2i' : 't2i',
-        size: effectiveSize,
+        size: hasManualSize
+          ? effectiveSize
+          : fitModelGeneratedSize(modelStore.activeModel, effectiveSize, outputFormat),
         resolution: effectiveResolution,
         aspectRatio: sizeState.aspectRatio,
         quality: quality.value,
         format: outputFormat,
         transparent: transparent.value,
-        moderation: moderation.value,
+        moderation: modelStore.activeModel.moderationOptions.length > 0 ? moderation.value : undefined,
+        complexity: complexity.value,
+        outputCompression: outputCompression.value,
+        frameCount: outputFormat === 'gif' ? frameCount.value : undefined,
+        frameDurationMs: outputFormat === 'gif' ? frameDurationMs.value : undefined,
         count: count.value,
         referenceImages: sharedRefs
       };
 
+      validateModelGenerationParams(modelStore.activeModel, params);
       const task = defaultTaskScheduler.createTask(params);
-      taskStore.addTask(task);
       tasks.push(task);
     }
 
@@ -268,6 +335,7 @@ export function useImageStudio() {
 
     // 异步执行生成流水线，非阻塞返回
     for (const task of tasks) {
+      taskStore.addTask(task);
       runTaskExecution(task);
     }
 
@@ -278,7 +346,7 @@ export function useImageStudio() {
     defaultTaskScheduler.execute(
       task,
       configStore.providerConfig,
-      modelStore.activeModel,
+      modelStore.getModelProfile(task.params.model),
       {
         onStatusChange: (t) => {
           taskStore.updateTask(t.id, {
@@ -344,6 +412,7 @@ export function useImageStudio() {
   }
 
   function setSizeAuto() {
+    hasManualSize = false;
     Object.assign(sizeState, applySizeAuto(sizeState));
   }
 
@@ -359,7 +428,9 @@ export function useImageStudio() {
     }
     const refDims = firstRef?.width && firstRef?.height ? { width: firstRef.width, height: firstRef.height } : primaryReferenceDims.value;
     const refRatio = firstRef?.ratio || primaryReferenceRatio.value;
+    hasManualSize = false;
     Object.assign(sizeState, materializeSize(sizeState, refRatio, refDims));
+    fitDerivedSize();
   }
 
   async function reuseItem(item: MediaAsset | ArtworkBatch | GenerationTask | TaskGenerationParams) {
@@ -388,23 +459,30 @@ export function useImageStudio() {
       throw error;
     }
 
-    clearReferenceImages();
-    referenceImages.value = preparedRefs;
-    for (const img of preparedRefs) {
-      if (!img.ratio || !img.width || !img.height) updateReferenceDimensions(img);
+    isRestoringSettings = true;
+    try {
+      clearReferenceImages();
+      referenceImages.value = preparedRefs;
+      for (const img of preparedRefs) {
+        if (!img.ratio || !img.width || !img.height) updateReferenceDimensions(img);
+      }
+      if (source.model) modelStore.setActiveModel(source.model);
+      Object.assign(sizeState, targetSize);
+      hasManualSize = targetSize.width !== null && targetSize.height !== null;
+      prompt.value = source.prompt;
+      if (targetQuality) quality.value = targetQuality;
+      if (source.transparent !== undefined) transparent.value = source.transparent;
+      if (targetFormat) format.value = targetFormat;
+      if (targetCount && targetCount > 0) count.value = targetCount;
+      if (targetModeration) moderation.value = targetModeration;
+      complexity.value = source.complexity as ModelComplexity | undefined;
+      outputCompression.value = source.outputCompression;
+      frameCount.value = source.frameCount;
+      frameDurationMs.value = source.frameDurationMs;
+    } finally {
+      isRestoringSettings = false;
+      syncModelSettings();
     }
-    Object.assign(sizeState, targetSize);
-    prompt.value = source.prompt;
-    if (source.model) modelStore.setActiveModel(source.model);
-    if (targetQuality) quality.value = targetQuality;
-    if (source.transparent !== undefined) transparent.value = source.transparent;
-    if (targetFormat) {
-      format.value = transparent.value ? resolveTransparentOutputFormat(targetFormat) : targetFormat;
-    } else if (transparent.value) {
-      format.value = resolveTransparentOutputFormat(format.value);
-    }
-    if (targetCount && targetCount > 0) count.value = targetCount;
-    if (targetModeration) moderation.value = targetModeration;
   }
 
   async function useImageAsReference(url: string, filename: string = 'reference.png') {
@@ -428,6 +506,10 @@ export function useImageStudio() {
     format,
     transparent,
     moderation,
+    complexity,
+    outputCompression,
+    frameCount,
+    frameDurationMs,
     count,
     referenceImages,
     isGenerating,
