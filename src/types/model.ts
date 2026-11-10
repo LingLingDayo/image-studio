@@ -1,32 +1,80 @@
-import {
-  ASPECT_RATIO_OPTIONS,
-  RESOLUTION_OPTIONS,
-  type AspectRatioOption,
-  type ResolutionTier
-} from '@/utils/imageSize';
+import type { AspectRatioOption, ResolutionTier } from '@/utils/imageSize';
 
 export type { ResolutionTier };
-
-export type ModelQuality = 'auto' | 'low' | 'medium' | 'high';
-export type ModelFormat = 'png' | 'jpeg' | 'webp';
+// 画质取值由模型文件约束，兼容 standard/hd 等第三方档位，无需修改全局枚举。
+export type ModelQuality = string;
+export type ModelFormat = 'png' | 'jpeg' | 'webp' | 'gif' | 'svg';
 export type ModelModeration = 'auto' | 'low';
+export type ModelComplexity = 'low' | 'medium' | 'high';
+export type ModelMode = 't2i' | 'i2i';
 
-export const MODERATION_OPTIONS: { label: string; value: ModelModeration }[] = [
-  { label: '默认', value: 'auto' },
-  { label: '低', value: 'low' }
-];
-
-export const TRANSPARENT_CAPABLE_FORMATS: ModelFormat[] = ['png', 'webp'];
-export const TRANSPARENT_DEFAULT_FORMAT: ModelFormat = 'png';
-
-export function supportsAlphaChannel(format: ModelFormat): boolean {
-  return format === 'png' || format === 'webp';
+export interface ModelOption<T> {
+  label: string;
+  value: T;
+  tip?: string;
 }
 
-/** jpeg 无 alpha，透明背景必须落到 png/webp；缺省与非法值一律切到 png */
-export function resolveTransparentOutputFormat(format?: ModelFormat | null): ModelFormat {
-  if (format && supportsAlphaChannel(format)) return format;
-  return TRANSPARENT_DEFAULT_FORMAT;
+export interface ModelFormatOption extends ModelOption<ModelFormat> {
+  /** 未指定时适用于该模型的所有生成模式。 */
+  supportedModes?: ModelMode[];
+  maxRequestCount?: number;
+}
+
+export interface ModelNumberRange {
+  min: number;
+  max: number;
+  step: number;
+}
+
+export interface ModelSizeConstraints {
+  dimensionMultiple: number;
+  maxDimension: number;
+  maxAspectRatio: number;
+  minPixels: number;
+  maxPixels: number;
+}
+
+export interface ModelReferenceImageConstraints {
+  mimeTypes: string[];
+  maxCount: number;
+  maxBytes?: number;
+}
+
+export interface ModelGenerationSettings {
+  size: string;
+  resolution: ResolutionTier;
+  aspectRatio: string;
+  quality: ModelQuality;
+  format: ModelFormat;
+  transparent: boolean;
+  moderation: ModelModeration;
+  count: number;
+  complexity?: ModelComplexity;
+  outputCompression?: number;
+  frameCount?: number;
+  frameDurationMs?: number;
+}
+
+export interface ModelVerification {
+  status: 'verified' | 'partial' | 'unverified';
+  checkedAt: string;
+  sources: string[];
+  unverifiedFields?: string[];
+  notes: string[];
+}
+
+/** 按生成端点核实的参数缺省值，与工作台 defaultParams 分开维护。 */
+export interface ModelApiDefaults {
+  size: string;
+  quality: ModelQuality;
+  format: ModelFormat;
+  background: 'auto' | 'opaque' | 'transparent';
+  moderation: ModelModeration;
+  count: number;
+  outputCompression: number;
+  complexity?: ModelComplexity;
+  frameCount?: number;
+  frameDurationMs?: number;
 }
 
 export interface ModelProfile {
@@ -34,131 +82,51 @@ export interface ModelProfile {
   name: string;
   providerType: 'openai-compatible' | 'custom';
   description?: string;
-  supportedModes: ('t2i' | 'i2i')[];
-  resolutionOptions: { label: string; value: ResolutionTier }[];
+  documentationUrl?: string;
+  verification?: ModelVerification;
+  apiDefaults?: ModelApiDefaults;
+  apiRequestCount?: { min: number; max: number; default: number };
+  supportedModes: ModelMode[];
+  resolutionOptions: ModelOption<ResolutionTier>[];
   aspectRatioOptions: AspectRatioOption[];
-  qualityOptions: { label: string; value: ModelQuality }[];
-  formatOptions: { label: string; value: ModelFormat }[];
-  moderationOptions: { label: string; value: ModelModeration }[];
+  qualityOptions: ModelOption<ModelQuality>[];
+  formatOptions: ModelFormatOption[];
+  moderationOptions: ModelOption<ModelModeration>[];
+  complexityOptions: ModelOption<ModelComplexity>[];
   supportsTransparent: boolean;
+  transparentFormats: ModelFormat[];
+  supportsCustomSize: boolean;
+  recommendedSizes: string[];
+  sizeConstraints?: ModelSizeConstraints;
+  referenceImageConstraints?: ModelReferenceImageConstraints;
+  compression: { formats: ModelFormat[]; range: ModelNumberRange; options: ModelOption<number | 'auto'>[] };
+  animation?: { frameCount: ModelNumberRange; frameDurationMs: ModelNumberRange };
+  /** 老兼容服务使用 response_format，现代 GPT Image 接口固定返回 Base64。 */
+  supportsResponseFormat: boolean;
+  /** 工作台逐张请求的数量上限，不是 API 单次请求的 n 上限。 */
   maxBatchCount: number;
-  defaultParams: {
-    size: string;
-    resolution: ResolutionTier;
-    aspectRatio: string;
-    quality: ModelQuality;
-    format: ModelFormat;
-    transparent: boolean;
-    moderation: ModelModeration;
-    count: number;
-  };
+  maxPromptLength?: number;
+  defaultParams: ModelGenerationSettings;
 }
 
-/**
- * 候选默认生图模型优先级（降序）：
- * 1. gpt-image-2.6-flare
- * 2. gpt-image-2.5-flare
- * 3. gpt-image-2
- */
-export const PREFERRED_IMAGE_MODEL_IDS: readonly string[] = [
-  'gpt-image-2.6-flare',
-  'gpt-image-2.5-flare',
-  'gpt-image-2'
-];
-
-/**
- * 默认活跃模型 ID: gpt-image-2.6-flare
- * // Extension Point: 后续若需新增模型，在此注册对应 ModelProfile 即可
- */
-export const DEFAULT_IMAGE_MODEL_ID = PREFERRED_IMAGE_MODEL_IDS[0];
-
-const IMAGE_MODEL_LABELS: Record<string, string> = {
-  'gpt-image-2.6-flare': 'GPT-Image-2.6 Flare',
-  'gpt-image-2.5-flare': 'GPT-Image-2.5 Flare',
-  'gpt-image-2.5-sunburst': 'GPT-Image-2.5 Sunburst',
-  'gpt-image-2': 'GPT-Image-2',
-  'gpt-image-1.5': 'GPT-Image-1.5',
-  'gpt-image-1': 'GPT-Image-1',
-  'gpt-image-1-mini': 'GPT-Image-1 Mini'
+/** 模型文件只声明差异；数组整体替换，默认参数按字段合并。 */
+export type ModelProfileDefinition = Partial<Omit<ModelProfile, 'id' | 'defaultParams'>> & {
+  id: string;
+  defaultParams?: Partial<ModelGenerationSettings>;
 };
 
-export function formatImageModelName(id: string): string {
-  if (IMAGE_MODEL_LABELS[id]) return IMAGE_MODEL_LABELS[id];
-  const undated = id.replace(/-\d{4}-\d{2}-\d{2}$/, '');
-  if (undated !== id && IMAGE_MODEL_LABELS[undated]) {
-    return IMAGE_MODEL_LABELS[undated];
-  }
-  return id;
-}
-
-export function isImageGenerationModel(id: string): boolean {
-  return /image|dall-e|dalle|flux|diffusion|sdxl|midjourney|recraft|ideogram/i.test(id);
-}
-
-/** 优先保留生图模型；若 Key 未返回任何生图模型则回退完整列表。 */
-export function resolveImageModelList(rawList: string[]): string[] {
-  const unique = Array.from(new Set(rawList.filter((id) => id && id.trim().length > 0)));
-  const imageOnly = unique.filter(isImageGenerationModel);
-  return imageOnly.length > 0 ? imageOnly : unique;
-}
-
-/**
- * 默认选中可用生图模型：
- * 若当前选择仍可用则保持；否则按优先级回退：
- * 1. gpt-image-2.6-flare
- * 2. gpt-image-2.5-flare
- * 3. gpt-image-2
- * 4. 生图 key 模型列表第一项
- */
-export function pickAvailableImageModel(list: string[], current?: string): string {
-  if (current && list.includes(current)) return current;
-  for (const preferred of PREFERRED_IMAGE_MODEL_IDS) {
-    if (list.includes(preferred)) {
-      return preferred;
-    }
-  }
-  return list[0] ?? current ?? DEFAULT_IMAGE_MODEL_ID;
-}
-
-export function createImageModelProfile(id: string): ModelProfile {
-  return {
-    ...GPT_IMAGE_2_PROFILE,
-    id,
-    name: formatImageModelName(id),
-    defaultParams: { ...GPT_IMAGE_2_PROFILE.defaultParams }
-  };
-}
-
-export const GPT_IMAGE_2_PROFILE: ModelProfile = {
-  id: 'gpt-image-2',
-  name: 'GPT-Image-2',
-  providerType: 'openai-compatible',
-  description: '极速、高保真度图像生成与编辑模型',
-  supportedModes: ['t2i', 'i2i'],
-  resolutionOptions: RESOLUTION_OPTIONS,
-  aspectRatioOptions: ASPECT_RATIO_OPTIONS,
-  qualityOptions: [
-    { label: '自动', value: 'auto' },
-    { label: '低', value: 'low' },
-    { label: '中', value: 'medium' },
-    { label: '高', value: 'high' }
-  ],
-  formatOptions: [
-    { label: 'PNG', value: 'png' },
-    { label: 'JPEG', value: 'jpeg' },
-    { label: 'WEBP', value: 'webp' }
-  ],
-  moderationOptions: MODERATION_OPTIONS,
-  supportsTransparent: true,
-  maxBatchCount: 4,
-  defaultParams: {
-    size: 'auto',
-    resolution: 'auto',
-    aspectRatio: 'auto',
-    quality: 'medium',
-    format: 'jpeg',
-    transparent: false,
-    moderation: 'low',
-    count: 1
-  }
-};
+export {
+  DEFAULT_IMAGE_MODEL_ID,
+  GPT_IMAGE_2_PROFILE,
+  MODERATION_OPTIONS,
+  PREFERRED_IMAGE_MODEL_IDS,
+  TRANSPARENT_CAPABLE_FORMATS,
+  TRANSPARENT_DEFAULT_FORMAT,
+  createImageModelProfile,
+  formatImageModelName,
+  isImageGenerationModel,
+  pickAvailableImageModel,
+  resolveImageModelList,
+  resolveTransparentOutputFormat,
+  supportsAlphaChannel
+} from '@/models';
