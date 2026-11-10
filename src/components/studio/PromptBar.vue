@@ -17,8 +17,7 @@ import {
   ShieldCheck,
   Brain,
   Film,
-  Timer,
-  FileArchive
+  Timer
 } from '@lucide/vue';
 import {
   DEFAULT_IMAGE_MODEL_ID,
@@ -536,7 +535,6 @@ onUnmounted(() => {
             :model-value="outputCompression ?? activeModel.apiDefaults?.outputCompression ?? activeModel.compression.range.max"
             label="压缩"
             tip="控制输出文件压缩，非生图画质；100 是默认值，不代表压缩掉 100%。"
-            :icon="FileArchive"
             :min="activeModel.compression.range.min"
             :max="activeModel.compression.range.max"
             :step="1"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch, type Component } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useClickOutside } from '@/composables/useClickOutside';
 
 const props = withDefaults(defineProps<{
@@ -9,7 +9,6 @@ const props = withDefaults(defineProps<{
   step?: number;
   label?: string;
   tip?: string;
-  icon?: Component;
   disabled?: boolean;
   placement?: 'top' | 'bottom';
 }>(), {
@@ -76,7 +75,6 @@ watch(() => props.disabled, (disabled) => { if (disabled) isOpen.value = false; 
       :data-tip="tip || undefined"
       @click="toggle"
     >
-      <component v-if="icon" :is="icon" class="slider-icon" :size="14" aria-hidden="true" />
       <span v-if="label" class="slider-label" :data-tip="tip || undefined">{{ label }}</span>
       <span class="slider-value">{{ value }}</span>
     </button>
@@ -132,7 +130,6 @@ watch(() => props.disabled, (disabled) => { if (disabled) isOpen.value = false; 
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
-.slider-icon { flex-shrink: 0; }
 .slider-label { white-space: nowrap; }
 .slider-value { min-width: 3ch; color: $text-main; font-family: $font-mono; font-size: 0.75rem; text-align: right; font-variant-numeric: tabular-nums; }
 

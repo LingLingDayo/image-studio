@@ -587,6 +587,7 @@ describe('PromptBar 模型设置列表联动', () => {
     app.mount(container);
     const label = container.querySelector<HTMLElement>('.slider-label')!;
     expect(label.textContent).toBe('压缩');
+    expect(container.querySelector('.ui-slider svg')).toBeNull();
     expect(label.dataset.tip).toContain('非生图画质');
     expect(label.dataset.tip).toContain('不代表压缩掉 100%');
     expect(container.textContent).not.toContain('压缩质量');
