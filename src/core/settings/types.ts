@@ -105,8 +105,6 @@ export interface SettingGroup {
   fields: SettingField[];
 }
 
-export type SettingBadge = 'ready' | 'warn' | 'none';
-
 /** 本次会话中实际变更的字段键；分区据此只处理被改动的配置片段。 */
 export type SettingChangeSet = ReadonlySet<string>;
 
@@ -117,7 +115,6 @@ export interface SettingSection {
   title: string;
   description?: string;
   icon: Component;
-  badge?: (ctx: SettingsContext) => SettingBadge;
   groups: SettingGroup[];
   hydrate?: () => SettingHydration;
   commit?: (ctx: SettingsContext, changedKeys?: SettingChangeSet) => void;

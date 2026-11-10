@@ -7,10 +7,11 @@
   padding: 0;
 }
 
-/* 行内图标统一规范：
-   body 的 1.5 倍行高会让中文墨迹中心相对行盒中心下沉约 1px，与几何居中的
-   SVG 图标并排时看起来图标偏高。各「图标 + 文字」的单行组合在组件内统一
-   使用 line-height: 1 对齐视觉中心；这里保证图标不会被 flex 压缩。 */
+/* 行内图标统一规范（不使用任何位置偏移）：
+   图标作为 flex item 由 align-items: center 做几何居中，文字保持字体自然行高
+   （line-height: normal），让中文墨迹落在行盒的自然位置。人为把行高压缩到 1em
+   会挤压中文字形、使文字视觉上移，因此这里不用压缩行高，也不使用 translate /
+   top / margin 等位移手段。 */
 svg {
   flex-shrink: 0;
 }
@@ -64,7 +65,7 @@ body {
   padding: 8px 16px;
   min-height: 36px;
   font-size: 0.875rem;
-  line-height: 1;
+  line-height: normal;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;
@@ -94,7 +95,7 @@ body {
   padding: 7px 14px;
   min-height: 36px;
   font-size: 0.875rem;
-  line-height: 1;
+  line-height: normal;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;
@@ -156,7 +157,7 @@ body {
   height: 36px;
   box-sizing: border-box;
   font-size: 0.8rem;
-  line-height: 1;
+  line-height: normal;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;

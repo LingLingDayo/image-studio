@@ -113,11 +113,11 @@ onBeforeUnmount(() => {
     <div class="backup-actions">
       <UiButton :disabled="disabled || operation !== null" :loading="operation === 'export'" @click="exportBackup">
         <template #icon><Download :size="14" /></template>
-        导出备份
+        导出数据
       </UiButton>
       <UiButton :disabled="disabled || operation !== null" :loading="operation === 'preview'" @click="chooseBackup">
         <template #icon><Upload :size="14" /></template>
-        选择备份
+        导入数据
       </UiButton>
       <input ref="fileInput" class="backup-file-input" type="file" accept=".json,application/json" aria-label="选择作品备份文件" @change="handleFileChange" />
     </div>

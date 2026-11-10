@@ -57,7 +57,7 @@ function handleClick(e: MouseEvent) {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  line-height: 1;
+  line-height: normal;
   border-radius: $radius-sm;
   font-family: $font-main;
   font-weight: 500;

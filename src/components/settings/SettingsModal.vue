@@ -194,7 +194,6 @@ onUnmounted(() => {
         <SettingsNav
           :categories="categories"
           :active-id="activeSectionId"
-          :session="session"
           @select="selectSection"
         />
         <div class="settings-content">
@@ -206,7 +205,6 @@ onUnmounted(() => {
       </div>
 
       <div class="dialog-footer">
-        <p class="save-hint">{{ hasChanges ? '修改尚未保存' : '修改后点击保存' }}</p>
         <div class="footer-actions">
           <UiButton variant="secondary" @click="requestClose">关闭</UiButton>
           <UiButton variant="primary" :disabled="!hasChanges" @click="handleSave">保存设置</UiButton>
@@ -331,11 +329,6 @@ onUnmounted(() => {
   justify-content: space-between;
   gap: 12px;
   flex-shrink: 0;
-}
-
-.save-hint {
-  color: $text-muted;
-  font-size: 0.75rem;
 }
 
 .footer-actions {

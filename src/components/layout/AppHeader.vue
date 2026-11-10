@@ -177,7 +177,7 @@ function clearSearch() {
   min-height: 31px;
   border-radius: 20px;
   font-weight: 500;
-  line-height: 1;
+  line-height: normal;
   white-space: nowrap;
   box-shadow: $shadow-xs;
 }

@@ -90,6 +90,10 @@ describe('Settings components', () => {
     expect(navCategories).toEqual(['通用', '服务']);
     const navLabels = [...container.querySelectorAll('.nav-label')].map((el) => el.textContent?.trim());
     expect(navLabels).toEqual(['通用设置', '生图服务']);
+    // 导航项不再显示配置状态圆点，底部也不再单独显示保存提示
+    expect(container.querySelector('.badge-configured, .badge-warn')).toBeNull();
+    expect(container.querySelector('.save-hint')).toBeNull();
+    expect(container.textContent).not.toContain('修改后点击保存');
 
     expect(container.querySelector('.pane-heading h4')?.textContent).toBe('生图服务');
     expect(container.textContent).toContain('接口地址');

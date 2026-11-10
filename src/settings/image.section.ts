@@ -64,9 +64,6 @@ export const imageSection: SettingSection = {
   title: '生图服务',
   description: '连接生图服务即可开始创作；提示词优化为可选能力，可留空。模型和画面参数在工作台调整。',
   icon: Key,
-  badge(ctx) {
-    return imageSection.validate?.(ctx).ok ? 'ready' : 'warn';
-  },
   groups: [
     {
       id: 'image.credentials',

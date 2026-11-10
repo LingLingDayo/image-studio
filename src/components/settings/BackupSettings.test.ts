@@ -41,6 +41,13 @@ describe('BackupSettings', () => {
     input.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
+  it('备份操作按钮使用「导出数据 / 导入数据」文案', () => {
+    expect(button('导出数据')).toBeDefined();
+    expect(button('导入数据')).toBeDefined();
+    expect(container.textContent).not.toContain('导出备份');
+    expect(container.textContent).not.toContain('选择备份');
+  });
+
   it('选择后只显示内联预览，明确确认才执行导入并刷新作品列表', async () => {
     const preview = { total: 2, added: 1, skipped: 1, unsupportedCount: 0 };
     vi.mocked(prepareBackup).mockResolvedValueOnce(preview);
@@ -77,7 +84,7 @@ describe('BackupSettings', () => {
 
   it('空作品库不触发下载', async () => {
     vi.mocked(createBackup).mockResolvedValueOnce({ count: 0, blob: new Blob(['{}']), filename: 'empty.json' });
-    button('导出备份').click();
+    button('导出数据').click();
     await vi.waitFor(() => expect(container.textContent).toContain('暂无作品'));
     expect(downloadImage).not.toHaveBeenCalled();
   });

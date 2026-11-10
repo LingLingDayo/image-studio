@@ -113,7 +113,7 @@ details.settings-group {
   gap: 6px;
   min-height: 20px;
   font-size: 0.85rem;
-  line-height: 1;
+  line-height: normal;
   font-weight: 600;
   color: $text-main;
 }

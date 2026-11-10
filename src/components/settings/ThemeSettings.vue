@@ -80,7 +80,7 @@ const icons: Record<ThemeMode, typeof Sun> = {
   gap: 7px;
   min-height: 40px;
   padding: 8px 10px;
-  line-height: 1;
+  line-height: normal;
   border: 1px solid $border-color;
   border-radius: $radius-md;
   background: $bg-surface;

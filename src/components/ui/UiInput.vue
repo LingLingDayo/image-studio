@@ -163,7 +163,7 @@ function handleClear() {
   align-items: center;
   gap: 6px;
   font-size: 0.85rem;
-  line-height: 1;
+  line-height: normal;
   font-weight: 600;
   color: $text-secondary;
 }

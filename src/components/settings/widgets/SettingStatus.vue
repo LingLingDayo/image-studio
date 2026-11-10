@@ -46,7 +46,7 @@ const status = computed<{ type: string; message: string } | null>(() => {
   gap: 6px;
   min-height: 32px;
   font-size: 0.78rem;
-  line-height: 1;
+  line-height: normal;
   padding: 6px 10px;
   border-radius: $radius-sm;
 

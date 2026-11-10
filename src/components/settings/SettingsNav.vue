@@ -1,27 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { SettingsSession } from '@/composables/useSettingsSession';
 import type { SettingCategoryGroup, SettingSection } from '@/core/settings';
 
 const props = defineProps<{
   categories: SettingCategoryGroup[];
   activeId: string;
-  session: SettingsSession;
 }>();
 
 const emit = defineEmits<{
   (e: 'select', id: string): void;
 }>();
-
-const items = computed(() =>
-  props.categories.map((group) => ({
-    category: group.category,
-    sections: group.sections.map((section) => ({
-      section,
-      badge: section.badge?.(props.session.ctx) ?? 'none'
-    }))
-  }))
-);
 
 function isActive(section: SettingSection): boolean {
   return section.id === props.activeId;
@@ -30,34 +17,20 @@ function isActive(section: SettingSection): boolean {
 
 <template>
   <nav class="settings-nav" aria-label="设置分区">
-    <div v-for="group in items" :key="group.category" class="nav-category-block">
+    <div v-for="group in categories" :key="group.category" class="nav-category-block">
       <div class="nav-category">{{ group.category }}</div>
       <button
-        v-for="item in group.sections"
-        :key="item.section.id"
+        v-for="section in group.sections"
+        :key="section.id"
         type="button"
         class="nav-item"
-        :class="{ 'is-active': isActive(item.section) }"
-        :aria-label="item.section.title"
-        :aria-current="isActive(item.section) ? 'page' : undefined"
-        @click="emit('select', item.section.id)"
+        :class="{ 'is-active': isActive(section) }"
+        :aria-label="section.title"
+        :aria-current="isActive(section) ? 'page' : undefined"
+        @click="emit('select', section.id)"
       >
-        <component :is="item.section.icon" :size="15" />
-        <span class="nav-label">{{ item.section.title }}</span>
-        <span
-          v-if="item.badge === 'ready'"
-          class="badge-configured"
-          data-tip="已填写"
-          role="img"
-          aria-label="已填写"
-        ></span>
-        <span
-          v-else-if="item.badge === 'warn'"
-          class="badge-warn"
-          data-tip="待完善"
-          role="img"
-          aria-label="待完善"
-        ></span>
+        <component :is="section.icon" :size="15" />
+        <span class="nav-label">{{ section.title }}</span>
       </button>
     </div>
   </nav>
@@ -104,7 +77,7 @@ function isActive(section: SettingSection): boolean {
   background: transparent;
   color: $text-muted;
   font-size: 0.85rem;
-  line-height: 1;
+  line-height: normal;
   font-weight: 500;
   cursor: pointer;
   text-align: left;
@@ -135,23 +108,6 @@ function isActive(section: SettingSection): boolean {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.badge-configured,
-.badge-warn {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.badge-configured {
-  background: $success;
-}
-
-.badge-warn {
-  background: $warning;
 }
 
 @media (max-width: 640px) {
