@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, getCurrentInstance } from 'vue';
 import { 
   ZoomIn, 
   ZoomOut, 
@@ -203,6 +203,21 @@ function handleKeyDown(e: KeyboardEvent) {
   }
 }
 
+// 退出全屏时清掉工具栏残留焦点，避免键盘退出后浏览器给全屏按钮套上默认 focus 描边
+watch(activeFullscreen, (isFullscreenNow, wasFullscreen) => {
+  if (!wasFullscreen || isFullscreenNow) return;
+  const active = document.activeElement;
+  if (active instanceof HTMLElement && active.closest('.image-floating-toolbar, .fullscreen-close-btn')) {
+    active.blur();
+  }
+});
+
+// 交互控件不参与画布拖拽：容器的 setPointerCapture 会把后续 click 派发到容器，
+// 使按钮点击失效。控件自身已阻止冒泡，这里作为通用兜底。
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && !!target.closest('button, .image-floating-toolbar, .lightbox-carousel-controls');
+}
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
 });
@@ -273,6 +288,7 @@ function onWheel(e: WheelEvent) {
 
 function onPointerDown(e: PointerEvent) {
   resetToolbarTimer();
+  if (isInteractiveTarget(e.target)) return;
   emit('pointerdown', e);
   if (!isDraggingControlled.value) {
     internalCanvas.handlePointerDown(e);
@@ -281,6 +297,7 @@ function onPointerDown(e: PointerEvent) {
 
 function onMouseDown(e: MouseEvent) {
   resetToolbarTimer();
+  if (isInteractiveTarget(e.target)) return;
   emit('mousedown', e);
   if (!isDraggingControlled.value) {
     internalCanvas.handleMouseDown(e);
@@ -358,6 +375,9 @@ defineExpose({
       class="fullscreen-close-btn"
       data-tip="退出全屏 (Esc)"
       aria-label="退出全屏"
+      @pointerdown.stop
+      @mousedown.stop
+      @dblclick.stop
       @click.stop="handleExitFullscreen"
     >
       <X :size="18" />
@@ -473,8 +493,6 @@ defineExpose({
 
 .modal-image-panel {
   background: $bg-surface-subtle;
-  background-image: radial-gradient($border-strong 1.2px, transparent 1.2px);
-  background-size: 20px 20px;
   position: relative;
   display: flex;
   align-items: center;
@@ -730,6 +748,16 @@ defineExpose({
     cursor: pointer;
     transition: all 0.15s ease;
     user-select: none;
+
+    // 覆盖浏览器默认的粗黑 focus 描边，键盘导航时仅保留一条极细提示线
+    &:focus {
+      outline: none;
+    }
+
+    &:focus-visible {
+      outline: 1px solid $accent-border;
+      outline-offset: 2px;
+    }
 
     &:hover {
       background: transparent; /* hover 无背景色 */
