@@ -40,6 +40,5 @@ npm run dev
 
 - [配置与部署](docs/configuration.md)：环境变量、Docker、接口连接与常见问题。
 - [开发指南](docs/development.md)：代码组织、测试验证、当前工程约束。
-- [优化评估](docs/improvements.md)：本轮调整与后续优先级。
 
 采用 [MIT 许可证](LICENSE)。
