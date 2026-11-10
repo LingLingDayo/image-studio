@@ -30,15 +30,7 @@ export const GPT_IMAGE_2_PROFILE: ModelProfile = {
   recommendedSizes: ['1024x1024', '1536x1024', '1024x1536'],
   compression: {
     formats: ['jpeg', 'webp'],
-    range: { min: 0, max: 100, step: 1 },
-    options: [
-      { label: '自动', value: 'auto' },
-      { label: '100%', value: 100 },
-      { label: '75%', value: 75 },
-      { label: '50%', value: 50 },
-      { label: '25%', value: 25 },
-      { label: '0%', value: 0 }
-    ]
+    range: { min: 0, max: 100, step: 1 }
   },
   supportsResponseFormat: true,
   maxBatchCount: 4,

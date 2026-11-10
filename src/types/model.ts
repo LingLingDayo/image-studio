@@ -99,7 +99,7 @@ export interface ModelProfile {
   recommendedSizes: string[];
   sizeConstraints?: ModelSizeConstraints;
   referenceImageConstraints?: ModelReferenceImageConstraints;
-  compression: { formats: ModelFormat[]; range: ModelNumberRange; options: ModelOption<number | 'auto'>[] };
+  compression: { formats: ModelFormat[]; range: ModelNumberRange };
   animation?: { frameCount: ModelNumberRange; frameDurationMs: ModelNumberRange };
   /** 老兼容服务使用 response_format，现代 GPT Image 接口固定返回 Base64。 */
   supportsResponseFormat: boolean;

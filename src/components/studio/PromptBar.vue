@@ -34,7 +34,7 @@ import type { TaskReferenceImage } from '@/types/task';
 import { useModelStore } from '@/stores/modelStore';
 import { useConfigStore } from '@/stores/configStore';
 import { usePromptOptimizer } from '@/composables/usePromptOptimizer';
-import { UiSelect, UiSizeInput, UiStepper } from '@/components/ui';
+import { UiSelect, UiSizeInput, UiStepper, UiSlider } from '@/components/ui';
 import type { SelectOption } from '@/components/ui';
 import {
   formatPromptBatchCountTip,
@@ -531,15 +531,17 @@ onUnmounted(() => {
             @update:model-value="emit('update:format', $event as ModelFormat)"
           />
 
-          <UiSelect
+          <UiSlider
             v-if="activeModel.compression.formats.includes(format)"
-            :model-value="outputCompression ?? 'auto'"
-            label="压缩质量"
+            :model-value="outputCompression ?? activeModel.apiDefaults?.outputCompression ?? activeModel.compression.range.max"
+            label="压缩"
+            tip="控制输出文件压缩，非生图画质；100 是默认值，不代表压缩掉 100%。"
             :icon="FileArchive"
-            :options="activeModel.compression.options"
+            :min="activeModel.compression.range.min"
+            :max="activeModel.compression.range.max"
+            :step="1"
             placement="top"
-            variant="pill"
-            @update:model-value="emit('update:outputCompression', $event === 'auto' ? undefined : Number($event))"
+            @update:model-value="emit('update:outputCompression', $event)"
           />
 
           <UiStepper

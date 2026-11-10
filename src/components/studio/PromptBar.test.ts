@@ -579,6 +579,42 @@ describe('PromptBar 模型设置列表联动', () => {
     return Array.from(select.querySelectorAll('.item-label')).map((option) => option.textContent!.trim());
   }
 
+  it('压缩使用短标签、步长 1 滑动条与避免误解的 hover 说明', async () => {
+    const compression = ref<number | undefined>(undefined);
+    const format = ref<ModelFormat>('jpeg');
+    app = createApp(() => h(PromptBar, { ...baseProps, format: format.value, outputCompression: compression.value,
+      'onUpdate:outputCompression': (value: number | undefined) => { compression.value = value; } }));
+    app.mount(container);
+    const label = container.querySelector<HTMLElement>('.slider-label')!;
+    expect(label.textContent).toBe('压缩');
+    expect(label.dataset.tip).toContain('非生图画质');
+    expect(label.dataset.tip).toContain('不代表压缩掉 100%');
+    expect(container.textContent).not.toContain('压缩质量');
+    expect(container.querySelector('input[type="range"]')).toBeNull();
+    container.querySelector<HTMLButtonElement>('.slider-trigger')!.click();
+    await nextTick();
+    const slider = container.querySelector<HTMLInputElement>('input[type="range"]')!;
+    expect(slider.min).toBe('0');
+    expect(slider.max).toBe('100');
+    expect(slider.step).toBe('1');
+    expect(slider.value).toBe('100');
+    expect(compression.value).toBeUndefined();
+    slider.value = '63';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    await nextTick();
+    expect(compression.value).toBe(63);
+    slider.value = '0';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    await nextTick();
+    expect(compression.value).toBe(0);
+    format.value = 'png';
+    await nextTick();
+    expect(container.querySelector('.ui-slider')).toBeNull();
+    format.value = 'webp';
+    await nextTick();
+    expect(container.querySelector('.ui-slider')).not.toBeNull();
+  });
+
   it('切换模型立即替换格式、画质和复杂度选项，未知模型使用旧列表', async () => {
     app = createApp(() => h(PromptBar, baseProps));
     app.mount(container);
@@ -608,19 +644,19 @@ describe('PromptBar 模型设置列表联动', () => {
     expect(await options('格式')).toEqual(['PNG', 'WEBP']);
   });
 
-  it('选择 GIF 显示模型帧设置并按 10ms 滚轮步进，切回 JPEG 恢复压缩列表', async () => {
+  it('选择 GIF 显示模型帧设置并按 10ms 滚轮步进，切回 JPEG 恢复压缩滑动条', async () => {
     const format = ref<ModelFormat>('jpeg');
     const duration = ref(200);
     app = createApp(() => h(PromptBar, { ...baseProps, format: format.value, frameDurationMs: duration.value,
       'onUpdate:format': (value: ModelFormat) => { format.value = value; },
       'onUpdate:frameDurationMs': (value: number) => { duration.value = value; } }));
     app.mount(container);
-    expect(findSelect('压缩质量')).toBeDefined();
+    expect(container.querySelector('.ui-slider')).not.toBeNull();
     await options('格式');
     const gif = Array.from(findSelect('格式')!.querySelectorAll<HTMLElement>('.dropdown-item')).find((option) => option.textContent?.trim() === 'GIF')!;
     gif.click();
     await nextTick();
-    expect(findSelect('压缩质量')).toBeUndefined();
+    expect(container.querySelector('.ui-slider')).toBeNull();
     const steppers = Array.from(container.querySelectorAll<HTMLElement>('.ui-stepper'));
     const frameCount = steppers.find((stepper) => stepper.textContent?.includes('帧数'))!.querySelector('input')!;
     const frameDuration = steppers.find((stepper) => stepper.textContent?.includes('帧时长'))!.querySelector('input')!;
@@ -634,7 +670,11 @@ describe('PromptBar 模型设置列表联动', () => {
     format.value = 'jpeg';
     await nextTick();
     expect(container.textContent).not.toContain('帧时长');
-    expect(await options('压缩质量')).toEqual(['自动', '100%', '75%', '50%', '25%', '0%']);
+    container.querySelector<HTMLButtonElement>('.slider-trigger')!.click();
+    await nextTick();
+    const compression = container.querySelector<HTMLInputElement>('input[type="range"]')!;
+    expect(compression.step).toBe('1');
+    expect(compression.value).toBe('100');
   });
 });
 

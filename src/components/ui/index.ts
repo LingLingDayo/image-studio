@@ -2,6 +2,7 @@ export { default as UiCombobox } from './UiCombobox.vue';
 export type { ComboboxOption } from './UiCombobox.vue';
 export { default as UiSelect } from './UiSelect.vue';
 export type { SelectOption } from './UiSelect.vue';
+export { default as UiSlider } from './UiSlider.vue';
 export { default as UiStepper } from './UiStepper.vue';
 export { default as UiInput } from './UiInput.vue';
 export { default as UiSwitch } from './UiSwitch.vue';

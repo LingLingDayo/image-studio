@@ -80,7 +80,7 @@ export function validateModelGenerationParams(profile: ModelProfile, params: Tas
   }
   if (params.outputCompression !== undefined) {
     if (!profile.compression.formats.includes(params.format)) throw new Error('当前输出格式不支持自定义压缩');
-    validateNumber(params.outputCompression, profile.compression.range, '压缩质量');
+    validateNumber(params.outputCompression, profile.compression.range, '压缩值');
   }
   if (params.frameCount !== undefined || params.frameDurationMs !== undefined) {
     if (params.format !== 'gif' || !profile.animation) throw new Error('只有支持动画的 GIF 输出可以设置帧参数');
