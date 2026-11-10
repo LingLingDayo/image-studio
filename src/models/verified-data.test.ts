@@ -63,6 +63,7 @@ describe('基于官方文档核实的模型数据', () => {
     expect(profile.verification?.unverifiedFields).toContain('supportsTransparent');
     expect(profile.verification?.unverifiedFields).toContain('referenceImageConstraints.mimeTypes');
     expect(profile.apiDefaults).toMatchObject({ complexity: 'high', frameCount: 9, frameDurationMs: 200 });
+    expect(profile.defaultParams).not.toHaveProperty('complexity');
     expect(profile.formatOptions.find((option) => option.value === 'svg')?.maxRequestCount).toBe(1);
     expect(profile.animation?.frameDurationMs.max).toBe(2000);
     expect(profile.verification?.notes.join(' ')).toContain('指南推荐范围');

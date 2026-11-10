@@ -1,5 +1,6 @@
 import type {
-  ModelFormatOption, ModelGenerationSettings, ModelMode, ModelNumberRange, ModelOption, ModelProfile
+  ModelComplexity, ModelFormat, ModelFormatOption, ModelGenerationSettings, ModelMode,
+  ModelNumberRange, ModelOption, ModelProfile, ResolutionTier
 } from '@/types/model';
 import type { TaskGenerationParams } from '@/types/task';
 import { parseSizeString } from '@/utils/imageSize';
@@ -14,6 +15,23 @@ export function getModelFormatOptions(profile: ModelProfile, mode: ModelMode, tr
 function selectValue<T>(value: T | undefined, options: ModelOption<T>[], fallback: T): T {
   if (options.some((option) => option.value === value)) return value as T;
   return options.find((option) => option.value === fallback)?.value ?? options[0]?.value ?? fallback;
+}
+
+/**
+ * 工作台策略而非官方契约：complexity 控制出图前的规划算力，与质量无关且不易向用户解释，
+ * 故不提供设置项，按实际生效的分辨率和输出格式自动选择。
+ * 1K 静帧用 medium 换取更快响应；2K/4K 及 GIF/SVG 需要更完整的构图规划，统一用 high；
+ * auto 与手填尺寸沿用官方省略时的缺省值。
+ */
+export function resolveModelComplexity(
+  profile: ModelProfile,
+  resolution: ResolutionTier | undefined,
+  format: ModelFormat
+): ModelComplexity | undefined {
+  if (profile.complexityOptions.length === 0) return undefined;
+  const fallback = profile.apiDefaults?.complexity ?? profile.complexityOptions[0].value;
+  const target: ModelComplexity = format !== 'gif' && format !== 'svg' && resolution === '1k' ? 'medium' : 'high';
+  return selectValue(target, profile.complexityOptions, fallback);
 }
 
 function normalizeNumber(value: number | undefined, range: ModelNumberRange, fallback = range.min): number {
@@ -42,9 +60,6 @@ export function normalizeModelSettings(
     transparent,
     moderation: selectValue(settings.moderation, profile.moderationOptions, defaults.moderation),
     count: normalizeNumber(settings.count, { min: 1, max: profile.maxBatchCount, step: 1 }, defaults.count),
-    complexity: profile.complexityOptions.length > 0
-      ? selectValue(settings.complexity, profile.complexityOptions, defaults.complexity ?? profile.complexityOptions[0].value)
-      : undefined,
     outputCompression: profile.compression.formats.includes(format) && settings.outputCompression !== undefined
       ? normalizeNumber(settings.outputCompression, profile.compression.range, defaults.outputCompression)
       : undefined,

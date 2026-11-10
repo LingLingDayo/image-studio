@@ -64,6 +64,7 @@ export const GPT_IMAGE_26_CAPABILITIES: Omit<ModelProfileDefinition, 'id'> = {
     { label: 'GIF', value: 'gif', tip: '动态图片；需要当前模型的 GIF 预览访问权限。' },
     { label: 'SVG', value: 'svg', supportedModes: ['t2i'], maxRequestCount: 1, tip: '静态矢量图；仅文生图，需要相应项目访问权限。' }
   ],
+  // 官方参数，但工作台不暴露设置项，由 resolveModelComplexity 按分辨率与格式自动选择。
   complexityOptions: [
     { label: '低', value: 'low' },
     { label: '中', value: 'medium' },
@@ -74,6 +75,7 @@ export const GPT_IMAGE_26_CAPABILITIES: Omit<ModelProfileDefinition, 'id'> = {
     // 指南推荐范围；API 未声明 2000ms 请求上限，不能将此值解释为服务端硬上限。
     frameDurationMs: { min: 20, max: 2000, step: 10 }
   },
+  // complexity 是官方省略时的缺省值，仅作为派生规则无法命中时的回退，不是工作台默认值。
   apiDefaults: { ...GPT_IMAGE_API_DEFAULTS, complexity: 'high', frameCount: 9, frameDurationMs: 200 },
-  defaultParams: { complexity: 'high', frameCount: 9, frameDurationMs: 200 }
+  defaultParams: { frameCount: 9, frameDurationMs: 200 }
 };

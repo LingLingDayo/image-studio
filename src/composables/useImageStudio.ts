@@ -6,14 +6,13 @@ import { useGalleryStore } from '@/stores/galleryStore';
 import { defaultTaskScheduler } from '@/core/scheduler/TaskScheduler';
 import type { TaskReferenceImage, TaskGenerationParams, GenerationTask } from '@/types/task';
 import {
-  type ModelComplexity,
   type ModelGenerationSettings,
   type ModelFormat,
   type ModelModeration,
   type ModelQuality,
   type ResolutionTier
 } from '@/types/model';
-import { fitModelGeneratedSize, normalizeModelSettings, validateModelGenerationParams } from '@/core/models/settings';
+import { fitModelGeneratedSize, normalizeModelSettings, resolveModelComplexity, validateModelGenerationParams } from '@/core/models/settings';
 import type { MediaAsset, ArtworkBatch } from '@/types/asset';
 import { dataUrlToFile } from '@/utils/download';
 import { calculateImageDimensions, loadImageDimensions } from '@/utils/image';
@@ -102,7 +101,6 @@ export function useImageStudio() {
   const moderation = ref<ModelModeration>(modelStore.activeModel.defaultParams.moderation ?? 'low');
   const count = ref<number>(modelStore.activeModel.defaultParams.count);
 
-  const complexity = ref<ModelComplexity | undefined>(modelStore.activeModel.defaultParams.complexity);
   const outputCompression = ref<number | undefined>(modelStore.activeModel.defaultParams.outputCompression);
   const frameCount = ref<number | undefined>(modelStore.activeModel.defaultParams.frameCount);
   const frameDurationMs = ref<number | undefined>(modelStore.activeModel.defaultParams.frameDurationMs);
@@ -125,7 +123,7 @@ export function useImageStudio() {
         size: sizeState.width !== null && sizeState.height !== null ? `${sizeState.width}x${sizeState.height}` : 'auto',
         resolution: resolution.value, aspectRatio: aspectRatio.value, quality: quality.value, format: format.value,
         transparent: transparent.value, moderation: moderation.value, count: count.value,
-        complexity: complexity.value, outputCompression: outputCompression.value,
+        outputCompression: outputCompression.value,
         frameCount: frameCount.value, frameDurationMs: frameDurationMs.value
       };
       const next = normalizeModelSettings(modelStore.activeModel, current, referenceImages.value.length > 0 ? 'i2i' : 't2i');
@@ -139,7 +137,6 @@ export function useImageStudio() {
       transparent.value = next.transparent;
       moderation.value = next.moderation;
       count.value = next.count;
-      complexity.value = next.complexity;
       outputCompression.value = next.outputCompression;
       frameCount.value = next.frameCount;
       frameDurationMs.value = next.frameDurationMs;
@@ -151,7 +148,7 @@ export function useImageStudio() {
 
   watch([
     () => modelStore.activeModel, () => referenceImages.value.length, quality, format, transparent, moderation,
-    count, complexity, outputCompression, frameCount, frameDurationMs
+    count, outputCompression, frameCount, frameDurationMs
   ], syncModelSettings, { flush: 'sync', deep: true });
 
   const isGenerating = computed(() => taskStore.isGenerating);
@@ -315,7 +312,7 @@ export function useImageStudio() {
         format: outputFormat,
         transparent: transparent.value,
         moderation: modelStore.activeModel.moderationOptions.length > 0 ? moderation.value : undefined,
-        complexity: complexity.value,
+        complexity: resolveModelComplexity(modelStore.activeModel, effectiveResolution, outputFormat),
         outputCompression: outputCompression.value,
         frameCount: outputFormat === 'gif' ? frameCount.value : undefined,
         frameDurationMs: outputFormat === 'gif' ? frameDurationMs.value : undefined,
@@ -475,7 +472,6 @@ export function useImageStudio() {
       if (targetFormat) format.value = targetFormat;
       if (targetCount && targetCount > 0) count.value = targetCount;
       if (targetModeration) moderation.value = targetModeration;
-      complexity.value = source.complexity as ModelComplexity | undefined;
       outputCompression.value = source.outputCompression;
       frameCount.value = source.frameCount;
       frameDurationMs.value = source.frameDurationMs;
@@ -506,7 +502,6 @@ export function useImageStudio() {
     format,
     transparent,
     moderation,
-    complexity,
     outputCompression,
     frameCount,
     frameDurationMs,

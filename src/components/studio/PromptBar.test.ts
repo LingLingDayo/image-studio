@@ -616,12 +616,13 @@ describe('PromptBar 模型设置列表联动', () => {
     expect(container.querySelector('.ui-slider')).not.toBeNull();
   });
 
-  it('切换模型立即替换格式、画质和复杂度选项，未知模型使用旧列表', async () => {
+  it('切换模型立即替换格式与画质选项，复杂度始终不暴露为设置项', async () => {
     app = createApp(() => h(PromptBar, baseProps));
     app.mount(container);
     expect(await options('格式')).toEqual(['PNG', 'JPEG', 'WEBP', 'GIF', 'SVG']);
     expect(await options('质量')).toEqual(['自动', '低', '中', '高', '极高', '最高']);
-    expect(findSelect('复杂度')).toBeDefined();
+    expect(findSelect('复杂度')).toBeUndefined();
+    expect(container.textContent).not.toContain('复杂度');
     useModelStore().setActiveModel('gpt-image-2');
     await nextTick();
     expect(await options('格式')).toEqual(['PNG', 'JPEG', 'WEBP']);

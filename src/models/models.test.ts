@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createImageModelProfile, GPT_IMAGE_2_PROFILE, IMAGE_MODEL_DEFINITIONS } from './index';
-import { fitModelGeneratedSize, getModelFormatOptions, normalizeModelSettings, validateModelGenerationParams } from '@/core/models/settings';
+import { fitModelGeneratedSize, getModelFormatOptions, normalizeModelSettings, resolveModelComplexity, validateModelGenerationParams } from '@/core/models/settings';
 import type { ModelGenerationSettings } from '@/types/model';
 import { calcMaxSize } from '@/utils/imageSize';
 import type { TaskGenerationParams } from '@/types/task';
@@ -51,7 +51,6 @@ describe('独立模型能力配置', () => {
     expect(settings.quality).toBe('medium');
     expect(settings.format).toBe('jpeg');
     expect(settings.count).toBe(4);
-    expect(settings.complexity).toBeUndefined();
     expect(normalizeModelSettings(GPT_IMAGE_2_PROFILE, params({ quality: 'low', format: 'webp' }), 't2i').quality).toBe('low');
   });
 
@@ -83,6 +82,37 @@ describe('模型尺寸和默认配置约束', () => {
   it('没有画质和审核参数的模型不因空列表拒绝生成', () => {
     const profile = createImageModelProfile('simple', { id: 'simple', qualityOptions: [], moderationOptions: [], complexityOptions: [] });
     expect(() => validateModelGenerationParams(profile, params({ model: 'simple', format: 'png', complexity: undefined, frameCount: undefined, frameDurationMs: undefined }))).not.toThrow();
+  });
+});
+
+
+describe('复杂度按分辨率与输出格式派生', () => {
+  const profile = createImageModelProfile('gpt-image-2.6-flare');
+
+  it('1K 静帧用 medium，2K/4K 与未指定分辨率沿用官方缺省 high', () => {
+    expect(resolveModelComplexity(profile, '1k', 'png')).toBe('medium');
+    expect(resolveModelComplexity(profile, '2k', 'jpeg')).toBe('high');
+    expect(resolveModelComplexity(profile, '4k', 'webp')).toBe('high');
+    expect(resolveModelComplexity(profile, 'auto', 'png')).toBe('high');
+    expect(resolveModelComplexity(profile, undefined, 'png')).toBe('high');
+  });
+
+  it('GIF 与 SVG 覆盖分辨率规则，始终使用 high', () => {
+    expect(resolveModelComplexity(profile, '1k', 'gif')).toBe('high');
+    expect(resolveModelComplexity(profile, '1k', 'svg')).toBe('high');
+  });
+
+  it('未声明该能力的模型不发送复杂度', () => {
+    expect(resolveModelComplexity(GPT_IMAGE_2_PROFILE, '1k', 'png')).toBeUndefined();
+    expect(resolveModelComplexity(GPT_IMAGE_2_PROFILE, '4k', 'gif')).toBeUndefined();
+  });
+
+  it('自定义模型缺少目标档位时回落到已声明的值', () => {
+    const custom = createImageModelProfile('custom-complexity', {
+      id: 'custom-complexity', complexityOptions: [{ label: '低', value: 'low' }]
+    });
+    expect(resolveModelComplexity(custom, '1k', 'png')).toBe('low');
+    expect(resolveModelComplexity(custom, '4k', 'gif')).toBe('low');
   });
 });
 

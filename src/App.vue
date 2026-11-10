@@ -61,7 +61,6 @@ const {
   format,
   transparent,
   moderation,
-  complexity,
   outputCompression,
   frameCount,
   frameDurationMs,
@@ -278,7 +277,6 @@ async function confirmPendingDelete() {
         v-model:format="format"
         v-model:transparent="transparent"
         v-model:moderation="moderation"
-        v-model:complexity="complexity"
         v-model:output-compression="outputCompression"
         v-model:frame-count="frameCount"
         v-model:frame-duration-ms="frameDurationMs"

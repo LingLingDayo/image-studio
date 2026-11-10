@@ -49,7 +49,6 @@ export interface ModelGenerationSettings {
   transparent: boolean;
   moderation: ModelModeration;
   count: number;
-  complexity?: ModelComplexity;
   outputCompression?: number;
   frameCount?: number;
   frameDurationMs?: number;

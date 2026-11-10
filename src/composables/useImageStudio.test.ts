@@ -782,13 +782,11 @@ describe('生图参数按模型能力同步', () => {
     const models = useModelStore();
     studio.quality.value = 'max';
     studio.format.value = 'svg';
-    studio.complexity.value = 'low';
     models.setActiveModel('gpt-image-2');
     expect(studio.quality.value).toBe('medium');
     expect(studio.format.value).toBe('jpeg');
-    expect(studio.complexity.value).toBeUndefined();
     models.setActiveModel('gpt-image-2.6-sunburst');
-    expect(studio.complexity.value).toBe('high');
+    expect(models.activeModel.formatOptions.some((option) => option.value === 'svg')).toBe(true);
     studio.quality.value = 'low';
     studio.format.value = 'webp';
     models.setActiveModel('custom-image-model');
@@ -821,7 +819,7 @@ describe('生图参数按模型能力同步', () => {
     scope.stop();
   });
 
-  it('生成只携带格式适用的参数，复用保留复杂度和动画设置', async () => {
+  it('生成只携带格式适用的参数，复用保留动画设置', async () => {
     const execute = vi.spyOn(defaultTaskScheduler, 'execute').mockResolvedValue([]);
     const scope = effectScope();
     const studio = scope.run(() => useImageStudio())!;
@@ -830,9 +828,8 @@ describe('生图参数按模型能力同步', () => {
     studio.format.value = 'gif';
     studio.frameCount.value = 12;
     studio.frameDurationMs.value = 303;
-    studio.complexity.value = 'medium';
     const [gifTask] = await studio.generate();
-    expect(gifTask.params).toMatchObject({ format: 'gif', frameCount: 12, frameDurationMs: 300, complexity: 'medium' });
+    expect(gifTask.params).toMatchObject({ format: 'gif', frameCount: 12, frameDurationMs: 300, complexity: 'high' });
     expect(gifTask.params.outputCompression).toBeUndefined();
     expect(execute.mock.calls[0][2].id).toBe(gifTask.params.model);
     studio.format.value = 'jpeg';
@@ -844,7 +841,29 @@ describe('生图参数按模型能力同步', () => {
     await studio.reuseItem(gifTask);
     expect(studio.frameCount.value).toBe(12);
     expect(studio.frameDurationMs.value).toBe(300);
-    expect(studio.complexity.value).toBe('medium');
+    scope.stop();
+  });
+
+  it('生成按实际生效的分辨率与格式派生复杂度，旧模型不携带该参数', async () => {
+    vi.spyOn(defaultTaskScheduler, 'execute').mockResolvedValue([]);
+    const scope = effectScope();
+    const studio = scope.run(() => useImageStudio())!;
+    useConfigStore().updateConfig({ baseUrl: 'https://example.com', apiKey: 'test-key' });
+    const models = useModelStore();
+    models.setActiveModel('gpt-image-2.6-flare');
+    studio.prompt.value = 'complexity test';
+    studio.resolution.value = '1k';
+    studio.format.value = 'png';
+    expect((await studio.generate())[0].params.complexity).toBe('medium');
+    studio.resolution.value = '2k';
+    expect((await studio.generate())[0].params.complexity).toBe('high');
+    studio.resolution.value = '4k';
+    expect((await studio.generate())[0].params.complexity).toBe('high');
+    studio.resolution.value = '1k';
+    studio.format.value = 'svg';
+    expect((await studio.generate())[0].params.complexity).toBe('high');
+    models.setActiveModel('gpt-image-2');
+    expect((await studio.generate())[0].params.complexity).toBeUndefined();
     scope.stop();
   });
 

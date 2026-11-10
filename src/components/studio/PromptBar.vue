@@ -15,13 +15,11 @@ import {
   Scaling,
   Images,
   ShieldCheck,
-  Brain,
   Film,
   Timer
 } from '@lucide/vue';
 import {
   DEFAULT_IMAGE_MODEL_ID,
-  type ModelComplexity,
   type ModelFormat,
   type ModelModeration,
   type ModelQuality,
@@ -50,7 +48,6 @@ const props = defineProps<{
   format: ModelFormat;
   transparent: boolean;
   moderation?: ModelModeration;
-  complexity?: ModelComplexity;
   outputCompression?: number;
   frameCount?: number;
   frameDurationMs?: number;
@@ -73,7 +70,6 @@ const emit = defineEmits<{
   (e: 'update:format', val: ModelFormat): void;
   (e: 'update:transparent', val: boolean): void;
   (e: 'update:moderation', val: ModelModeration): void;
-  (e: 'update:complexity', val: ModelComplexity): void;
   (e: 'update:outputCompression', val: number | undefined): void;
   (e: 'update:frameCount', val: number): void;
   (e: 'update:frameDurationMs', val: number): void;
@@ -506,17 +502,6 @@ onUnmounted(() => {
             placement="top"
             variant="pill"
             @update:model-value="emit('update:quality', $event as ModelQuality)"
-          />
-
-          <UiSelect
-            v-if="activeModel.complexityOptions.length > 0"
-            :model-value="complexity || activeModel.defaultParams.complexity || 'high'"
-            label="复杂度"
-            :icon="Brain"
-            :options="activeModel.complexityOptions"
-            placement="top"
-            variant="pill"
-            @update:model-value="emit('update:complexity', $event as ModelComplexity)"
           />
 
           <!-- 格式选择 -->
