@@ -247,6 +247,11 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
     background: $bg-surface;
     border-color: $accent-primary;
     box-shadow: 0 0 0 3px $accent-soft;
+
+    &:hover {
+      border-color: $accent-primary;
+      box-shadow: 0 0 0 3px $accent-soft;
+    }
   }
 }
 
@@ -269,6 +274,11 @@ function handleDimWheel(dim: 'width' | 'height', e: WheelEvent) {
   &:focus-visible {
     border-color: $accent-primary;
     box-shadow: 0 0 0 3px $accent-soft;
+
+    &:hover {
+      border-color: $accent-primary;
+      box-shadow: 0 0 0 3px $accent-soft;
+    }
   }
 }
 

@@ -362,15 +362,17 @@ function handleKeyDown(e: KeyboardEvent) {
     }
   }
 
-  &.is-open .select-trigger {
+  &.is-open .select-trigger,
+  &:focus-visible .select-trigger,
+  .select-trigger:focus-visible {
     background: $bg-surface;
     border-color: $accent-primary;
     box-shadow: 0 0 0 3px $accent-soft;
-  }
 
-  &:focus-visible .select-trigger {
-    border-color: $accent-primary;
-    box-shadow: 0 0 0 3px $accent-soft;
+    &:hover {
+      border-color: $accent-primary;
+      box-shadow: 0 0 0 3px $accent-soft;
+    }
   }
 
   .select-label {
@@ -406,14 +408,16 @@ function handleKeyDown(e: KeyboardEvent) {
     }
   }
 
-  &.is-open .select-trigger {
+  &.is-open .select-trigger,
+  &:focus-visible .select-trigger,
+  .select-trigger:focus-visible {
     border-color: $accent-primary;
     box-shadow: 0 0 0 3px $accent-soft;
-  }
 
-  &:focus-visible .select-trigger {
-    border-color: $accent-primary;
-    box-shadow: 0 0 0 3px $accent-soft;
+    &:hover {
+      border-color: $accent-primary;
+      box-shadow: 0 0 0 3px $accent-soft;
+    }
   }
 
   .select-label {

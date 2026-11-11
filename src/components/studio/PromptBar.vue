@@ -535,6 +535,7 @@ onUnmounted(() => {
             :min="activeModel.animation.frameCount.min"
             :max="activeModel.animation.frameCount.max"
             :step="activeModel.animation.frameCount.step"
+            variant="pill"
             @update:model-value="emit('update:frameCount', $event)"
           />
           <UiStepper
@@ -546,6 +547,7 @@ onUnmounted(() => {
             :min="activeModel.animation.frameDurationMs.min"
             :max="activeModel.animation.frameDurationMs.max"
             :step="activeModel.animation.frameDurationMs.step"
+            variant="pill"
             @update:model-value="emit('update:frameDurationMs', $event)"
           />
 

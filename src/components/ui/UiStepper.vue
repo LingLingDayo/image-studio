@@ -155,7 +155,7 @@ function handleWheel(e: WheelEvent) {
   box-shadow: $shadow-xs;
   border-radius: 9999px;
   padding: 3px 8px 3px 10px;
-  height: 26px;
+  min-height: 28px;
   box-sizing: border-box;
   line-height: normal;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
@@ -169,6 +169,11 @@ function handleWheel(e: WheelEvent) {
     background: $bg-surface;
     border-color: $accent-primary;
     box-shadow: 0 0 0 3px $accent-soft;
+
+    &:hover {
+      border-color: $accent-primary;
+      box-shadow: 0 0 0 3px $accent-soft;
+    }
   }
 }
 

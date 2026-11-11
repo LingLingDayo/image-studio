@@ -125,8 +125,20 @@ watch(() => props.disabled, (disabled) => { if (disabled) isOpen.value = false; 
   line-height: 1.25;
   cursor: pointer;
 
-  &:hover:not(:disabled) { border-color: $accent-border; }
-  &:focus-visible, .is-open & { outline: none; border-color: $accent-primary; box-shadow: 0 0 0 3px $accent-soft; }
+  &:hover:not(:disabled) {
+    border-color: $accent-border;
+    box-shadow: 0 2px 6px $accent-soft;
+  }
+  &:focus-visible, .is-open & {
+    outline: none;
+    border-color: $accent-primary;
+    box-shadow: 0 0 0 3px $accent-soft;
+
+    &:hover {
+      border-color: $accent-primary;
+      box-shadow: 0 0 0 3px $accent-soft;
+    }
+  }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
