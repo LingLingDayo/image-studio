@@ -190,10 +190,6 @@ function handleWheel(e: WheelEvent) {
   margin-right: 2px;
   cursor: pointer;
 
-  &:hover {
-    color: $text-main;
-  }
-
   .is-disabled & {
     cursor: not-allowed;
   }
