@@ -447,3 +447,43 @@ describe('AssetRepository 删除事务完成前回滚', () => {
     expect(await assetRepository.getAll()).toHaveLength(2);
   });
 });
+
+describe('AssetRepository 相册元数据与按需图像装载', () => {
+  beforeEach(async () => {
+    await assetRepository.clearAll();
+  });
+
+  it('读取列表元数据时不携带像素数据，也不创建对象 URL', async () => {
+    const first = await assetRepository.save(createAsset({ prompt: 'lazy first', timestamp: 2000 }));
+    await assetRepository.save(createAsset({ prompt: 'lazy second', timestamp: 1000 }));
+    const createUrl = vi.spyOn(URL, 'createObjectURL');
+
+    const metadata = await assetRepository.getAllMetadata();
+
+    expect(createUrl).not.toHaveBeenCalled();
+    expect(metadata.map((asset) => asset.prompt)).toEqual(['lazy first', 'lazy second']);
+    expect(metadata.every((asset) => asset.url === '' && asset.blob.size === 0 && asset.hasImage === true)).toBe(true);
+    createUrl.mockRestore();
+
+    const loaded = await assetRepository.loadImage(first.id as number);
+    expect(loaded?.url.startsWith('blob:')).toBe(true);
+    expect(new Uint8Array(await loaded!.blob.arrayBuffer())).toEqual(new Uint8Array(await PNG_BLOB.arrayBuffer()));
+  });
+
+  it('元数据列表与完整快照保持相同的作品集合', async () => {
+    await assetRepository.save(createAsset({ prompt: 'normal', timestamp: 3000 }));
+    await assetRepository.save(createAsset({ prompt: 'failed item', status: 'failed', timestamp: 2000 }));
+
+    const metadata = await assetRepository.getAllMetadata();
+    const snapshot = await assetRepository.getSnapshot();
+
+    expect(metadata).toHaveLength(1);
+    expect(metadata.map((asset) => asset.prompt)).toEqual(snapshot.assets.map((asset) => asset.prompt));
+  });
+
+  it('loadImage 对不存在或失败的作品返回 null', async () => {
+    const failed = await assetRepository.save(createAsset({ prompt: 'failed', status: 'failed', timestamp: 4000 }));
+    expect(await assetRepository.loadImage(failed.id as number)).toBeNull();
+    expect(await assetRepository.loadImage(999999)).toBeNull();
+  });
+});

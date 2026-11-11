@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
+import { assetRepository } from '@/core/storage/AssetRepository';
 import { 
   useGalleryStore, 
   PAGE_SIZE_STORAGE_KEY, 
@@ -244,6 +245,56 @@ describe('useGalleryStore Pagination', () => {
 
     const store2 = useGalleryStore();
     expect(store2.filterFavoriteOnly).toBe(true);
+  });
+});
+
+describe('useGalleryStore 按需装载作品图片', () => {
+  beforeEach(async () => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    await assetRepository.clearAll();
+  });
+
+  function seedAsset(): Omit<MediaAsset, 'id'> {
+    const { id: _id, ...asset } = createMockAsset(1, '懒加载作品');
+    return asset;
+  }
+
+  it('加载相册只保留元数据，ensureImage 后才写入可用展示 URL', async () => {
+    const store = useGalleryStore();
+    await store.addItem(seedAsset());
+    await store.loadGallery();
+
+    const [metadata] = store.items;
+    expect(metadata.url).toBe('');
+    expect(metadata.blob.size).toBe(0);
+    expect(metadata.hasImage).toBe(true);
+
+    const url = await store.ensureImage(metadata);
+    expect(url.startsWith('blob:')).toBe(true);
+    expect(store.items[0].url).toBe(url);
+    expect(store.items[0].blob.size).toBeGreaterThan(0);
+  });
+
+  it('同一作品的并发请求只读取一次存储', async () => {
+    const store = useGalleryStore();
+    await store.addItem(seedAsset());
+    await store.loadGallery();
+    const spy = vi.spyOn(assetRepository, 'loadImage');
+
+    try {
+      const asset = store.items[0];
+      const urls = await Promise.all([
+        store.ensureImage(asset),
+        store.ensureImage(asset),
+        store.ensureImage({ ...asset })
+      ]);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(urls.every((url) => url.startsWith('blob:'))).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
