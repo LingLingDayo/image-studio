@@ -31,6 +31,8 @@ export interface MediaAsset {
   referenceImages?: string[];
   status?: 'succeeded' | 'failed';
   errorMessage?: string;
+  /** 运行时标记：存储中是否存在可加载的像素数据，false 表示已确认无可用图像。不持久化。 */
+  hasImage?: boolean;
 }
 
 export interface ArtworkBatch {

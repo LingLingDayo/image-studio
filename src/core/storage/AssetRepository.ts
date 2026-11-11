@@ -250,6 +250,53 @@ class AssetRepository {
     });
   }
 
+  /** 投影为只含元数据的轻量资产，图像字节随游标推进即可回收，且不提前创建对象 URL。 */
+  private toMetadataAsset(record: StoredAsset): MediaAsset {
+    const {
+      imageBytes: _imageBytes,
+      imageMime: _imageMime,
+      url: _url,
+      blob: _blob,
+      ...metadata
+    } = this.normalizeStoredRecord(record);
+    return { ...metadata, url: '', blob: new Blob([]), hasImage: true };
+  }
+
+  /**
+   * 读取相册列表所需的元数据。
+   * 游标逐条投影，避免把全部图片字节一次性常驻内存；旧格式记录沿用既有兼容判定。
+   */
+  public async getAllMetadata(): Promise<MediaAsset[]> {
+    const db = await this.getDB();
+    const { ready, legacy } = await new Promise<{ ready: MediaAsset[]; legacy: StoredAsset[] }>((resolve, reject) => {
+      const tx = db.transaction(ASSET_STORE, 'readonly');
+      const req = tx.objectStore(ASSET_STORE).openCursor();
+      const ready: MediaAsset[] = [];
+      const legacy: StoredAsset[] = [];
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (!cursor) return;
+        const record = cursor.value as StoredAsset;
+        // 失败作品与无法识别的旧记录不进入列表，与 getSnapshot 保持同一筛选口径
+        if (record.status !== 'failed') {
+          if (record.imageBytes?.byteLength > 0) ready.push(this.toMetadataAsset(record));
+          else legacy.push(record);
+        }
+        cursor.continue();
+      };
+      tx.oncomplete = () => resolve({ ready, legacy });
+      tx.onabort = () => reject(tx.error || new Error('读取作品元数据失败'));
+      tx.onerror = () => reject(tx.error);
+    });
+
+    const result = ready;
+    for (const record of legacy) {
+      const compatible = await this.readCompatibleRecord(record);
+      if (compatible) result.push(this.toMetadataAsset(compatible));
+    }
+    return result.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  }
+
   private async readCompatibleRecord(record: StoredAsset): Promise<StoredAsset | null> {
     if (record.imageBytes && record.imageBytes.byteLength > 0) return this.normalizeStoredRecord(record);
     let blob: Blob | undefined;
@@ -286,6 +333,23 @@ class AssetRepository {
     const snapshot = await this.getSnapshot();
     return snapshot.assets.map((asset) => this.hydrateAsset(asset));
   }
+
+  /** 按 id 读取单张作品的像素并生成展示 URL，供接近视口时按需装载。 */
+  public async loadImage(id: number): Promise<MediaAsset | null> {
+    const db = await this.getDB();
+    const record = await new Promise<StoredAsset | undefined>((resolve, reject) => {
+      const tx = db.transaction(ASSET_STORE, 'readonly');
+      const req = tx.objectStore(ASSET_STORE).get(id);
+      tx.oncomplete = () => resolve(req.result as StoredAsset | undefined);
+      tx.onabort = () => reject(tx.error || new Error('读取作品图像失败'));
+      tx.onerror = () => reject(tx.error);
+    });
+    if (!record || record.status === 'failed') return null;
+    const compatible = await this.readCompatibleRecord(record);
+    if (!compatible) return null;
+    return this.hydrateAsset(this.fromStoredRecord(compatible));
+  }
+
 
   public async mergeAssets(assets: Array<Omit<MediaAsset, 'id'>>): Promise<{ added: number; skipped: number }> {
     const prepared: StoredAsset[] = [];

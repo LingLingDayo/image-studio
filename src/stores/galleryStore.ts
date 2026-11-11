@@ -206,10 +206,75 @@ export const useGalleryStore = defineStore('gallery', () => {
     }
   }
 
+  // 同一张图可能被卡片、灯箱、下载同时请求，用 in-flight 去重避免重复读取与重复创建对象 URL
+  const pendingImageLoads = new Map<number, Promise<void>>();
+
+  function applyImageData(asset: MediaAsset, id: number, url: string, blob: Blob) {
+    const stored = items.value.find((item) => item.id === id);
+    if (stored) {
+      stored.url = url;
+      stored.blob = blob;
+      stored.hasImage = true;
+    }
+    // 传入对象可能不是 items 中的响应式引用（如灯箱持有的普通对象），一并补齐
+    if (!asset.url) {
+      asset.url = url;
+      asset.blob = blob;
+    }
+    asset.hasImage = true;
+  }
+
+  function markImageMissing(asset: MediaAsset, id: number) {
+    const stored = items.value.find((item) => item.id === id);
+    if (stored) stored.hasImage = false;
+    asset.hasImage = false;
+  }
+
+  // 并发等待方可能持有的是非响应式副本，装载完成后从列表中的响应式资产同步结果
+  function syncImageFromStore(asset: MediaAsset, id: number): string {
+    if (asset.url) return asset.url;
+    const stored = items.value.find((item) => item.id === id);
+    if (!stored?.url) return '';
+    asset.url = stored.url;
+    asset.blob = stored.blob;
+    asset.hasImage = true;
+    return asset.url;
+  }
+
+  /** 按需装载单张作品的展示 URL；未接近视口的作品始终只保留轻量元数据。 */
+  async function ensureImage(asset: MediaAsset): Promise<string> {
+    if (asset.url) return asset.url;
+    if (asset.hasImage === false || asset.status === 'failed' || !asset.id) return '';
+    const id = asset.id;
+    const pending = pendingImageLoads.get(id);
+    if (pending) {
+      await pending;
+      return syncImageFromStore(asset, id);
+    }
+    const task = (async () => {
+      try {
+        const loaded = await assetRepository.loadImage(id);
+        if (loaded?.url) applyImageData(asset, id, loaded.url, loaded.blob);
+        else markImageMissing(asset, id);
+      } catch (error) {
+        // 读取失败保留可重试状态，避免一次异常让作品永久停在占位骨架上
+        console.error('加载作品图片失败:', error);
+      }
+    })().finally(() => pendingImageLoads.delete(id));
+    pendingImageLoads.set(id, task);
+    await task;
+    return syncImageFromStore(asset, id);
+  }
+
+  async function ensureImages(assets: MediaAsset[]): Promise<void> {
+    await Promise.all(assets.map((asset) => ensureImage(asset)));
+  }
+
   async function loadGallery() {
     isLoading.value = true;
     try {
-      items.value = await assetRepository.getAll();
+      // 已有的展示 URL 按 id 复用，重新装载同一张图时由仓储层替换并回收旧 URL
+      items.value = await assetRepository.getAllMetadata();
     } catch (e) {
       console.error('加载相册失败:', e);
     } finally {
@@ -318,6 +383,8 @@ export const useGalleryStore = defineStore('gallery', () => {
     nextPage,
     prevPage,
     loadGallery,
+    ensureImage,
+    ensureImages,
     addItem,
     addAssets,
     toggleFavorite,
