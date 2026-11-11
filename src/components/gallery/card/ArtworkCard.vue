@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import type { MediaAsset, ArtworkBatch } from '@/types/asset';
 import { 
   RotateCw, 
@@ -11,12 +11,15 @@ import {
   ChevronLeft, 
   ChevronRight, 
   AlertCircle,
-  Clock
+  Clock,
+  Image as ImageIcon
 } from '@lucide/vue';
 import { downloadRotatedImage, generateAssetFilename } from '@/utils/download';
 import { formatQualityLabel, getResolutionDisplay, formatDisplayRatio } from '@/utils/imageSize';
 import { getErrorHeadline } from '@/utils/apiError';
 import { useConfigStore } from '@/stores/configStore';
+import { useGalleryStore } from '@/stores/galleryStore';
+import { useNearViewport } from '@/composables/useNearViewport';
 
 const props = defineProps<{
   item?: MediaAsset;
@@ -197,6 +200,25 @@ function handleTitleClick() {
 }
 
 const configStore = useConfigStore();
+const galleryStore = useGalleryStore();
+
+// 卡片缩略图只在接近视口时读取像素，列表初始化阶段仅持有元数据
+const imageWrapperRef = ref<HTMLElement | null>(null);
+const canShowImage = computed(() => {
+  const asset = currentAsset.value;
+  if (!asset) return false;
+  return asset.status !== 'failed' && asset.hasImage !== false;
+});
+
+const { reset: resetNearViewport } = useNearViewport(imageWrapperRef, () => {
+  const asset = currentAsset.value;
+  if (asset) void galleryStore.ensureImage(asset);
+});
+
+// 多图轮播切换后需要为新的当前图重新武装观察
+watch(() => currentAsset.value?.id, () => {
+  void nextTick(resetNearViewport);
+});
 
 // 下载单张或批量多张原图
 async function handleDownload() {
@@ -204,6 +226,14 @@ async function handleDownload() {
   const targetFormat = configStore.downloadImageFormat;
 
   try {
+    // 下载需要完整像素，未进入过视口的图片在此按需补齐
+    const downloadList = assetsList.value.length > 1
+      ? assetsList.value
+      : currentAsset.value ? [currentAsset.value] : [];
+    if (downloadList.some((a) => !a.url)) {
+      await galleryStore.ensureImages(downloadList);
+    }
+
     if (assetsList.value.length > 1) {
       const list = assetsList.value;
       for (let i = 0; i < list.length; i++) {
@@ -234,13 +264,18 @@ async function handleDownload() {
 <template>
   <div v-if="currentAsset" class="gallery-card artwork-card">
     <!-- 左侧图片缩略图区 -->
-    <div class="card-image-wrapper" @click="handleImageClick">
+    <div ref="imageWrapperRef" class="card-image-wrapper" @click="handleImageClick">
       <img 
-        v-if="currentAsset.status !== 'failed' && currentAsset.url"
+        v-if="canShowImage && currentAsset.url"
         :src="currentAsset.url" 
         :alt="currentAsset.prompt" 
-        loading="lazy" 
+        loading="lazy"
+        decoding="async"
       />
+      <!-- 尚未进入视口预取区时的轻量占位，不触发任何图像数据读取 -->
+      <div v-else-if="canShowImage" class="card-image-placeholder" aria-hidden="true">
+        <ImageIcon :size="20" />
+      </div>
       <!-- 失败项占位展示 -->
       <div v-else class="card-failed-placeholder" :data-tip="currentAsset.errorMessage || '生图失败'">
         <AlertCircle :size="20" class="fail-icon" />
@@ -417,6 +452,23 @@ async function handleDownload() {
     pointer-events: auto;
     transform: translate(-50%, 0);
   }
+}
+
+.card-image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $text-dim;
+  background: linear-gradient(110deg, $bg-surface-subtle 30%, $bg-surface-hover 50%, $bg-surface-subtle 70%);
+  background-size: 200% 100%;
+  animation: card-image-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes card-image-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
 }
 
 .card-failed-placeholder {

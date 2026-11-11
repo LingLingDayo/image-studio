@@ -6,7 +6,8 @@ function isSameAsset(a: MediaAsset, b: MediaAsset): boolean {
   if (a.id != null && b.id != null) {
     return a.id === b.id;
   }
-  return a.url === b.url;
+  // 懒加载下未装载的作品 url 为空，不能把两个空 url 误判为同一张图
+  return Boolean(a.url) && a.url === b.url;
 }
 
 function findWorkIndex(works: ArtworkBatch[], item: MediaAsset | null): number {

@@ -5,6 +5,7 @@ import { downloadRotatedImage, generateAssetFilename, supportsCanvasImageFormat 
 import { useViewportCanvas } from '@/composables/useViewportCanvas';
 import { useArtworkSwitcher } from '@/composables/useArtworkSwitcher';
 import { useConfigStore } from '@/stores/configStore';
+import { useGalleryStore } from '@/stores/galleryStore';
 import { X, ChevronLeft, ChevronRight } from '@lucide/vue';
 import LightboxViewport from './lightbox/LightboxViewport.vue';
 import LightboxDetailPanel from './lightbox/LightboxDetailPanel.vue';
@@ -63,7 +64,13 @@ const {
 } = useViewportCanvas(panelRef);
 
 const configStore = useConfigStore();
+const galleryStore = useGalleryStore();
 const isFullscreen = ref(false);
+
+// 灯箱可切换到列表里尚未进入过视口的作品，切换后按需装载对应像素
+watch(currentActiveItem, (item) => {
+  if (item) void galleryStore.ensureImage(item);
+}, { immediate: true });
 
 async function toggleFullscreen() {
   if (!isFullscreen.value) {
@@ -152,7 +159,8 @@ function handleNextWork() {
 async function handleDownload() {
   const item = currentActiveItem.value;
   if (item) {
-    if (item.status === 'failed' || !item.url) {
+    const url = item.url || await galleryStore.ensureImage(item);
+    if (item.status === 'failed' || !url) {
       emit('showToast', '当前图片未生成成功，无法下载', 'error');
       return;
     }
@@ -164,7 +172,7 @@ async function handleDownload() {
     const normRot = ((rotation.value % 360) + 360) % 360;
     
     try {
-      await downloadRotatedImage(item.url, filename, rotation.value, finalExt, origExt);
+      await downloadRotatedImage(url, filename, rotation.value, finalExt, origExt);
       const message = normRot !== 0 && !supportsCanvasImageFormat(finalExt)
         ? '已开始下载原件，GIF/SVG 不应用旋转'
         : normRot !== 0 ? `已下载旋转 (${normRot}°) 后的图片！` : '已开始下载图片！';

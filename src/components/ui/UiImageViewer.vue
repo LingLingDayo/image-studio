@@ -11,7 +11,8 @@ import {
   X,
   ChevronLeft, 
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from '@lucide/vue';
 import { useViewportCanvas } from '@/composables/useViewportCanvas';
 import { getErrorHeadline } from '@/utils/apiError';
@@ -385,7 +386,7 @@ defineExpose({
 
     <!-- 失败状态视口展示 -->
     <div 
-      v-if="currentActiveItem && (currentActiveItem.status === 'failed' || !currentActiveItem.url)" 
+      v-if="currentActiveItem && currentActiveItem.status === 'failed'" 
       class="viewport-failed-stage"
     >
       <div class="failed-card-box">
@@ -398,6 +399,12 @@ defineExpose({
           此批次中的当前项未生成或加载成功。您可以点击切换按钮查看其他图片。
         </p>
       </div>
+    </div>
+
+    <!-- 像素尚未按需装载完成时显示加载态，区别于真正的生成失败 -->
+    <div v-else-if="currentActiveItem && !currentActiveItem.url" class="viewport-loading-stage">
+      <Loader2 :size="28" class="viewer-loading-icon" />
+      <span>图片加载中…</span>
     </div>
 
     <!-- 正常图片视口展示 -->
@@ -568,6 +575,28 @@ defineExpose({
     width: 34px;
     height: 34px;
   }
+}
+
+.viewport-loading-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: $text-dim;
+  font-size: 0.85rem;
+  z-index: 1;
+}
+
+.viewer-loading-icon {
+  color: $accent-primary;
+  animation: viewer-spin 1s infinite linear;
+}
+
+@keyframes viewer-spin {
+  to { transform: rotate(360deg); }
 }
 
 .viewport-failed-stage {
