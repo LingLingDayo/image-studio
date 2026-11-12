@@ -588,9 +588,9 @@ describe('PromptBar 模型设置列表联动', () => {
     const label = container.querySelector<HTMLElement>('.slider-label')!;
     expect(label.textContent).toBe('压缩');
     expect(container.querySelector('.ui-slider svg')).toBeNull();
-    expect(label.dataset.tip).toContain('压缩质量');
-    expect(label.dataset.tip).toContain('数值越大质量越高');
-    expect(label.dataset.tip).toContain('非生图画质');
+    expect(label.dataset.tip).toContain('控制输出文件的压缩质量');
+    expect(label.dataset.tip).toContain('数值代表保留的质量百分比');
+    expect(label.dataset.tip).toContain('100 为最高质量');
     expect(container.textContent).not.toContain('压缩质量');
     expect(container.querySelector('input[type="range"]')).toBeNull();
     container.querySelector<HTMLButtonElement>('.slider-trigger')!.click();
