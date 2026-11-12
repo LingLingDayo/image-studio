@@ -100,11 +100,9 @@ const modelSelectOptions = computed<SelectOption[]>(() => {
 
   const options: SelectOption[] = ids.map((id) => {
     const profile = modelStore.getModelProfile(id);
-    const verification = profile.verification;
     return {
       label: profile.name,
-      value: id,
-      tip: verification ? [`核实日期：${verification.checkedAt}`, ...verification.notes].join('\n') : profile.description
+      value: id
     };
   });
 

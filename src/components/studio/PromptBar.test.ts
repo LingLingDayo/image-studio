@@ -681,8 +681,8 @@ describe('PromptBar 模型设置列表联动', () => {
 });
 
 
-describe('模型数据核实提示', () => {
-  it('二点五模型保持独立名称并展示相同参数配置说明', async () => {
+describe('模型选项展示', () => {
+  it('二点五模型保持独立名称且不展示冗余核实提示', async () => {
     localStorage.clear();
     setActivePinia(createPinia());
     const models = useModelStore();
@@ -698,10 +698,8 @@ describe('模型数据核实提示', () => {
       select.querySelector<HTMLButtonElement>('.select-trigger')!.click();
       await nextTick();
       const modelOption = Array.from(select.querySelectorAll<HTMLElement>('.dropdown-item')).find((item) => item.querySelector('.item-label')?.textContent === 'GPT-Image-2.5')!;
-      expect(modelOption.dataset.tip).toContain('2026-11-10');
-      expect(modelOption.dataset.tip).toContain('参数配置与 gpt-image-2.5-flare 相同');
-      expect(modelOption.dataset.tip).toContain('模型名称和请求 ID 保持 gpt-image-2.5');
-      expect(modelOption.dataset.tip).not.toContain('别名');
+      expect(modelOption).toBeDefined();
+      expect(modelOption.dataset.tip).toBeUndefined();
     } finally {
       app.unmount();
       container.remove();
