@@ -37,6 +37,41 @@ const showActiveTasks = computed(() => {
   );
 });
 
+type GridCardItem =
+  | { kind: 'task'; key: string; sortTime: number; task: GenerationTask }
+  | { kind: 'batch'; key: string; sortTime: number; batch: ArtworkBatch };
+
+// 任务与已完成批次混排并按发起时间倒序定位，避免中间任务提前完成时跳到其他未完成任务后面
+const gridCards = computed<GridCardItem[]>(() => {
+  const batchCards: GridCardItem[] = galleryStore.paginatedBatches.map((batch) => ({
+    kind: 'batch',
+    key: batch.id || String(batch.timestamp),
+    sortTime: batch.timestamp || 0,
+    batch
+  }));
+
+  if (!showActiveTasks.value) {
+    return batchCards;
+  }
+
+  const taskCards: GridCardItem[] = taskStore.activeTasks.map((task) => ({
+    kind: 'task',
+    key: task.id,
+    sortTime: task.createdAt || task.updatedAt || 0,
+    task
+  }));
+
+  return [...taskCards, ...batchCards].sort((a, b) => {
+    if (b.sortTime !== a.sortTime) {
+      return b.sortTime - a.sortTime;
+    }
+    if (a.kind !== b.kind) {
+      return a.kind === 'task' ? -1 : 1;
+    }
+    return 0;
+  });
+});
+
 const isGalleryEmpty = computed(() => {
   return !showActiveTasks.value && galleryStore.filteredBatches.length === 0;
 });
@@ -112,24 +147,14 @@ function handlePageSizeChange(size: number) {
 
     <div v-else class="gallery-content-wrap">
       <div class="cards-grid">
-        <!-- 正在生成中 / 失败重试的任务卡片 (固定在第一页顶部) -->
-        <template v-if="showActiveTasks">
-          <GalleryCard
-            v-for="task in taskStore.activeTasks"
-            :key="task.id"
-            :task="task"
-            @cancel-task="emit('cancelTask', $event)"
-            @retry-task="emit('retryTask', $event)"
-            @remove-task="emit('removeTask', $event)"
-            @reuse="emit('reuse', $event)"
-          />
-        </template>
-
-        <!-- 已生成的作品批次卡片 (支持多图聚合与卡片内切换) -->
         <GalleryCard
-          v-for="batch in galleryStore.paginatedBatches"
-          :key="batch.id || batch.timestamp"
-          :batch="batch"
+          v-for="card in gridCards"
+          :key="card.key"
+          :task="card.kind === 'task' ? card.task : undefined"
+          :batch="card.kind === 'batch' ? card.batch : undefined"
+          @cancel-task="emit('cancelTask', $event)"
+          @retry-task="emit('retryTask', $event)"
+          @remove-task="emit('removeTask', $event)"
           @preview="(item, all) => emit('preview', item, all)"
           @view="(item, all) => emit('view', item, all)"
           @regenerate="emit('regenerate', $event)"

@@ -87,15 +87,23 @@ export class TaskProgressTracker {
 export class TaskScheduler {
   private activeAbortControllers = new Map<string, AbortController>();
   private pipeline: ImagePipeline;
+  private lastCreatedAt = 0;
 
   constructor(pipeline: ImagePipeline = defaultImagePipeline) {
     this.pipeline = pipeline;
   }
 
-  public createTask(params: TaskGenerationParams): GenerationTask {
+  /** 保证同毫秒内连续创建的任务也有严格递增的创建时间，避免排序退化。 */
+  private nextCreatedAt(): number {
     const now = Date.now();
+    this.lastCreatedAt = now > this.lastCreatedAt ? now : this.lastCreatedAt + 1;
+    return this.lastCreatedAt;
+  }
+
+  public createTask(params: TaskGenerationParams): GenerationTask {
+    const createdAt = this.nextCreatedAt();
     return {
-      id: `task_${now}_${Math.random().toString(36).substring(2, 7)}`,
+      id: `task_${createdAt}_${Math.random().toString(36).substring(2, 7)}`,
       type: params.type,
       params: { ...params },
       status: 'idle',
@@ -104,8 +112,8 @@ export class TaskScheduler {
       elapsedSeconds: 0,
       durationFormatted: '0.0s',
       resultAssetIds: [],
-      createdAt: now,
-      updatedAt: now
+      createdAt,
+      updatedAt: createdAt
     };
   }
 
@@ -169,7 +177,7 @@ export class TaskScheduler {
             quality: task.params.quality,
             format: task.params.format,
             duration: task.durationFormatted || '0.0s',
-            timestamp: Date.now(),
+            timestamp: task.createdAt || Date.now(),
             isFavorite: false,
             type: task.params.type,
             referenceImages: task.params.referenceImages?.map((r) => r.previewUrl) || [],

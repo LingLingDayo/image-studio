@@ -108,7 +108,8 @@ export class DimensionAnalysisStage implements IPipelineStage {
         frameCount: params.frameCount,
         frameDurationMs: params.frameDurationMs,
         duration: ctx.task.durationFormatted || '0.0s',
-        timestamp: Date.now(),
+        // 使用任务创建时间作为作品时间戳，保证并发任务无论谁先完成都维持发起时的排列位置
+        timestamp: ctx.task.createdAt || Date.now(),
         isFavorite: false,
         type: params.type,
         referenceImages

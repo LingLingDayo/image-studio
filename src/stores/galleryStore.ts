@@ -282,21 +282,48 @@ export const useGalleryStore = defineStore('gallery', () => {
     }
   }
 
+  function insertAssetOrdered(asset: MediaAsset) {
+    const idx = asset.id !== undefined
+      ? items.value.findIndex((i) => i.id === asset.id)
+      : -1;
+    if (idx !== -1) {
+      items.value[idx] = asset;
+      return;
+    }
+
+    // 同一批次的多张图片保持到达先后顺序，不把后完成的那张插到前面
+    if (asset.batchId) {
+      let lastBatchIdx = -1;
+      for (let i = 0; i < items.value.length; i++) {
+        if (items.value[i].batchId === asset.batchId) {
+          lastBatchIdx = i;
+        }
+      }
+      if (lastBatchIdx !== -1) {
+        items.value.splice(lastBatchIdx + 1, 0, asset);
+        return;
+      }
+    }
+
+    const ts = asset.timestamp ?? 0;
+    const insertIdx = items.value.findIndex((i) => (i.timestamp ?? 0) <= ts);
+    if (insertIdx === -1) {
+      items.value.push(asset);
+    } else {
+      items.value.splice(insertIdx, 0, asset);
+    }
+  }
+
   async function addItem(item: Omit<MediaAsset, 'id'>): Promise<MediaAsset> {
     const saved = await assetRepository.save(item);
-    items.value.unshift(saved);
+    insertAssetOrdered(saved);
     currentPage.value = 1;
     return saved;
   }
 
   function addAssets(newAssets: MediaAsset[]) {
     for (const asset of newAssets) {
-      const idx = items.value.findIndex((i) => i.id === asset.id);
-      if (idx === -1) {
-        items.value.unshift(asset);
-      } else {
-        items.value[idx] = asset;
-      }
+      insertAssetOrdered(asset);
     }
     currentPage.value = 1;
   }
