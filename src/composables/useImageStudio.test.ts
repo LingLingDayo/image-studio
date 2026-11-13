@@ -894,4 +894,102 @@ describe('生图参数按模型能力同步', () => {
     expect(execute.mock.calls[0][2].id).toBe('gpt-image-2.6-flare');
     scope.stop();
   });
+
+  it('连续批量生成中任意中间任务提前完成时，GalleryGrid 卡片位置保持不变', async () => {
+    const GalleryGrid = (await import('@/components/gallery/GalleryGrid.vue')).default;
+    const { useTaskStore } = await import('@/stores/taskStore');
+
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const galleryStore = useGalleryStore();
+    const taskStore = useTaskStore();
+    useConfigStore().updateConfig({ baseUrl: 'https://example.com', apiKey: 'test-key' });
+
+    galleryStore.items = [{
+      id: 1,
+      url: 'blob:old-1',
+      blob: new Blob(['old'], { type: 'image/png' }),
+      prompt: '已有图片',
+      model: 'gpt-image-2',
+      size: '1024x1024',
+      quality: 'medium',
+      duration: '1.0s',
+      timestamp: 100
+    }];
+
+    const deferreds = new Map<string, {
+      task: GenerationTask;
+      callbacks: Parameters<typeof defaultTaskScheduler.execute>[3];
+      resolve: (assets: MediaAsset[]) => void;
+    }>();
+
+    const executeSpy = vi.spyOn(defaultTaskScheduler, 'execute').mockImplementation(
+      (task, _config, _profile, callbacks) => {
+        callbacks?.onStatusChange?.({ ...task, status: 'processing' });
+        return new Promise<MediaAsset[]>((resolve) => {
+          deferreds.set(task.params.prompt, { task, callbacks, resolve });
+        });
+      }
+    );
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const app = createApp(GalleryGrid);
+    app.use(pinia);
+    app.mount(container);
+
+    const scope = effectScope();
+    const studio = scope.run(() => useImageStudio())!;
+
+    try {
+      studio.prompt.value = '提示词A\n\n\n提示词B\n\n\n提示词C';
+      await studio.generate();
+      await nextTick();
+
+      const readPrompts = () =>
+        Array.from(container.querySelectorAll('.cards-grid .card-prompt')).map((el) => el.textContent?.trim());
+
+      expect(readPrompts()).toEqual(['提示词C', '提示词B', '提示词A', '已有图片']);
+
+      const completeByPrompt = async (promptText: string, assetId: number) => {
+        const entry = deferreds.get(promptText)!;
+        const asset: MediaAsset = {
+          id: assetId,
+          batchId: entry.task.id,
+          url: `blob:${promptText}`,
+          blob: new Blob([promptText], { type: 'image/png' }),
+          prompt: promptText,
+          model: entry.task.params.model,
+          size: '1024x1024',
+          quality: 'medium',
+          duration: '1.0s',
+          timestamp: entry.task.createdAt
+        };
+        entry.callbacks?.onImageComplete?.(entry.task, [asset]);
+        entry.task.status = 'succeeded';
+        entry.callbacks?.onStatusChange?.(entry.task);
+        entry.callbacks?.onSuccess?.(entry.task, [asset]);
+        entry.resolve([asset]);
+        await nextTick();
+      };
+
+      // 中间的 提示词B 提前完成
+      await completeByPrompt('提示词B', 20);
+      expect(readPrompts()).toEqual(['提示词C', '提示词B', '提示词A', '已有图片']);
+      expect(taskStore.activeTasks.map((t) => t.params.prompt)).toEqual(['提示词C', '提示词A']);
+
+      // 提示词A 第二个完成
+      await completeByPrompt('提示词A', 21);
+      expect(readPrompts()).toEqual(['提示词C', '提示词B', '提示词A', '已有图片']);
+
+      // 提示词C 最后完成
+      await completeByPrompt('提示词C', 22);
+      expect(readPrompts()).toEqual(['提示词C', '提示词B', '提示词A', '已有图片']);
+    } finally {
+      scope.stop();
+      app.unmount();
+      container.remove();
+      executeSpy.mockRestore();
+    }
+  });
 });

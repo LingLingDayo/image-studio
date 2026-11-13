@@ -298,4 +298,35 @@ describe('useGalleryStore 按需装载作品图片', () => {
   });
 });
 
+describe('useGalleryStore 并发产物排序', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
+
+  it('addAssets 按作品时间戳倒序插入，先完成的旧/中间任务不会插到后发起的任务前面', () => {
+    const store = useGalleryStore();
+    store.items = [{ ...createMockAsset(1, '已有作品'), timestamp: 100 }];
+
+    // 模拟任务 B (200) 先完成，任务 A (150) 次之，任务 C (300) 最后完成
+    store.addAssets([{ ...createMockAsset(2, '任务B'), batchId: 'task_b', timestamp: 200 }]);
+    store.addAssets([{ ...createMockAsset(3, '任务A'), batchId: 'task_a', timestamp: 150 }]);
+    store.addAssets([{ ...createMockAsset(4, '任务C'), batchId: 'task_c', timestamp: 300 }]);
+
+    expect(store.batches.map((b) => b.prompt)).toEqual(['任务C', '任务B', '任务A', '已有作品']);
+  });
+
+  it('addAssets 保持同一批次多张图片的到达顺序', () => {
+    const store = useGalleryStore();
+    store.items = [{ ...createMockAsset(1, '已有作品'), timestamp: 100 }];
+
+    store.addAssets([{ ...createMockAsset(10, '第1张'), batchId: 'batch_same', timestamp: 200 }]);
+    store.addAssets([{ ...createMockAsset(11, '第2张'), batchId: 'batch_same', timestamp: 200 }]);
+    store.addAssets([{ ...createMockAsset(12, '第3张'), batchId: 'batch_same', timestamp: 200 }]);
+
+    expect(store.batches).toHaveLength(2);
+    expect(store.batches[0].assets.map((a) => a.prompt)).toEqual(['第1张', '第2张', '第3张']);
+  });
+});
+
 

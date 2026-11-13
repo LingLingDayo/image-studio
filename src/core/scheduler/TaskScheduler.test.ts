@@ -417,5 +417,51 @@ describe('TaskScheduler & TaskProgressTracker', () => {
       // 生成耗时应格式化为形如 "X.Xs"
       expect(assets[0].duration).toMatch(/^\d+\.\d+s$/);
     });
+
+    it('连续创建的任务应拥有严格递增的创建时间，且产物沿用任务创建时间', async () => {
+      const scheduler = new TaskScheduler();
+      const baseParams: TaskGenerationParams = {
+        model: 'gpt-image-2',
+        prompt: 'ordered task',
+        type: 't2i',
+        size: '1024x1024',
+        resolution: '1k',
+        quality: 'medium',
+        format: 'png',
+        transparent: false,
+        count: 1
+      };
+
+      const task1 = scheduler.createTask({ ...baseParams, prompt: 'first' });
+      const task2 = scheduler.createTask({ ...baseParams, prompt: 'second' });
+      const task3 = scheduler.createTask({ ...baseParams, prompt: 'third' });
+
+      expect(task2.createdAt).toBeGreaterThan(task1.createdAt);
+      expect(task3.createdAt).toBeGreaterThan(task2.createdAt);
+
+      globalThis.fetch = vi.fn().mockImplementation(async (_input: any, init?: RequestInit) => {
+        if (init?.method === 'POST') {
+          return {
+            ok: true,
+            json: async () => ({
+              created: 1720000000,
+              data: [{ b64_json: 'iVBORw0KGgo=' }]
+            })
+          };
+        }
+        return {
+          ok: true,
+          blob: async () => new Blob(['png'], { type: 'image/png' })
+        };
+      });
+
+      const [asset] = await scheduler.execute(
+        task1,
+        { baseUrl: 'https://example.com/v1', apiKey: 'sk-test', model: 'gpt-image-2' },
+        GPT_IMAGE_2_PROFILE
+      );
+
+      expect(asset.timestamp).toBe(task1.createdAt);
+    });
   });
 });

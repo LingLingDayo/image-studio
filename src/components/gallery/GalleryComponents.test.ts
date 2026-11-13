@@ -1218,3 +1218,116 @@ describe('作品详情中的参考图', () => {
     app.unmount();
   });
 });
+
+describe('GalleryGrid 并发任务与产物位置稳定性', () => {
+  let container: HTMLDivElement;
+  let pinia: ReturnType<typeof createPinia>;
+  let app: ReturnType<typeof createApp> | null;
+
+  beforeEach(() => {
+    localStorage.clear();
+    pinia = createPinia();
+    setActivePinia(pinia);
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    app = null;
+  });
+
+  afterEach(() => {
+    app?.unmount();
+    container.remove();
+  });
+
+  function makeTask(id: string, prompt: string, createdAt: number, status: GenerationTask['status'] = 'processing'): GenerationTask {
+    return {
+      id,
+      type: 't2i',
+      params: {
+        model: 'gpt-image-2',
+        prompt,
+        type: 't2i',
+        size: '1024x1024',
+        resolution: '1k',
+        aspectRatio: '1:1',
+        quality: 'medium',
+        format: 'png',
+        transparent: false,
+        count: 1
+      },
+      status,
+      progress: 40,
+      currentIndex: 1,
+      elapsedSeconds: 2,
+      durationFormatted: '2.0s',
+      resultAssetIds: [],
+      createdAt,
+      updatedAt: createdAt
+    };
+  }
+
+  it('中间任务提前结束时仍保持开始生成时的位置，不会跳到已有图片最前面', async () => {
+    const galleryStore = useGalleryStore();
+    const taskStore = useTaskStore();
+
+    galleryStore.items = [{ ...createMockAsset(1, '已有作品'), timestamp: 100 }];
+
+    taskStore.addTask(makeTask('task_a', '任务A', 200));
+    taskStore.addTask(makeTask('task_b', '任务B', 300));
+    taskStore.addTask(makeTask('task_c', '任务C', 400));
+
+    app = createApp({ render: () => h(GalleryGrid) });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const readOrder = () =>
+      Array.from(container.querySelectorAll('.cards-grid .card-prompt')).map((el) => el.textContent?.trim());
+
+    expect(readOrder()).toEqual(['任务C', '任务B', '任务A', '已有作品']);
+
+    // 1. 中间的任务 B 提前结束：产物仍处于 任务C 与 任务A 之间
+    galleryStore.addAssets([{ ...createMockAsset(10, '任务B'), batchId: 'task_b', timestamp: 300 }]);
+    taskStore.updateTask('task_b', { status: 'succeeded', progress: 100 });
+    await nextTick();
+    expect(readOrder()).toEqual(['任务C', '任务B', '任务A', '已有作品']);
+    expect(container.querySelectorAll('.cards-grid .artwork-card')).toHaveLength(2);
+    expect(container.querySelectorAll('.cards-grid .task-card')).toHaveLength(2);
+
+    // 2. 任务 A 第二个结束：仍在 任务B 之后、已有作品之前
+    galleryStore.addAssets([{ ...createMockAsset(11, '任务A'), batchId: 'task_a', timestamp: 200 }]);
+    taskStore.updateTask('task_a', { status: 'succeeded', progress: 100 });
+    await nextTick();
+    expect(readOrder()).toEqual(['任务C', '任务B', '任务A', '已有作品']);
+
+    // 3. 任务 C 最后结束：全部完成后顺序与发起时完全一致
+    galleryStore.addAssets([{ ...createMockAsset(12, '任务C'), batchId: 'task_c', timestamp: 400 }]);
+    taskStore.updateTask('task_c', { status: 'succeeded', progress: 100 });
+    await nextTick();
+    expect(readOrder()).toEqual(['任务C', '任务B', '任务A', '已有作品']);
+  });
+
+  it('存在失败任务时，后发起的任务完成后仍保持在失败任务前面', async () => {
+    const galleryStore = useGalleryStore();
+    const taskStore = useTaskStore();
+
+    galleryStore.items = [{ ...createMockAsset(1, '已有作品'), timestamp: 100 }];
+    taskStore.addTask(makeTask('task_a', '失败的任务A', 200, 'failed'));
+    taskStore.addTask(makeTask('task_b', '后发起的任务B', 300, 'processing'));
+
+    app = createApp({ render: () => h(GalleryGrid) });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const readOrder = () =>
+      Array.from(container.querySelectorAll('.cards-grid .card-prompt')).map((el) => el.textContent?.trim());
+
+    expect(readOrder()).toEqual(['后发起的任务B', '失败的任务A', '已有作品']);
+
+    galleryStore.addAssets([{ ...createMockAsset(20, '后发起的任务B'), batchId: 'task_b', timestamp: 300 }]);
+    taskStore.updateTask('task_b', { status: 'succeeded', progress: 100 });
+    await nextTick();
+
+    expect(readOrder()).toEqual(['后发起的任务B', '失败的任务A', '已有作品']);
+  });
+});
