@@ -17,7 +17,7 @@ function findWorkIndex(works: ArtworkBatch[], item: MediaAsset | null): number {
 
 /**
  * 在筛选后的作品批次之间切换当前查看项。
- * 多图批次仍由灯箱内部轮播处理，这里按「作品卡片」粒度前进/后退。
+ * 提供按「作品卡片」粒度切换（prevWork/nextWork）以及「先组内多图、再跨作品」连续切换（prevImage/nextImage）。
  */
 export function useArtworkSwitcher(currentItem: Ref<MediaAsset | null>) {
   const galleryStore = useGalleryStore();
@@ -36,10 +36,38 @@ export function useArtworkSwitcher(currentItem: Ref<MediaAsset | null>) {
     return currentItem.value ? [currentItem.value] : [];
   });
 
+  const currentAssetIndex = computed(() => {
+    const item = currentItem.value;
+    if (!item || currentWorkIndex.value < 0) return 0;
+    const idx = currentBatchAssets.value.findIndex((asset) => isSameAsset(asset, item));
+    return idx >= 0 ? idx : 0;
+  });
+
+  const totalImageCount = computed(() =>
+    works.value.reduce((sum, batch) => sum + batch.assets.length, 0)
+  );
+
+  const canSwitchImage = computed(() =>
+    currentWorkIndex.value >= 0 && totalImageCount.value > 1
+  );
+
   function goToWork(index: number) {
     const batch = works.value[index];
     if (!batch?.assets.length) return;
     currentItem.value = batch.assets[0];
+  }
+
+  function findAdjacentWork(step: 1 | -1): ArtworkBatch | null {
+    const totalWorks = works.value.length;
+    if (totalWorks === 0 || currentWorkIndex.value < 0) return null;
+    for (let offset = 1; offset <= totalWorks; offset++) {
+      const targetIndex = (currentWorkIndex.value + step * offset + totalWorks) % totalWorks;
+      const batch = works.value[targetIndex];
+      if (batch?.assets.length) {
+        return batch;
+      }
+    }
+    return null;
   }
 
   function prevWork() {
@@ -56,12 +84,43 @@ export function useArtworkSwitcher(currentItem: Ref<MediaAsset | null>) {
     return true;
   }
 
+  function prevImage() {
+    if (!canSwitchImage.value) return false;
+    const assets = currentBatchAssets.value;
+    if (currentAssetIndex.value > 0) {
+      currentItem.value = assets[currentAssetIndex.value - 1];
+      return true;
+    }
+    const targetBatch = findAdjacentWork(-1);
+    if (!targetBatch?.assets.length) return false;
+    currentItem.value = targetBatch.assets[targetBatch.assets.length - 1];
+    return true;
+  }
+
+  function nextImage() {
+    if (!canSwitchImage.value) return false;
+    const assets = currentBatchAssets.value;
+    if (currentAssetIndex.value < assets.length - 1) {
+      currentItem.value = assets[currentAssetIndex.value + 1];
+      return true;
+    }
+    const targetBatch = findAdjacentWork(1);
+    if (!targetBatch?.assets.length) return false;
+    currentItem.value = targetBatch.assets[0];
+    return true;
+  }
+
   return {
     works,
     currentWorkIndex,
+    currentAssetIndex,
+    totalImageCount,
     canSwitchWork,
+    canSwitchImage,
     currentBatchAssets,
     prevWork,
-    nextWork
+    nextWork,
+    prevImage,
+    nextImage
   };
 }

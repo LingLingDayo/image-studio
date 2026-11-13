@@ -7,6 +7,8 @@ withDefaults(defineProps<{
   activeItem: MediaAsset;
   batchAssets: MediaAsset[];
   currentIndex: number;
+  standalone?: boolean;
+  canNavigate?: boolean;
   scale?: number;
   translateX?: number;
   translateY?: number;
@@ -14,6 +16,7 @@ withDefaults(defineProps<{
   isDragging?: boolean;
   isFullscreen?: boolean;
 }>(), {
+  standalone: false,
   isFullscreen: false
 });
 
@@ -52,6 +55,9 @@ defineExpose({
     :error-message="activeItem?.errorMessage"
     :images="batchAssets.map((a, idx) => ({ id: a.id ?? idx, url: a.url, alt: a.prompt, status: a.status, errorMessage: a.errorMessage }))"
     :current-index="currentIndex"
+    :standalone="standalone"
+    :can-navigate="canNavigate"
+    :keyboard-navigation="false"
     :scale="scale"
     :translate-x="translateX"
     :translate-y="translateY"

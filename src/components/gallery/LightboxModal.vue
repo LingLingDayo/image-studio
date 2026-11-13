@@ -37,11 +37,12 @@ const viewportRef = ref<InstanceType<typeof LightboxViewport> | null>(null);
 const panelRef = computed<HTMLElement | null>(() => viewportRef.value?.containerRef || null);
 
 const {
-  canSwitchWork,
   currentWorkIndex,
+  currentAssetIndex: workAssetIndex,
+  canSwitchImage,
   currentBatchAssets: storeBatchAssets,
-  prevWork,
-  nextWork
+  prevImage,
+  nextImage
 } = useArtworkSwitcher(currentActiveItem);
 
 const {
@@ -118,6 +119,9 @@ const currentBatchAssets = computed(() => {
   return props.allAssets || (currentActiveItem.value ? [currentActiveItem.value] : []);
 });
 const currentAssetIndex = computed(() => {
+  if (currentWorkIndex.value >= 0) {
+    return workAssetIndex.value;
+  }
   if (!currentActiveItem.value || currentBatchAssets.value.length === 0) return 0;
   const idx = currentBatchAssets.value.findIndex(
     (a) =>
@@ -128,7 +132,20 @@ const currentAssetIndex = computed(() => {
   return idx !== -1 ? idx : 0;
 });
 
+const canSwitchImages = computed(() => {
+  if (currentWorkIndex.value >= 0) {
+    return canSwitchImage.value;
+  }
+  return currentBatchAssets.value.length > 1;
+});
+
 function handlePrev() {
+  if (currentWorkIndex.value >= 0) {
+    if (prevImage()) {
+      resetTransform();
+    }
+    return;
+  }
   const list = currentBatchAssets.value;
   if (list.length <= 1) return;
   const nextIdx = (currentAssetIndex.value - 1 + list.length) % list.length;
@@ -137,23 +154,17 @@ function handlePrev() {
 }
 
 function handleNext() {
+  if (currentWorkIndex.value >= 0) {
+    if (nextImage()) {
+      resetTransform();
+    }
+    return;
+  }
   const list = currentBatchAssets.value;
   if (list.length <= 1) return;
   const nextIdx = (currentAssetIndex.value + 1) % list.length;
   currentActiveItem.value = list[nextIdx];
   resetTransform();
-}
-
-function handlePrevWork() {
-  if (prevWork()) {
-    resetTransform();
-  }
-}
-
-function handleNextWork() {
-  if (nextWork()) {
-    resetTransform();
-  }
 }
 
 async function handleDownload() {
@@ -228,18 +239,10 @@ function handleKeyDown(e: KeyboardEvent) {
     handleClose();
   } else if (e.key === 'ArrowLeft') {
     e.preventDefault();
-    if (currentBatchAssets.value.length > 1) {
-      handlePrev();
-    } else {
-      handlePrevWork();
-    }
+    handlePrev();
   } else if (e.key === 'ArrowRight') {
     e.preventDefault();
-    if (currentBatchAssets.value.length > 1) {
-      handleNext();
-    } else {
-      handleNextWork();
-    }
+    handleNext();
   }
 }
 
@@ -271,23 +274,23 @@ onUnmounted(() => {
     @click.self="handleClose"
   >
     <button
-      v-if="canSwitchWork && !isFullscreen"
+      v-if="showDetailPanel && canSwitchImages && !isFullscreen"
       type="button"
       class="lightbox-side-nav is-prev"
-      data-tip="上一件作品"
-      aria-label="上一件作品"
-      @click.stop="handlePrevWork"
+      data-tip="上一张 (←)"
+      aria-label="上一张"
+      @click.stop="handlePrev"
     >
       <ChevronLeft :size="28" />
     </button>
 
     <button
-      v-if="canSwitchWork && !isFullscreen"
+      v-if="showDetailPanel && canSwitchImages && !isFullscreen"
       type="button"
       class="lightbox-side-nav is-next"
-      data-tip="下一件作品"
-      aria-label="下一件作品"
-      @click.stop="handleNextWork"
+      data-tip="下一张 (→)"
+      aria-label="下一张"
+      @click.stop="handleNext"
     >
       <ChevronRight :size="28" />
     </button>
@@ -309,6 +312,8 @@ onUnmounted(() => {
           :active-item="currentActiveItem"
           :batch-assets="currentBatchAssets"
           :current-index="currentAssetIndex"
+          :standalone="!showDetailPanel"
+          :can-navigate="canSwitchImages"
           :scale="scale"
           :translate-x="translateX"
           :translate-y="translateY"

@@ -51,6 +51,13 @@ const assetsList = computed<MediaAsset[]>(() => {
 
 const currentAssetIndex = ref(0);
 
+watch(
+  () => props.batch?.id,
+  () => {
+    currentAssetIndex.value = 0;
+  }
+);
+
 // 当 assets 列表变化时，优先选择首张成功的图片，避免卡片封面展示失败占位
 watch(
   () => assetsList.value,
@@ -236,19 +243,36 @@ async function handleDownload() {
 
     if (assetsList.value.length > 1) {
       const list = assetsList.value;
-      for (let i = 0; i < list.length; i++) {
-        const a = list[i];
-        const filename = generateAssetFilename(a, i, 0, { pattern, targetFormat });
+      const validList = list.filter((a) => a.status !== 'failed' && Boolean(a.url));
+      if (validList.length === 0) {
+        emit('showToast', '当前批次没有可下载的成功图片', 'error');
+        return;
+      }
+      for (let i = 0; i < validList.length; i++) {
+        const a = validList[i];
+        const origIndex = list.indexOf(a);
+        const filename = generateAssetFilename(a, origIndex >= 0 ? origIndex : i, 0, { pattern, targetFormat });
         const origExt = (a.format || 'png').replace(/^\./, '');
         const finalExt = targetFormat && targetFormat !== 'auto' ? targetFormat : origExt;
         await downloadRotatedImage(a.url, filename, 0, finalExt, origExt);
-        if (i < list.length - 1) {
+        if (i < validList.length - 1) {
           await new Promise((r) => setTimeout(r, 200));
         }
       }
-      emit('showToast', `已开始批量下载全部 ${list.length} 张原图`, 'success');
+      const skipped = list.length - validList.length;
+      emit(
+        'showToast',
+        skipped > 0
+          ? `已开始批量下载 ${validList.length} 张原图（已跳过 ${skipped} 张失败图片）`
+          : `已开始批量下载全部 ${validList.length} 张原图`,
+        'success'
+      );
     } else if (currentAsset.value) {
       const a = currentAsset.value;
+      if (a.status === 'failed' || !a.url) {
+        emit('showToast', '当前图片未生成成功，无法下载', 'error');
+        return;
+      }
       const filename = generateAssetFilename(a, undefined, 0, { pattern, targetFormat });
       const origExt = (a.format || 'png').replace(/^\./, '');
       const finalExt = targetFormat && targetFormat !== 'auto' ? targetFormat : origExt;
@@ -719,6 +743,22 @@ async function handleDownload() {
   .card-image-wrapper {
     width: 100%;
     height: 180px;
+
+    .carousel-nav-overlay {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translate(-50%, 0);
+    }
+  }
+}
+
+@media (hover: none) {
+  .card-image-wrapper .carousel-nav-overlay {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translate(-50%, 0);
   }
 }
 </style>

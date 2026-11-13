@@ -104,4 +104,72 @@ describe('useArtworkSwitcher', () => {
     expect(nextWork()).toBe(true);
     expect(currentItem.value?.id).toBe(1);
   });
+
+  it('连续切图优先切换当前作品的多张图片，切完后再跳到下一件或上一件作品', () => {
+    const store = useGalleryStore();
+    store.items = [
+      createMockAsset(1, { batchId: 'batch-a', prompt: 'A1' }),
+      createMockAsset(2, { batchId: 'batch-a', prompt: 'A2' }),
+      createMockAsset(3, { batchId: 'batch-b', prompt: 'B1' }),
+      createMockAsset(4, { batchId: 'batch-c', prompt: 'C1' }),
+      createMockAsset(5, { batchId: 'batch-c', prompt: 'C2' })
+    ];
+    const currentItem = ref<MediaAsset | null>(store.items[0]);
+    const { canSwitchImage, currentAssetIndex, nextImage, prevImage } = useArtworkSwitcher(currentItem);
+
+    expect(canSwitchImage.value).toBe(true);
+    expect(currentAssetIndex.value).toBe(0);
+
+    // 同一作品内：A1 -> A2
+    expect(nextImage()).toBe(true);
+    expect(currentItem.value?.id).toBe(2);
+    expect(currentAssetIndex.value).toBe(1);
+
+    // 切完作品 A 后跳到作品 B 第一张：A2 -> B1
+    expect(nextImage()).toBe(true);
+    expect(currentItem.value?.id).toBe(3);
+    expect(currentAssetIndex.value).toBe(0);
+
+    // 继续跳到作品 C：B1 -> C1 -> C2
+    expect(nextImage()).toBe(true);
+    expect(currentItem.value?.id).toBe(4);
+    expect(nextImage()).toBe(true);
+    expect(currentItem.value?.id).toBe(5);
+
+    // 全部切完后循环回到第一件作品第一张：C2 -> A1
+    expect(nextImage()).toBe(true);
+    expect(currentItem.value?.id).toBe(1);
+
+    // 反向切图：从 A1 回退应落到上一件作品 C 的最后一张 C2 -> C1 -> B1 -> A2 -> A1
+    expect(prevImage()).toBe(true);
+    expect(currentItem.value?.id).toBe(5);
+    expect(prevImage()).toBe(true);
+    expect(currentItem.value?.id).toBe(4);
+    expect(prevImage()).toBe(true);
+    expect(currentItem.value?.id).toBe(3);
+    expect(prevImage()).toBe(true);
+    expect(currentItem.value?.id).toBe(2);
+    expect(prevImage()).toBe(true);
+    expect(currentItem.value?.id).toBe(1);
+  });
+
+  it('仅有单件多图作品时也能循环切换组内所有图片', () => {
+    const store = useGalleryStore();
+    store.items = [
+      createMockAsset(1, { batchId: 'only-batch', prompt: 'A1' }),
+      createMockAsset(2, { batchId: 'only-batch', prompt: 'A2' })
+    ];
+    const currentItem = ref<MediaAsset | null>(store.items[0]);
+    const { canSwitchWork, canSwitchImage, nextImage, prevImage } = useArtworkSwitcher(currentItem);
+
+    expect(canSwitchWork.value).toBe(false);
+    expect(canSwitchImage.value).toBe(true);
+
+    expect(nextImage()).toBe(true);
+    expect(currentItem.value?.id).toBe(2);
+    expect(nextImage()).toBe(true);
+    expect(currentItem.value?.id).toBe(1);
+    expect(prevImage()).toBe(true);
+    expect(currentItem.value?.id).toBe(2);
+  });
 });

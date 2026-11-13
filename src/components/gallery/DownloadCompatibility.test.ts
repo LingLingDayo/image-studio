@@ -51,4 +51,32 @@ describe('媒体下载结果反馈', () => {
     expect(downloadRotatedImage).toHaveBeenCalledWith(asset.url, expect.stringMatching(/\.gif$/), 90, 'gif', 'gif');
     expect(onShowToast).toHaveBeenCalledWith('已开始下载原件，GIF/SVG 不应用旋转', 'success');
   });
+
+  it('多图批次包含失败图片时跳过失败项只下载成功原图', async () => {
+    const onShowToast = vi.fn();
+    const okAsset: MediaAsset = { ...asset, id: 1, url: 'blob:ok-1' };
+    const failedAsset: MediaAsset = { ...asset, id: 2, url: '', status: 'failed', errorMessage: '生成失败' };
+    const batch = {
+      id: 'batch-mixed',
+      prompt: 'mixed',
+      model: 'gpt-image-2.6-flare',
+      size: '1024x1024',
+      quality: 'max',
+      duration: '1s',
+      timestamp: 1,
+      assets: [okAsset, failedAsset]
+    };
+
+    app = createApp(() => h(ArtworkCard, { batch, onShowToast }));
+    app.mount(container);
+    await nextTick();
+
+    container.querySelector<HTMLButtonElement>('.card-action-btn[data-tip*="下载"]')!.click();
+    await nextTick();
+    await vi.waitFor(() => expect(onShowToast).toHaveBeenCalledTimes(1));
+
+    expect(downloadRotatedImage).toHaveBeenCalledTimes(1);
+    expect(downloadRotatedImage).toHaveBeenCalledWith('blob:ok-1', expect.any(String), 0, 'gif', 'gif');
+    expect(onShowToast).toHaveBeenCalledWith('已开始批量下载 1 张原图（已跳过 1 张失败图片）', 'success');
+  });
 });

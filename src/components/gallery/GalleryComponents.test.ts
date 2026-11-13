@@ -529,6 +529,106 @@ describe('LightboxModal 作品切换箭头', () => {
     app.unmount();
   });
 
+  it('详情模式优先切换当前作品的多张图片，切完后再切换到下一件作品的图片，且嵌入式视口仅在全屏时显示内部左右切换按钮', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGalleryStore();
+    store.items = [
+      { ...createMockAsset(1, '作品一'), batchId: 'batch-1' },
+      { ...createMockAsset(2, '作品一'), batchId: 'batch-1' },
+      { ...createMockAsset(3, '作品二'), batchId: 'batch-2' }
+    ];
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: store.items[0],
+          mode: 'detail'
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    // 详情模式：外层页面两侧显示切换按钮，左侧嵌入式查看器内部不显示左右切换按钮
+    expect(container.querySelector('.lightbox-side-nav.is-next')).not.toBeNull();
+    expect(container.querySelector('.viewer-side-nav')).toBeNull();
+    expect(container.querySelector('.lightbox-counter')?.textContent).toBe('1 / 2');
+    expect(container.querySelector('.prompt-box')?.textContent).toContain('作品一');
+
+    const nextBtn = container.querySelector('.lightbox-side-nav.is-next') as HTMLButtonElement;
+    // 1. 优先切换到当前作品的第 2 张
+    nextBtn.click();
+    await nextTick();
+    expect(container.querySelector('.lightbox-counter')?.textContent).toBe('2 / 2');
+    expect(container.querySelector('.prompt-box')?.textContent).toContain('作品一');
+
+    // 2. 当前作品切完后，继续点击切换到作品二
+    nextBtn.click();
+    await nextTick();
+    expect(container.querySelector('.prompt-box')?.textContent).toContain('作品二');
+    expect(container.querySelector('.lightbox-carousel-controls')).toBeNull();
+
+    // 3. 回退应回到作品一的第 2 张（最后一张）
+    const prevBtn = container.querySelector('.lightbox-side-nav.is-prev') as HTMLButtonElement;
+    prevBtn.click();
+    await nextTick();
+    expect(container.querySelector('.prompt-box')?.textContent).toContain('作品一');
+    expect(container.querySelector('.lightbox-counter')?.textContent).toBe('2 / 2');
+
+    // 4. 进入全屏模式：隐藏外层箭头，显示查看器内部左右切换按钮
+    const fullscreenBtn = container.querySelector('.image-floating-toolbar [data-tip="全屏显示"]') as HTMLButtonElement;
+    fullscreenBtn.click();
+    await nextTick();
+    expect(container.querySelector('.lightbox-side-nav')).toBeNull();
+    const viewerNext = container.querySelector('.viewer-side-nav.is-next') as HTMLButtonElement;
+    expect(viewerNext).not.toBeNull();
+    viewerNext.click();
+    await nextTick();
+    expect((container.querySelector('.image-stage img') as HTMLImageElement).src).toBe('blob:mock-3');
+
+    app.unmount();
+  });
+
+  it('独立预览模式不在外层渲染切换箭头，而是在查看器内展示可自动隐藏的左右切图按钮并连续切换所有作品图片', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGalleryStore();
+    store.items = [
+      { ...createMockAsset(1, '作品一'), batchId: 'batch-1' },
+      { ...createMockAsset(2, '作品一'), batchId: 'batch-1' },
+      { ...createMockAsset(3, '作品二'), batchId: 'batch-2' }
+    ];
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: store.items[0],
+          mode: 'preview'
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    expect(container.querySelector('.lightbox-side-nav')).toBeNull();
+    const viewerNext = container.querySelector('.viewer-side-nav.is-next') as HTMLButtonElement;
+    expect(viewerNext).not.toBeNull();
+    expect((container.querySelector('.image-stage img') as HTMLImageElement).src).toBe('blob:mock-1');
+
+    viewerNext.click();
+    await nextTick();
+    expect((container.querySelector('.image-stage img') as HTMLImageElement).src).toBe('blob:mock-2');
+
+    viewerNext.click();
+    await nextTick();
+    expect((container.querySelector('.image-stage img') as HTMLImageElement).src).toBe('blob:mock-3');
+
+    app.unmount();
+  });
+
   it('灯箱详情面板将内容放入独立滚动区，视口支持 pointer 拖拽', async () => {
     const pinia = createPinia();
     setActivePinia(pinia);
