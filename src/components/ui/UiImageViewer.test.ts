@@ -393,4 +393,139 @@ describe('UiImageViewer (src/components/ui/UiImageViewer.vue)', () => {
 
     app.unmount();
   });
+
+  it('非受控多图模式下可直接通过按钮与方向键循环切图', async () => {
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, {
+          images: [
+            'https://example.com/1.png',
+            'https://example.com/2.png',
+            'https://example.com/3.png'
+          ]
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const img = container.querySelector('.image-stage img') as HTMLImageElement;
+    const counter = container.querySelector('.lightbox-counter') as HTMLElement;
+    expect(counter.textContent).toBe('1 / 3');
+    expect(img.src).toBe('https://example.com/1.png');
+
+    // 点击右侧切换按钮切到第 2 张
+    const nextSideBtn = container.querySelector('.viewer-side-nav.is-next') as HTMLButtonElement;
+    expect(nextSideBtn).not.toBeNull();
+    nextSideBtn.click();
+    await nextTick();
+    expect(counter.textContent).toBe('2 / 3');
+    expect(img.src).toBe('https://example.com/2.png');
+
+    // 按方向键向右切到第 3 张，再按一次循环回第 1 张
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    await nextTick();
+    expect(counter.textContent).toBe('3 / 3');
+    expect(img.src).toBe('https://example.com/3.png');
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
+    await nextTick();
+    expect(counter.textContent).toBe('2 / 3');
+    expect(img.src).toBe('https://example.com/2.png');
+
+    app.unmount();
+  });
+
+  it('独立查看器模式左右切图按钮与底部工具栏同步在静止 4 秒后自动隐藏', async () => {
+    vi.useFakeTimers();
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, {
+          images: [
+            { id: 1, url: 'https://example.com/1.png' },
+            { id: 2, url: 'https://example.com/2.png' }
+          ]
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+    const toolbar = container.querySelector('.image-floating-toolbar') as HTMLDivElement;
+    const prevSideBtn = container.querySelector('.viewer-side-nav.is-prev') as HTMLButtonElement;
+    const nextSideBtn = container.querySelector('.viewer-side-nav.is-next') as HTMLButtonElement;
+
+    expect(prevSideBtn).not.toBeNull();
+    expect(nextSideBtn).not.toBeNull();
+    expect(prevSideBtn.classList.contains('is-visible')).toBe(false);
+    expect(nextSideBtn.classList.contains('is-visible')).toBe(false);
+
+    panel.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(true);
+    expect(prevSideBtn.classList.contains('is-visible')).toBe(true);
+    expect(nextSideBtn.classList.contains('is-visible')).toBe(true);
+
+    vi.advanceTimersByTime(4000);
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(false);
+    expect(prevSideBtn.classList.contains('is-visible')).toBe(false);
+    expect(nextSideBtn.classList.contains('is-visible')).toBe(false);
+
+    panel.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+    await nextTick();
+    expect(prevSideBtn.classList.contains('is-visible')).toBe(true);
+
+    panel.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false }));
+    await nextTick();
+    expect(prevSideBtn.classList.contains('is-visible')).toBe(false);
+    expect(nextSideBtn.classList.contains('is-visible')).toBe(false);
+
+    app.unmount();
+    vi.useRealTimers();
+  });
+
+  it('嵌入式模式不显示左右切图按钮，进入全屏后显示并随工具栏自动隐藏', async () => {
+    vi.useFakeTimers();
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, {
+          standalone: false,
+          images: [
+            { id: 1, url: 'https://example.com/1.png' },
+            { id: 2, url: 'https://example.com/2.png' }
+          ]
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    // 嵌入式非全屏：保留左上角多图胶囊，但不显示左右切图按钮
+    expect(container.querySelector('.lightbox-carousel-controls')).not.toBeNull();
+    expect(container.querySelector('.viewer-side-nav')).toBeNull();
+
+    // 进入全屏：显示左右切图按钮，且静止 4 秒自动隐藏
+    const fullscreenBtn = container.querySelector('.image-floating-toolbar [data-tip="全屏显示"]') as HTMLButtonElement;
+    fullscreenBtn.click();
+    await nextTick();
+
+    const prevSideBtn = container.querySelector('.viewer-side-nav.is-prev') as HTMLButtonElement;
+    const nextSideBtn = container.querySelector('.viewer-side-nav.is-next') as HTMLButtonElement;
+    expect(prevSideBtn).not.toBeNull();
+    expect(nextSideBtn).not.toBeNull();
+    expect(prevSideBtn.classList.contains('is-visible')).toBe(true);
+
+    vi.advanceTimersByTime(4000);
+    await nextTick();
+    expect(prevSideBtn.classList.contains('is-visible')).toBe(false);
+    expect(nextSideBtn.classList.contains('is-visible')).toBe(false);
+
+    app.unmount();
+    vi.useRealTimers();
+  });
 });
