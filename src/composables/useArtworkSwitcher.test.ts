@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ref } from 'vue';
 import { setActivePinia, createPinia } from 'pinia';
-import { useArtworkSwitcher } from './useArtworkSwitcher';
+import { useArtworkSwitcher, findNextAssetAfterDelete } from './useArtworkSwitcher';
 import { useGalleryStore } from '@/stores/galleryStore';
 import type { MediaAsset } from '@/types/asset';
 
@@ -171,5 +171,30 @@ describe('useArtworkSwitcher', () => {
     expect(currentItem.value?.id).toBe(1);
     expect(prevImage()).toBe(true);
     expect(currentItem.value?.id).toBe(2);
+  });
+
+  it('findNextAssetAfterDelete 按组内及跨组顺序计算下一张图片，仅剩一张时返回 null', () => {
+    const a1 = createMockAsset(1, { batchId: 'a', prompt: 'A1' });
+    const a2 = createMockAsset(2, { batchId: 'a', prompt: 'A2' });
+    const b1 = createMockAsset(3, { batchId: 'b', prompt: 'B1' });
+    const c1 = createMockAsset(4, { batchId: 'c', prompt: 'C1' });
+
+    // 删除最后一张独图 -> 返回 null
+    expect(findNextAssetAfterDelete([a1], 1)).toBeNull();
+
+    // 删除多图组内的第一张 -> 切换到同组下一张
+    expect(findNextAssetAfterDelete([a1, a2, b1, c1], 1)?.id).toBe(2);
+
+    // 删除多图组内的最后一张 -> 跨组切换到下一组第一张
+    expect(findNextAssetAfterDelete([a1, a2, b1, c1], 2)?.id).toBe(3);
+
+    // 删除全部列表中的最后一张 -> 循环回到第一张
+    expect(findNextAssetAfterDelete([a1, a2, b1, c1], 4)?.id).toBe(1);
+
+    // 传入删除后的 remainingAssets（例如 store 更新后兜底计算）也能正确落到原下一张
+    expect(findNextAssetAfterDelete([a1, a2, b1, c1], 2, [a1, b1, c1])?.id).toBe(3);
+
+    // 若目标已不在原列表中（例如收藏筛选下刚取消收藏），返回首个可见项
+    expect(findNextAssetAfterDelete([a1, c1], 2)?.id).toBe(1);
   });
 });

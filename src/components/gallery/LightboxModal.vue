@@ -3,7 +3,7 @@ import { ref, computed, watch, onUnmounted } from 'vue';
 import type { MediaAsset } from '@/types/asset';
 import { downloadRotatedImage, generateAssetFilename, supportsCanvasImageFormat } from '@/utils/download';
 import { useViewportCanvas } from '@/composables/useViewportCanvas';
-import { useArtworkSwitcher } from '@/composables/useArtworkSwitcher';
+import { useArtworkSwitcher, findNextAssetAfterDelete } from '@/composables/useArtworkSwitcher';
 import { useConfigStore } from '@/stores/configStore';
 import { useGalleryStore } from '@/stores/galleryStore';
 import { X, ChevronLeft, ChevronRight } from '@lucide/vue';
@@ -23,6 +23,7 @@ const props = withDefaults(defineProps<{
 const showDetailPanel = computed(() => props.mode === 'detail');
 
 const emit = defineEmits<{
+  (e: 'update:item', item: MediaAsset | null): void;
   (e: 'close'): void;
   (e: 'previewReference', images: string[], index: number): void;
   (e: 'reuse', item: MediaAsset): void;
@@ -68,10 +69,55 @@ const configStore = useConfigStore();
 const galleryStore = useGalleryStore();
 const isFullscreen = ref(false);
 
+function setCurrentActiveItem(next: MediaAsset | null) {
+  currentActiveItem.value = next;
+  emit('update:item', next);
+}
+
+watch(() => props.item, (newItem) => {
+  const normalized = newItem ?? null;
+  if (normalized !== currentActiveItem.value) {
+    currentActiveItem.value = normalized;
+    resetTransform();
+  }
+}, { flush: 'sync' });
+
+const currentItemTrackedInStore = ref(false);
+let lastVisibleStoreAssets: MediaAsset[] = [];
+
 // 灯箱可切换到列表里尚未进入过视口的作品，切换后按需装载对应像素
 watch(currentActiveItem, (item) => {
+  currentItemTrackedInStore.value = Boolean(
+    item?.id != null && galleryStore.items.some((stored) => stored.id === item.id)
+  );
   if (item) void galleryStore.ensureImage(item);
 }, { immediate: true });
+
+watch(
+  () => galleryStore.filteredBatches,
+  (batches) => {
+    const newVisibleAssets = batches.flatMap((batch) => batch.assets);
+    const active = currentActiveItem.value;
+
+    if (
+      active?.id != null &&
+      currentItemTrackedInStore.value &&
+      !galleryStore.items.some((stored) => stored.id === active.id)
+    ) {
+      const nextItem = findNextAssetAfterDelete(lastVisibleStoreAssets, active.id, newVisibleAssets);
+      if (nextItem) {
+        setCurrentActiveItem(nextItem);
+        resetTransform();
+      } else {
+        setCurrentActiveItem(null);
+        emit('close');
+      }
+    }
+
+    lastVisibleStoreAssets = newVisibleAssets;
+  },
+  { immediate: true, flush: 'post' }
+);
 
 async function toggleFullscreen() {
   if (!isFullscreen.value) {
@@ -107,11 +153,6 @@ function handleFullscreenChange() {
   }
 }
 
-watch(() => props.item, (newItem) => {
-  currentActiveItem.value = newItem;
-  resetTransform();
-});
-
 const currentBatchAssets = computed(() => {
   if (currentWorkIndex.value >= 0) {
     return storeBatchAssets.value;
@@ -142,6 +183,7 @@ const canSwitchImages = computed(() => {
 function handlePrev() {
   if (currentWorkIndex.value >= 0) {
     if (prevImage()) {
+      emit('update:item', currentActiveItem.value);
       resetTransform();
     }
     return;
@@ -149,13 +191,14 @@ function handlePrev() {
   const list = currentBatchAssets.value;
   if (list.length <= 1) return;
   const nextIdx = (currentAssetIndex.value - 1 + list.length) % list.length;
-  currentActiveItem.value = list[nextIdx];
+  setCurrentActiveItem(list[nextIdx]);
   resetTransform();
 }
 
 function handleNext() {
   if (currentWorkIndex.value >= 0) {
     if (nextImage()) {
+      emit('update:item', currentActiveItem.value);
       resetTransform();
     }
     return;
@@ -163,7 +206,7 @@ function handleNext() {
   const list = currentBatchAssets.value;
   if (list.length <= 1) return;
   const nextIdx = (currentAssetIndex.value + 1) % list.length;
-  currentActiveItem.value = list[nextIdx];
+  setCurrentActiveItem(list[nextIdx]);
   resetTransform();
 }
 
@@ -246,7 +289,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 function handleKeyDown(e: KeyboardEvent) {
-  if (!currentActiveItem.value || isTypingTarget(e.target)) return;
+  if (!currentActiveItem.value || e.defaultPrevented || e.isComposing || isTypingTarget(e.target)) return;
 
   if (e.key === 'Escape') {
     if (isFullscreen.value) {

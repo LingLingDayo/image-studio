@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createApp, h, nextTick, ref } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import GalleryCard from './GalleryCard.vue';
@@ -1301,6 +1301,147 @@ describe('图片预览与作品详情的入口区分', () => {
     expect(deletes).toEqual([11]);
 
     app.unmount();
+  });
+
+  it('在 App 中于作品详情弹窗或图片查看器删除图片时不会关闭窗口，而是自动切换到下一张，仅删除最后一张时关闭', async () => {
+    const App = (await import('@/App.vue')).default;
+    const { assetRepository } = await import('@/core/storage/AssetRepository');
+
+    const asset1 = createMockAsset(101, '第一张作品');
+    const asset2 = createMockAsset(102, '第二张作品');
+    const asset3 = createMockAsset(103, '第三张作品');
+
+    const getAllSpy = vi.spyOn(assetRepository, 'getAllMetadata').mockResolvedValue([asset1, asset2, asset3]);
+    const deleteSpy = vi.spyOn(assetRepository, 'delete').mockResolvedValue(true);
+    const loadImageSpy = vi.spyOn(assetRepository, 'loadImage').mockResolvedValue(null);
+
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const app = createApp(App);
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+    await vi.waitFor(() => expect(container.querySelectorAll('.artwork-card')).toHaveLength(3));
+
+    try {
+      // 1. 点击卡片标题进入作品详情弹窗（detail 模式）
+      const firstPrompt = container.querySelector('.artwork-card .card-prompt') as HTMLElement;
+      firstPrompt.click();
+      await nextTick();
+
+      expect(container.querySelector('.modal-backdrop')).not.toBeNull();
+      expect(container.querySelector('.prompt-box')?.textContent).toContain('第一张作品');
+
+      // 先切换一次到第二张作品，验证同步后再删除第二张应自动切到第三张
+      (container.querySelector('.lightbox-side-nav.is-next') as HTMLButtonElement).click();
+      await nextTick();
+      expect(container.querySelector('.prompt-box')?.textContent).toContain('第二张作品');
+
+      // 点击详情面板中的删除按钮，并确认删除弹窗
+      (container.querySelector('.modal-actions .btn-danger-outline') as HTMLButtonElement).click();
+      await nextTick();
+      const confirmBtn1 = container.querySelector('.dialog-actions button:last-child') as HTMLButtonElement;
+      confirmBtn1.click();
+      await nextTick();
+      await vi.waitFor(() => expect(deleteSpy).toHaveBeenCalledWith(102));
+      await nextTick();
+
+      // 详情弹窗仍保持打开，且已自动切换到第三张作品
+      expect(container.querySelector('.modal-backdrop')).not.toBeNull();
+      expect(container.querySelector('.modal-body')?.classList.contains('is-preview')).toBe(false);
+      expect(container.querySelector('.prompt-box')?.textContent).toContain('第三张作品');
+
+      // 关闭详情弹窗，再通过缩略图进入图片查看器（preview 模式）测试删除与自动切图
+      (container.querySelector('.modal-close-btn') as HTMLButtonElement).click();
+      await nextTick();
+      expect(container.querySelector('.modal-backdrop')).toBeNull();
+
+      (container.querySelector('.artwork-card .card-image-wrapper') as HTMLElement).click();
+      await nextTick();
+      expect(container.querySelector('.modal-backdrop')).not.toBeNull();
+      expect(container.querySelector('.modal-body')?.classList.contains('is-preview')).toBe(true);
+      expect((container.querySelector('.image-stage img') as HTMLImageElement).src).toBe('blob:mock-101');
+
+      // 进入全屏后通过查看器顶部删除按钮删除第一张，全屏查看器保持打开并切换到第三张（此时仅剩 101 与 103）
+      (container.querySelector('.image-floating-toolbar [data-tip="全屏显示"]') as HTMLButtonElement).click();
+      await nextTick();
+      expect(container.querySelector('.modal-backdrop')?.classList.contains('is-fullscreen')).toBe(true);
+
+      (container.querySelector('.viewer-top-actions .btn-delete') as HTMLButtonElement).click();
+      await nextTick();
+      (container.querySelector('.dialog-actions button:last-child') as HTMLButtonElement).click();
+      await nextTick();
+      await vi.waitFor(() => expect(deleteSpy).toHaveBeenCalledWith(101));
+      await nextTick();
+
+      expect(container.querySelector('.modal-backdrop')).not.toBeNull();
+      expect(container.querySelector('.modal-backdrop')?.classList.contains('is-fullscreen')).toBe(true);
+      expect(container.querySelector('.modal-body')?.classList.contains('is-preview')).toBe(true);
+      expect((container.querySelector('.image-stage img') as HTMLImageElement).src).toBe('blob:mock-103');
+
+      // 删除最后一张（103）后，无下一张可切，此时自动关闭查看器
+      const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+      panel.dispatchEvent(new MouseEvent('contextmenu', { clientX: 60, clientY: 60, bubbles: true, cancelable: true }));
+      await nextTick();
+      const ctxDeleteBtn = container.querySelectorAll<HTMLButtonElement>('.viewer-context-menu .viewer-context-item')[1];
+      ctxDeleteBtn.click();
+      await nextTick();
+      (container.querySelector('.dialog-actions button:last-child') as HTMLButtonElement).click();
+      await nextTick();
+      await vi.waitFor(() => expect(deleteSpy).toHaveBeenCalledWith(103));
+      await nextTick();
+
+      expect(container.querySelector('.modal-backdrop')).toBeNull();
+    } finally {
+      app.unmount();
+      getAllSpy.mockRestore();
+      deleteSpy.mockRestore();
+      loadImageSpy.mockRestore();
+    }
+  });
+
+  it('独立使用 LightboxModal 时若 store 移除当前图片也能自动切换到下一张，删空后关闭', async () => {
+    const { assetRepository } = await import('@/core/storage/AssetRepository');
+    const deleteSpy = vi.spyOn(assetRepository, 'delete').mockResolvedValue(true);
+
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGalleryStore();
+    store.items = [
+      createMockAsset(201, '独立灯箱图一'),
+      createMockAsset(202, '独立灯箱图二')
+    ];
+    const initialItem = store.items[0];
+    let closed = false;
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: initialItem,
+          mode: 'preview',
+          onClose: () => { closed = true; }
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    try {
+      expect((container.querySelector('.image-stage img') as HTMLImageElement).src).toBe('blob:mock-201');
+
+      await store.removeItem(201);
+      await nextTick();
+      expect(closed).toBe(false);
+      expect((container.querySelector('.image-stage img') as HTMLImageElement).src).toBe('blob:mock-202');
+
+      await store.removeItem(202);
+      await nextTick();
+      expect(closed).toBe(true);
+    } finally {
+      app.unmount();
+      deleteSpy.mockRestore();
+    }
   });
 });
 

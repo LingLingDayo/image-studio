@@ -10,6 +10,7 @@ import { Tooltip, UiDialog } from '@/components/ui';
 import { useGalleryStore } from '@/stores/galleryStore';
 import { useConfigStore } from '@/stores/configStore';
 import { useImageStudio } from '@/composables/useImageStudio';
+import { findNextAssetAfterDelete } from '@/composables/useArtworkSwitcher';
 import { useTheme } from '@/composables/useTheme';
 import { SETTING_SECTION, type SettingSectionId } from '@/settings/keys';
 import type { ArtworkBatch, MediaAsset } from '@/types/asset';
@@ -25,7 +26,7 @@ const activePreviewRefImage = ref<ReferencePreviewItem | null>(null);
 const activePreviewRefBatch = ref<ReferencePreviewItem[]>([]);
 const toasts = ref<Array<{ id: number; message: string; type: 'success' | 'error' | 'info' }>>([]);
 const pendingDelete = ref<
-  | { kind: 'item'; id: number; closeLightbox: boolean }
+  | { kind: 'item'; id: number }
   | { kind: 'batch'; batch: ArtworkBatch }
   | null
 >(null);
@@ -214,8 +215,8 @@ function handleCloseRefPreview() {
   activePreviewRefBatch.value = [];
 }
 
-function requestDeleteItem(id: number, closeLightbox = false) {
-  pendingDelete.value = { kind: 'item', id, closeLightbox };
+function requestDeleteItem(id: number) {
+  pendingDelete.value = { kind: 'item', id };
 }
 
 function requestDeleteBatch(batch: ArtworkBatch) {
@@ -232,15 +233,47 @@ async function confirmPendingDelete() {
   pendingDelete.value = null;
 
   if (pending.kind === 'batch') {
+    const activeId = activeLightboxItem.value?.id;
+    const batchIds = new Set(pending.batch.assets.map((a) => a.id).filter((id): id is number => id != null));
     await galleryStore.removeBatch(pending.batch);
     showToast('整批图片已删除', 'info');
+    if (activeId != null && batchIds.has(activeId)) {
+      const nextBatch = galleryStore.filteredBatches[0];
+      const nextAsset = nextBatch?.assets[0] ?? null;
+      if (nextAsset) {
+        activeLightboxBatch.value = nextBatch.assets;
+        activeLightboxItem.value = nextAsset;
+      } else {
+        handleCloseLightbox();
+      }
+    }
     return;
   }
 
+  const wasDeletingActiveLightboxItem = activeLightboxItem.value?.id === pending.id;
+  const nextItem = wasDeletingActiveLightboxItem
+    ? findNextAssetAfterDelete(
+        galleryStore.filteredBatches.flatMap((batch) => batch.assets),
+        pending.id
+      )
+    : null;
+
   await galleryStore.removeItem(pending.id);
   showToast('图片已删除', 'info');
-  if (pending.closeLightbox) {
-    handleCloseLightbox();
+
+  // 若等待删除期间用户已手动关闭弹窗，则不再重新打开
+  if (wasDeletingActiveLightboxItem && activeLightboxItem.value !== null) {
+    if (nextItem) {
+      const nextBatch = galleryStore.filteredBatches.find((batch) =>
+        batch.assets.some((asset) => asset.id === nextItem.id)
+      );
+      activeLightboxBatch.value = nextBatch?.assets ?? [nextItem];
+      if (activeLightboxItem.value.id === pending.id) {
+        activeLightboxItem.value = nextItem;
+      }
+    } else {
+      handleCloseLightbox();
+    }
   }
 }
 </script>
@@ -311,7 +344,7 @@ async function confirmPendingDelete() {
 
     <!-- 大图高清查看灯箱 -->
     <LightboxModal 
-      :item="activeLightboxItem"
+      v-model:item="activeLightboxItem"
       :all-assets="activeLightboxBatch"
       :mode="activeLightboxMode"
       @close="handleCloseLightbox"
@@ -319,7 +352,7 @@ async function confirmPendingDelete() {
       @reuse="handleReuse"
       @edit-as-reference="handleEditAsReference"
       @toggle-favorite="id => galleryStore.toggleFavorite(id)"
-      @delete="(id) => requestDeleteItem(id, true)"
+      @delete="requestDeleteItem"
       @show-toast="showToast"
     />
 

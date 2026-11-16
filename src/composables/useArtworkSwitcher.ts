@@ -16,6 +16,36 @@ function findWorkIndex(works: ArtworkBatch[], item: MediaAsset | null): number {
 }
 
 /**
+ * 计算删除指定图片后查看器应自动切换到的下一张图片；
+ * 若已无其他可展示图片则返回 null（由调用方关闭查看器）。
+ */
+export function findNextAssetAfterDelete(
+  previousAssets: MediaAsset[],
+  targetId: number,
+  remainingAssets?: MediaAsset[]
+): MediaAsset | null {
+  const remaining = remainingAssets
+    ? remainingAssets.filter((asset) => asset.id !== targetId)
+    : previousAssets.filter((asset) => asset.id !== targetId);
+  if (remaining.length === 0) return null;
+
+  const currentIndex = previousAssets.findIndex((asset) => asset.id === targetId);
+  if (currentIndex === -1) {
+    return remaining[0];
+  }
+
+  const remainingIds = new Set(remaining.map((asset) => asset.id));
+  for (let i = currentIndex + 1; i < previousAssets.length; i++) {
+    const candidate = previousAssets[i];
+    if (candidate.id != null && remainingIds.has(candidate.id)) {
+      return remaining.find((asset) => asset.id === candidate.id) ?? candidate;
+    }
+  }
+
+  return remaining[0];
+}
+
+/**
  * 在筛选后的作品批次之间切换当前查看项。
  * 提供按「作品卡片」粒度切换（prevWork/nextWork）以及「先组内多图、再跨作品」连续切换（prevImage/nextImage）。
  */
