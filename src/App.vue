@@ -150,11 +150,10 @@ async function handleReuse(item: MediaAsset | ArtworkBatch | GenerationTask) {
 
 async function handleEditAsReference(item: MediaAsset) {
   try {
-    await reuseItem(item);
     const url = item.url || await galleryStore.ensureImage(item);
     if (!url) throw new Error('图片数据不可用');
     await useImageAsReference(url);
-    showToast('已将选定图片加入参考图栏', 'info');
+    showToast('已将该作品添加到参考图列表末尾', 'info');
   } catch (error) {
     showToast(getOperationErrorMessage(error, '加载参考图失败，请重试'), 'error');
   }

@@ -8,7 +8,7 @@ import {
   CornerUpLeft,
   Trash2,
   Copy,
-  Edit3,
+  ImagePlus,
   Star,
   Check,
   AlertCircle
@@ -278,11 +278,11 @@ async function handleCopyPrompt() {
           class="btn-secondary flex-1"
           :class="{ 'is-disabled': isFailed }"
           :disabled="isFailed"
-          :data-tip="isFailed ? '无可用参考图' : undefined"
+          :data-tip="isFailed ? '无可用参考图' : '添加到当前参考图列表末尾'"
           @click="!isFailed && emit('editAsReference', item)"
         >
-          <Edit3 :size="15" />
-          <span>以此图编辑</span>
+          <ImagePlus :size="15" />
+          <span>作为参考图</span>
         </button>
 
         <button class="btn-danger-outline btn-icon" data-tip="删除此记录" @click="item.id && emit('delete', item.id)">

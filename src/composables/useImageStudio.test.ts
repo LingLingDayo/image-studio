@@ -753,18 +753,55 @@ describe('App - 参考图操作反馈', () => {
     app.use(pinia);
     app.mount(container);
     await nextTick();
-    const button = container.querySelector('[data-tip="以此图为参考进行图生图编辑"]') as HTMLButtonElement;
+    const button = container.querySelector('[data-tip="作为参考图"]') as HTMLButtonElement;
     expect(button).not.toBeNull();
     button.click();
     await vi.waitFor(() => {
       if (status === 503) {
         expect(container.querySelector('.toast.error')?.textContent).toContain('HTTP 503');
-        expect(container.textContent).not.toContain('已将选定图片加入参考图栏');
+        expect(container.textContent).not.toContain('已将该作品添加到参考图列表末尾');
       } else {
-        expect(container.querySelector('.toast.info')?.textContent).toContain('已将选定图片加入参考图栏');
+        expect(container.querySelector('.toast.info')?.textContent).toContain('已将该作品添加到参考图列表末尾');
         expect(container.querySelector('.toast.error')).toBeNull();
       }
     }, { timeout: 3000 });
+  });
+
+  it('点击作品的作为参考图时仅将其追加到当前参考图列表末尾，不恢复作品原参考图或覆盖当前提示词', async () => {
+    useGalleryStore().items[0].referenceImages = ['https://images.example.com/old-ref.png'];
+    const fetchMock = vi.fn().mockResolvedValue(new Response(new Blob(['result-image'], { type: 'image/png' }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    app = createApp(App);
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const textarea = container.querySelector('textarea')!;
+    textarea.value = '当前编辑中的提示词';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const existingFile = new File(['existing'], 'existing.png', { type: 'image/png' });
+    Object.defineProperty(fileInput, 'files', { value: [existingFile], configurable: true });
+    fileInput.dispatchEvent(new Event('change'));
+    await nextTick();
+    expect(container.querySelectorAll('.ref-thumbnail')).toHaveLength(1);
+    const firstRefSrc = (container.querySelector('.ref-thumbnail img') as HTMLImageElement).src;
+
+    const button = container.querySelector('[data-tip="作为参考图"]') as HTMLButtonElement;
+    button.click();
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('.toast.info')?.textContent).toContain('已将该作品添加到参考图列表末尾');
+      expect(container.querySelectorAll('.ref-thumbnail')).toHaveLength(2);
+    }, { timeout: 3000 });
+
+    expect(textarea.value).toBe('当前编辑中的提示词');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith('https://images.example.com/result.png');
+    const thumbs = container.querySelectorAll('.ref-thumbnail img');
+    expect((thumbs[0] as HTMLImageElement).src).toBe(firstRefSrc);
+    expect((thumbs[1] as HTMLImageElement).src).not.toBe(firstRefSrc);
   });
 });
 

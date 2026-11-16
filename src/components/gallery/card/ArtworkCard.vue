@@ -5,7 +5,7 @@ import {
   RotateCw, 
   Star, 
   CornerUpLeft, 
-  Edit3, 
+  ImagePlus, 
   Trash2, 
   Download,
   ChevronLeft, 
@@ -393,13 +393,13 @@ async function handleDownload() {
           <CornerUpLeft :size="15" />
         </button>
 
-        <!-- 以此图为参考进行编辑/图生图 -->
+        <!-- 将此图作为参考图 -->
         <button 
           class="card-action-btn" 
-          data-tip="以此图为参考进行图生图编辑"
+          data-tip="作为参考图"
           @click.stop="emit('editAsReference', currentAsset)"
         >
-          <Edit3 :size="15" />
+          <ImagePlus :size="15" />
         </button>
 
         <!-- 下载原图 (单图/多图批量下载) -->
