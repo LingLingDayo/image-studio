@@ -788,4 +788,45 @@ describe('UiImageViewer (src/components/ui/UiImageViewer.vue)', () => {
 
     app.unmount();
   });
+
+  it('顶部操作栏在删除按钮前展示分隔线，鼠标悬停工具栏期间暂停自动隐藏', async () => {
+    vi.useFakeTimers();
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, {
+          src: 'https://example.com/1.png',
+          showFavorite: true,
+          showDownload: true,
+          showDelete: true
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const actionBar = container.querySelector('.viewer-top-actions') as HTMLDivElement;
+    expect(actionBar.querySelector('.action-divider')).not.toBeNull();
+
+    const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+    const toolbar = container.querySelector('.image-floating-toolbar') as HTMLDivElement;
+    panel.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(true);
+
+    // 悬停到工具栏上，超过 4s 仍保持显示
+    toolbar.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
+    vi.advanceTimersByTime(5000);
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(true);
+
+    // 离开工具栏后重新倒计时 4s 自动隐藏
+    toolbar.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false }));
+    vi.advanceTimersByTime(4000);
+    await nextTick();
+    expect(toolbar.classList.contains('is-visible')).toBe(false);
+
+    app.unmount();
+    vi.useRealTimers();
+  });
 });

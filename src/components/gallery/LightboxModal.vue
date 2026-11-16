@@ -358,7 +358,8 @@ onUnmounted(() => {
     <div class="modal-card">
       <button 
         v-if="!isFullscreen" 
-        class="modal-close-btn" 
+        class="modal-close-btn"
+        :class="{ 'is-viewer-close': !showDetailPanel }"
         data-tip="关闭 (Esc)" 
         @click="handleClose"
       >
@@ -563,6 +564,27 @@ onUnmounted(() => {
   &:hover {
     background: $bg-surface-hover;
     color: $text-main;
+  }
+
+  &.is-viewer-close {
+    top: 20px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    background: $bg-glass;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: $shadow-lg;
+    z-index: 20;
+
+    &:hover {
+      background: $bg-surface;
+    }
+
+    @media (max-width: 860px) {
+      top: 12px;
+      right: 12px;
+    }
   }
 }
 

@@ -332,6 +332,15 @@ function handleMouseLeave() {
   isToolbarVisible.value = false;
 }
 
+function handleControlMouseEnter() {
+  isToolbarVisible.value = true;
+  clearToolbarTimer();
+}
+
+function handleControlMouseLeave() {
+  resetToolbarTimer();
+}
+
 function handleToggleFullscreen() {
   resetToolbarTimer();
   emit('toggleFullscreen');
@@ -582,6 +591,8 @@ defineExpose({
       v-if="hasTopActions && currentActiveItem"
       class="viewer-top-actions"
       :class="{ 'is-with-close': activeFullscreen || showClose }"
+      @mouseenter="handleControlMouseEnter"
+      @mouseleave="handleControlMouseLeave"
       @pointerdown.stop="resetToolbarTimer"
       @mousedown.stop="resetToolbarTimer"
       @focusin="resetToolbarTimer"
@@ -612,6 +623,12 @@ defineExpose({
       >
         <Download :size="15" />
       </button>
+
+      <div
+        v-if="showDelete && (showFavorite || showDownload)"
+        class="action-divider"
+        aria-hidden="true"
+      ></div>
 
       <button
         v-if="showDelete"
@@ -709,6 +726,8 @@ defineExpose({
       :class="{ 'is-visible': isToolbarVisible }"
       data-tip="上一张 (←)"
       aria-label="上一张"
+      @mouseenter="handleControlMouseEnter"
+      @mouseleave="handleControlMouseLeave"
       @pointerdown.stop="resetToolbarTimer"
       @mousedown.stop="resetToolbarTimer"
       @focusin="resetToolbarTimer"
@@ -725,6 +744,8 @@ defineExpose({
       :class="{ 'is-visible': isToolbarVisible }"
       data-tip="下一张 (→)"
       aria-label="下一张"
+      @mouseenter="handleControlMouseEnter"
+      @mouseleave="handleControlMouseLeave"
       @pointerdown.stop="resetToolbarTimer"
       @mousedown.stop="resetToolbarTimer"
       @focusin="resetToolbarTimer"
@@ -739,6 +760,8 @@ defineExpose({
       v-if="showToolbar && currentActiveItem && currentActiveItem.status !== 'failed' && currentActiveItem.url"
       class="image-floating-toolbar" 
       :class="{ 'is-visible': isToolbarVisible }"
+      @mouseenter="handleControlMouseEnter"
+      @mouseleave="handleControlMouseLeave"
       @pointerdown.stop="resetToolbarTimer" 
       @mousedown.stop="resetToolbarTimer" 
       @focusin="resetToolbarTimer"
@@ -875,13 +898,13 @@ defineExpose({
 
 .viewer-top-actions {
   position: absolute;
-  top: 18px;
-  right: 18px;
+  top: 20px;
+  right: 20px;
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  height: 34px;
-  padding: 0 4px;
+  height: 36px;
+  padding: 0 5px;
   box-sizing: border-box;
   border-radius: 9999px;
   background: $bg-glass;
@@ -892,8 +915,16 @@ defineExpose({
   z-index: 20;
 
   &.is-with-close {
-    top: 13px;
-    right: 56px;
+    top: 20px;
+    right: 64px;
+  }
+
+  .action-divider {
+    width: 1px;
+    height: 14px;
+    background: $border-strong;
+    margin: 0 3px;
+    flex-shrink: 0;
   }
 
   .viewer-action-btn {
@@ -955,15 +986,15 @@ defineExpose({
 
 .modal-image-panel.is-fullscreen .viewer-top-actions.is-with-close {
   top: 20px;
-  right: 66px;
+  right: 64px;
 }
 
 .fullscreen-close-btn {
   position: absolute;
-  top: 18px;
-  right: 18px;
-  width: 38px;
-  height: 38px;
+  top: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: $bg-glass;
   backdrop-filter: blur(20px) saturate(180%);
@@ -986,8 +1017,8 @@ defineExpose({
   @media (max-width: 860px) {
     top: 12px;
     right: 12px;
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
   }
 }
 
@@ -1361,14 +1392,14 @@ defineExpose({
     right: 12px;
 
     &.is-with-close {
-      top: 13px;
-      right: 54px;
+      top: 12px;
+      right: 56px;
     }
   }
 
   .modal-image-panel.is-fullscreen .viewer-top-actions.is-with-close {
     top: 12px;
-    right: 54px;
+    right: 56px;
   }
 
   .viewer-side-nav {
