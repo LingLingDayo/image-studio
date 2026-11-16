@@ -9,6 +9,9 @@ withDefaults(defineProps<{
   currentIndex: number;
   standalone?: boolean;
   canNavigate?: boolean;
+  showFavorite?: boolean;
+  showDownload?: boolean;
+  showDelete?: boolean;
   scale?: number;
   translateX?: number;
   translateY?: number;
@@ -17,6 +20,9 @@ withDefaults(defineProps<{
   isFullscreen?: boolean;
 }>(), {
   standalone: false,
+  showFavorite: false,
+  showDownload: false,
+  showDelete: false,
   isFullscreen: false
 });
 
@@ -32,6 +38,9 @@ const emit = defineEmits<{
   (e: 'toggleFullscreen'): void;
   (e: 'exitFullscreen'): void;
   (e: 'update:isFullscreen', isFullscreen: boolean): void;
+  (e: 'toggleFavorite'): void;
+  (e: 'download'): void;
+  (e: 'delete'): void;
   (e: 'wheel', event: WheelEvent): void;
   (e: 'pointerdown', event: PointerEvent): void;
   (e: 'mousedown', event: MouseEvent): void;
@@ -58,6 +67,11 @@ defineExpose({
     :standalone="standalone"
     :can-navigate="canNavigate"
     :keyboard-navigation="false"
+    :show-favorite="showFavorite"
+    :is-favorite="Boolean(activeItem?.isFavorite)"
+    :show-download="showDownload"
+    :download-disabled="activeItem?.status === 'failed'"
+    :show-delete="showDelete"
     :scale="scale"
     :translate-x="translateX"
     :translate-y="translateY"
@@ -75,6 +89,9 @@ defineExpose({
     @toggle-fullscreen="emit('toggleFullscreen')"
     @exit-fullscreen="emit('exitFullscreen')"
     @update:is-fullscreen="emit('update:isFullscreen', $event)"
+    @toggle-favorite="emit('toggleFavorite')"
+    @download="emit('download')"
+    @delete="emit('delete')"
     @wheel="emit('wheel', $event)"
     @pointerdown="emit('pointerdown', $event)"
     @mousedown="emit('mousedown', $event)"

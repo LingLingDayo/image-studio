@@ -12,7 +12,10 @@ import {
   ChevronLeft, 
   ChevronRight,
   AlertCircle,
-  Loader2
+  Loader2,
+  Star,
+  Download,
+  Trash2
 } from '@lucide/vue';
 import { useViewportCanvas } from '@/composables/useViewportCanvas';
 import { getErrorHeadline } from '@/utils/apiError';
@@ -54,6 +57,13 @@ const props = withDefaults(defineProps<{
   canNavigate?: boolean;
   // 是否由查看器自身响应左右方向键
   keyboardNavigation?: boolean;
+  // 顶部操作栏（收藏 / 下载 / 删除）
+  showFavorite?: boolean;
+  isFavorite?: boolean;
+  showDownload?: boolean;
+  downloadDisabled?: boolean;
+  showDelete?: boolean;
+  deleteDisabled?: boolean;
   // 工具栏静止隐藏时间 (ms)，默认 4000ms (4s)
   idleTimeout?: number;
 }>(), {
@@ -64,6 +74,12 @@ const props = withDefaults(defineProps<{
   standalone: true,
   canNavigate: undefined,
   keyboardNavigation: true,
+  showFavorite: false,
+  isFavorite: false,
+  showDownload: false,
+  downloadDisabled: false,
+  showDelete: false,
+  deleteDisabled: false,
   idleTimeout: 4000
 });
 
@@ -82,6 +98,9 @@ const emit = defineEmits<{
   (e: 'resetView'): void;
   (e: 'rotateCw'): void;
   (e: 'rotateCcw'): void;
+  (e: 'toggleFavorite'): void;
+  (e: 'download'): void;
+  (e: 'delete'): void;
   (e: 'wheel', event: WheelEvent): void;
   (e: 'pointerdown', event: PointerEvent): void;
   (e: 'mousedown', event: MouseEvent): void;
@@ -106,9 +125,9 @@ const normalizedImages = computed<ViewerImageItem[]>(() => {
       };
     });
   }
-  if (props.src) {
+  if (props.src || props.status === 'failed') {
     return [{
-      url: props.src,
+      url: props.src || '',
       alt: props.alt || 'Image',
       status: props.status,
       errorMessage: props.errorMessage
@@ -174,6 +193,7 @@ const activeFullscreen = computed(() => isFullscreenControlled.value ? (props.is
 // 独立查看器弹窗或全屏模式下展示左右切图按钮，嵌入式查看器（如详情左侧）不显示
 const isSideNavContext = computed(() => props.standalone || activeFullscreen.value);
 const canSideNavigate = computed(() => props.canNavigate ?? normalizedImages.value.length > 1);
+const hasTopActions = computed(() => props.showFavorite || props.showDownload || props.showDelete);
 
 // 工具栏鼠标静止 4s 自动隐藏收起
 const isToolbarVisible = ref(false);
@@ -255,7 +275,10 @@ function handleKeyDown(e: KeyboardEvent) {
 watch(activeFullscreen, (isFullscreenNow, wasFullscreen) => {
   if (!wasFullscreen || isFullscreenNow) return;
   const active = document.activeElement;
-  if (active instanceof HTMLElement && active.closest('.image-floating-toolbar, .fullscreen-close-btn, .viewer-side-nav')) {
+  if (
+    active instanceof HTMLElement &&
+    active.closest('.image-floating-toolbar, .fullscreen-close-btn, .viewer-side-nav, .viewer-top-actions')
+  ) {
     active.blur();
   }
 });
@@ -263,7 +286,10 @@ watch(activeFullscreen, (isFullscreenNow, wasFullscreen) => {
 // 交互控件不参与画布拖拽：容器的 setPointerCapture 会把后续 click 派发到容器，
 // 使按钮点击失效。控件自身已阻止冒泡，这里作为通用兜底。
 function isInteractiveTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && !!target.closest('button, .image-floating-toolbar, .lightbox-carousel-controls');
+  return (
+    target instanceof Element &&
+    !!target.closest('button, .image-floating-toolbar, .lightbox-carousel-controls, .viewer-top-actions')
+  );
 }
 
 onMounted(() => {
@@ -425,6 +451,55 @@ defineExpose({
     @mousemove="handleMouseMove"
     @mouseleave="handleMouseLeave"
   >
+    <!-- 右上角快捷操作栏（收藏 / 下载 / 删除） -->
+    <div
+      v-if="hasTopActions && currentActiveItem"
+      class="viewer-top-actions"
+      :class="{ 'is-with-close': activeFullscreen || showClose }"
+      @pointerdown.stop="resetToolbarTimer"
+      @mousedown.stop="resetToolbarTimer"
+      @focusin="resetToolbarTimer"
+      @dblclick.stop
+      @wheel.stop
+    >
+      <button
+        v-if="showFavorite"
+        type="button"
+        class="viewer-action-btn btn-favorite"
+        :class="{ 'is-favorite': isFavorite }"
+        :data-tip="isFavorite ? '取消收藏' : '收藏此图'"
+        :aria-label="isFavorite ? '取消收藏' : '收藏此图'"
+        :aria-pressed="Boolean(isFavorite)"
+        @click.stop="emit('toggleFavorite')"
+      >
+        <Star :size="15" :class="{ 'star-filled': isFavorite }" />
+      </button>
+
+      <button
+        v-if="showDownload"
+        type="button"
+        class="viewer-action-btn btn-download"
+        :disabled="downloadDisabled"
+        :data-tip="downloadDisabled ? '当前图片未生成成功，无法下载' : '下载原图'"
+        aria-label="下载原图"
+        @click.stop="!downloadDisabled && emit('download')"
+      >
+        <Download :size="15" />
+      </button>
+
+      <button
+        v-if="showDelete"
+        type="button"
+        class="viewer-action-btn btn-delete"
+        :disabled="deleteDisabled"
+        data-tip="删除此图"
+        aria-label="删除此图"
+        @click.stop="!deleteDisabled && emit('delete')"
+      >
+        <Trash2 :size="15" />
+      </button>
+    </div>
+
     <!-- 全屏模式右上角退出按钮：点击取消全屏 -->
     <button
       v-if="activeFullscreen && showClose"
@@ -632,6 +707,91 @@ defineExpose({
       border-bottom: none;
     }
   }
+}
+
+.viewer-top-actions {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 34px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  background: $bg-glass;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid $border-color;
+  box-shadow: $shadow-lg;
+  z-index: 20;
+
+  &.is-with-close {
+    top: 13px;
+    right: 56px;
+  }
+
+  .viewer-action-btn {
+    background: transparent;
+    border: none;
+    color: $text-secondary;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.12s ease, background-color 0.12s ease;
+
+    &:focus {
+      outline: none;
+    }
+
+    &:focus-visible {
+      outline: 1px solid $accent-border;
+      outline-offset: 2px;
+    }
+
+    &:hover:not(:disabled) {
+      background: $bg-surface-hover;
+      color: $text-main;
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    &.btn-favorite {
+      &.is-favorite {
+        color: $favorite;
+      }
+
+      &:hover:not(:disabled) {
+        background: $favorite-subtle;
+        color: $favorite;
+      }
+
+      .star-filled {
+        fill: $favorite;
+        color: $favorite;
+        filter: drop-shadow(0 1px 2px $favorite-glow);
+      }
+    }
+
+    &.btn-delete:hover:not(:disabled) {
+      background: $danger-subtle;
+      color: $danger;
+    }
+  }
+}
+
+.modal-image-panel.is-fullscreen .viewer-top-actions.is-with-close {
+  top: 20px;
+  right: 66px;
 }
 
 .fullscreen-close-btn {
@@ -968,6 +1128,21 @@ defineExpose({
   .lightbox-carousel-controls {
     top: 12px;
     left: 12px;
+  }
+
+  .viewer-top-actions {
+    top: 12px;
+    right: 12px;
+
+    &.is-with-close {
+      top: 13px;
+      right: 54px;
+    }
+  }
+
+  .modal-image-panel.is-fullscreen .viewer-top-actions.is-with-close {
+    top: 12px;
+    right: 54px;
   }
 
   .viewer-side-nav {

@@ -528,4 +528,110 @@ describe('UiImageViewer (src/components/ui/UiImageViewer.vue)', () => {
     app.unmount();
     vi.useRealTimers();
   });
+
+  it('开启顶部操作栏时展示收藏、下载与删除按钮并正确派发事件与拦截拖拽冒泡', async () => {
+    const isFav = ref(false);
+    let favCount = 0;
+    let downloadCount = 0;
+    let deleteCount = 0;
+
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, {
+          src: 'https://example.com/1.png',
+          showFavorite: true,
+          isFavorite: isFav.value,
+          showDownload: true,
+          showDelete: true,
+          onToggleFavorite: () => {
+            favCount++;
+            isFav.value = !isFav.value;
+          },
+          onDownload: () => {
+            downloadCount++;
+          },
+          onDelete: () => {
+            deleteCount++;
+          }
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+    const actionBar = container.querySelector('.viewer-top-actions') as HTMLDivElement;
+    expect(actionBar).not.toBeNull();
+
+    const favBtn = actionBar.querySelector('.btn-favorite') as HTMLButtonElement;
+    const downloadBtn = actionBar.querySelector('.btn-download') as HTMLButtonElement;
+    const deleteBtn = actionBar.querySelector('.btn-delete') as HTMLButtonElement;
+
+    expect(favBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(favBtn.getAttribute('data-tip')).toBe('收藏此图');
+
+    // 验证指针事件不会冒泡触发画布拖拽
+    let bubbled = 0;
+    panel.addEventListener('pointerdown', () => { bubbled++; });
+    panel.addEventListener('mousedown', () => { bubbled++; });
+    favBtn.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
+    favBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    expect(bubbled).toBe(0);
+
+    favBtn.click();
+    await nextTick();
+    expect(favCount).toBe(1);
+    expect(favBtn.classList.contains('is-favorite')).toBe(true);
+    expect(favBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(favBtn.getAttribute('data-tip')).toBe('取消收藏');
+
+    downloadBtn.click();
+    deleteBtn.click();
+    await nextTick();
+    expect(downloadCount).toBe(1);
+    expect(deleteCount).toBe(1);
+
+    app.unmount();
+  });
+
+  it('图片失败态下禁用下载按钮时仍保留删除按钮可点击', async () => {
+    let downloadCount = 0;
+    let deleteCount = 0;
+
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, {
+          src: '',
+          status: 'failed',
+          errorMessage: '生成失败',
+          showFavorite: false,
+          showDownload: true,
+          downloadDisabled: true,
+          showDelete: true,
+          onDownload: () => { downloadCount++; },
+          onDelete: () => { deleteCount++; }
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const actionBar = container.querySelector('.viewer-top-actions') as HTMLDivElement;
+    expect(actionBar).not.toBeNull();
+    expect(actionBar.querySelector('.btn-favorite')).toBeNull();
+
+    const downloadBtn = actionBar.querySelector('.btn-download') as HTMLButtonElement;
+    const deleteBtn = actionBar.querySelector('.btn-delete') as HTMLButtonElement;
+    expect(downloadBtn.disabled).toBe(true);
+    downloadBtn.click();
+    deleteBtn.click();
+    await nextTick();
+
+    expect(downloadCount).toBe(0);
+    expect(deleteCount).toBe(1);
+
+    app.unmount();
+  });
 });

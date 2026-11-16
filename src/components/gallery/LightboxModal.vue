@@ -218,8 +218,25 @@ function handleEditAsReference(item: MediaAsset) {
   emit('close');
 }
 
+const isCurrentFailed = computed(() => currentActiveItem.value?.status === 'failed');
+const showViewerTopActions = computed(() => !showDetailPanel.value || isFullscreen.value);
+
+function handleToggleCurrentFavorite() {
+  const id = currentActiveItem.value?.id;
+  if (id != null) {
+    emit('toggleFavorite', id);
+  }
+}
+
 function handleDelete(id: number) {
   emit('delete', id);
+}
+
+function handleDeleteCurrent() {
+  const id = currentActiveItem.value?.id;
+  if (id != null) {
+    handleDelete(id);
+  }
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -314,6 +331,9 @@ onUnmounted(() => {
           :current-index="currentAssetIndex"
           :standalone="!showDetailPanel"
           :can-navigate="canSwitchImages"
+          :show-favorite="showViewerTopActions && !isCurrentFailed && currentActiveItem.id != null"
+          :show-download="showViewerTopActions"
+          :show-delete="showViewerTopActions && currentActiveItem.id != null"
           :scale="scale"
           :translate-x="translateX"
           :translate-y="translateY"
@@ -330,6 +350,9 @@ onUnmounted(() => {
           @rotate-ccw="rotateCcw"
           @toggle-fullscreen="toggleFullscreen"
           @exit-fullscreen="exitFullscreen"
+          @toggle-favorite="handleToggleCurrentFavorite"
+          @download="handleDownload"
+          @delete="handleDeleteCurrent"
           @wheel="handleWheel"
           @pointerdown="handlePointerDown"
           @mousedown="handleMouseDown"

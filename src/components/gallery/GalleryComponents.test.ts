@@ -1188,8 +1188,82 @@ describe('图片预览与作品详情的入口区分', () => {
     expect(container.querySelector('.modal-body')?.classList.contains('is-preview')).toBe(false);
     expect(container.querySelector('.info-scroll')).not.toBeNull();
     expect(container.querySelector('.prompt-box')?.textContent).toContain('详情模式作品');
+    // 详情非全屏模式下操作由右侧详情面板承载，不在左侧重复展示顶部操作栏
+    expect(container.querySelector('.viewer-top-actions')).toBeNull();
 
     app.unmount();
+  });
+
+  it('图片查看器（预览模式与详情全屏模式）在右上角提供收藏、下载与删除按钮并响应操作', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGalleryStore();
+    store.items = [createMockAsset(7, '查看器操作测试')];
+    const favorites: number[] = [];
+    const deletes: number[] = [];
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: store.items[0],
+          allAssets: [store.items[0]],
+          mode: 'preview',
+          onToggleFavorite: (id: number) => {
+            favorites.push(id);
+            store.items[0].isFavorite = !store.items[0].isFavorite;
+          },
+          onDelete: (id: number) => deletes.push(id)
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const topActions = container.querySelector('.viewer-top-actions') as HTMLDivElement;
+    expect(topActions).not.toBeNull();
+    const favBtn = topActions.querySelector('.btn-favorite') as HTMLButtonElement;
+    const downloadBtn = topActions.querySelector('.btn-download') as HTMLButtonElement;
+    const deleteBtn = topActions.querySelector('.btn-delete') as HTMLButtonElement;
+    expect(favBtn).not.toBeNull();
+    expect(downloadBtn).not.toBeNull();
+    expect(deleteBtn).not.toBeNull();
+
+    favBtn.click();
+    await nextTick();
+    expect(favorites).toEqual([7]);
+    expect(favBtn.classList.contains('is-favorite')).toBe(true);
+
+    deleteBtn.click();
+    await nextTick();
+    expect(deletes).toEqual([7]);
+
+    app.unmount();
+
+    // 验证详情模式进入全屏后，由于右侧详情面板隐藏，查看器也会展示顶部操作栏
+    const detailApp = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: store.items[0],
+          allAssets: [store.items[0]],
+          mode: 'detail'
+        });
+      }
+    });
+    detailApp.use(pinia);
+    detailApp.mount(container);
+    await nextTick();
+
+    expect(container.querySelector('.viewer-top-actions')).toBeNull();
+    const fullscreenBtn = container.querySelector('.image-floating-toolbar [data-tip="全屏显示"]') as HTMLButtonElement;
+    fullscreenBtn.click();
+    await nextTick();
+    expect(container.querySelector('.viewer-top-actions')).not.toBeNull();
+    expect(container.querySelector('.viewer-top-actions .btn-favorite')).not.toBeNull();
+    expect(container.querySelector('.viewer-top-actions .btn-download')).not.toBeNull();
+    expect(container.querySelector('.viewer-top-actions .btn-delete')).not.toBeNull();
+
+    detailApp.unmount();
   });
 });
 
