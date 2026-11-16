@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, getCurrentInstance } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, getCurrentInstance } from 'vue';
 import { 
   ZoomIn, 
   ZoomOut, 
@@ -15,14 +15,17 @@ import {
   Loader2,
   Star,
   Download,
-  Trash2
+  Trash2,
+  Copy
 } from '@lucide/vue';
 import { useViewportCanvas } from '@/composables/useViewportCanvas';
 import { getErrorHeadline } from '@/utils/apiError';
+import { copyImageToClipboard } from '@/utils/clipboard';
 
 export interface ViewerImageItem {
   id?: string | number;
   url: string;
+  blob?: Blob;
   alt?: string;
   status?: string;
   errorMessage?: string;
@@ -32,6 +35,7 @@ const props = withDefaults(defineProps<{
   // 单图
   src?: string;
   alt?: string;
+  blob?: Blob;
   // 多图
   images?: Array<string | ViewerImageItem>;
   currentIndex?: number;
@@ -64,6 +68,9 @@ const props = withDefaults(defineProps<{
   downloadDisabled?: boolean;
   showDelete?: boolean;
   deleteDisabled?: boolean;
+  // 右键菜单
+  enableContextMenu?: boolean;
+  allowContextDelete?: boolean;
   // 工具栏静止隐藏时间 (ms)，默认 4000ms (4s)
   idleTimeout?: number;
 }>(), {
@@ -80,6 +87,8 @@ const props = withDefaults(defineProps<{
   downloadDisabled: false,
   showDelete: false,
   deleteDisabled: false,
+  enableContextMenu: true,
+  allowContextDelete: undefined,
   idleTimeout: 4000
 });
 
@@ -101,6 +110,8 @@ const emit = defineEmits<{
   (e: 'toggleFavorite'): void;
   (e: 'download'): void;
   (e: 'delete'): void;
+  (e: 'copy'): void;
+  (e: 'showToast', message: string, type: 'success' | 'error' | 'info'): void;
   (e: 'wheel', event: WheelEvent): void;
   (e: 'pointerdown', event: PointerEvent): void;
   (e: 'mousedown', event: MouseEvent): void;
@@ -119,6 +130,7 @@ const normalizedImages = computed<ViewerImageItem[]>(() => {
       return {
         id: item.id ?? idx,
         url: item.url,
+        blob: item.blob,
         alt: item.alt || `Image ${idx + 1}`,
         status: item.status,
         errorMessage: item.errorMessage
@@ -128,6 +140,7 @@ const normalizedImages = computed<ViewerImageItem[]>(() => {
   if (props.src || props.status === 'failed') {
     return [{
       url: props.src || '',
+      blob: props.blob,
       alt: props.alt || 'Image',
       status: props.status,
       errorMessage: props.errorMessage
@@ -194,6 +207,96 @@ const activeFullscreen = computed(() => isFullscreenControlled.value ? (props.is
 const isSideNavContext = computed(() => props.standalone || activeFullscreen.value);
 const canSideNavigate = computed(() => props.canNavigate ?? normalizedImages.value.length > 1);
 const hasTopActions = computed(() => props.showFavorite || props.showDownload || props.showDelete);
+const canContextDelete = computed(() => props.allowContextDelete ?? props.showDelete);
+const canCopyCurrentImage = computed(
+  () => Boolean(currentActiveItem.value && currentActiveItem.value.status !== 'failed' && currentActiveItem.value.url)
+);
+
+// 右键菜单状态
+const contextMenu = ref<{ open: boolean; x: number; y: number }>({
+  open: false,
+  x: 0,
+  y: 0
+});
+const contextMenuRef = ref<HTMLElement | null>(null);
+const isCopyingImage = ref(false);
+
+function closeContextMenu() {
+  if (contextMenu.value.open) {
+    contextMenu.value = { ...contextMenu.value, open: false };
+  }
+}
+
+function clampContextMenuPosition(rawX: number, rawY: number) {
+  const panelRect = containerRef.value?.getBoundingClientRect();
+  const menuEl = contextMenuRef.value;
+  if (!panelRect || panelRect.width <= 0 || panelRect.height <= 0 || !menuEl) return;
+
+  const padding = 8;
+  const menuWidth = menuEl.offsetWidth || 148;
+  const menuHeight = menuEl.offsetHeight || 92;
+  const maxX = Math.max(padding, panelRect.width - menuWidth - padding);
+  const maxY = Math.max(padding, panelRect.height - menuHeight - padding);
+
+  contextMenu.value = {
+    open: true,
+    x: Math.min(Math.max(padding, rawX), maxX),
+    y: Math.min(Math.max(padding, rawY), maxY)
+  };
+}
+
+function onContextMenu(e: MouseEvent) {
+  if (!props.enableContextMenu || !currentActiveItem.value) return;
+  if (isInteractiveTarget(e.target)) {
+    closeContextMenu();
+    return;
+  }
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const rect = containerRef.value?.getBoundingClientRect();
+  const rawX = rect ? e.clientX - rect.left : e.clientX;
+  const rawY = rect ? e.clientY - rect.top : e.clientY;
+  contextMenu.value = { open: true, x: rawX, y: rawY };
+  void nextTick(() => clampContextMenuPosition(rawX, rawY));
+}
+
+function handleGlobalPointerDown(e: Event) {
+  if (!contextMenu.value.open) return;
+  if (e.target instanceof Node && contextMenuRef.value?.contains(e.target)) return;
+  closeContextMenu();
+}
+
+function handleCaptureKeyDown(e: KeyboardEvent) {
+  if (!contextMenu.value.open || e.key !== 'Escape') return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  closeContextMenu();
+}
+
+async function handleContextMenuCopy() {
+  const item = currentActiveItem.value;
+  closeContextMenu();
+  if (!item || item.status === 'failed' || !item.url || isCopyingImage.value) return;
+
+  isCopyingImage.value = true;
+  try {
+    await copyImageToClipboard({ url: item.url, blob: item.blob }, currentRotation.value);
+    emit('copy');
+    emit('showToast', '图片已复制到剪贴板', 'success');
+  } catch (error) {
+    emit('showToast', error instanceof Error ? error.message : '复制图片失败，请重试', 'error');
+  } finally {
+    isCopyingImage.value = false;
+  }
+}
+
+function handleContextMenuDelete() {
+  closeContextMenu();
+  if (!canContextDelete.value || props.deleteDisabled) return;
+  emit('delete');
+}
 
 // 工具栏鼠标静止 4s 自动隐藏收起
 const isToolbarVisible = ref(false);
@@ -288,17 +391,30 @@ watch(activeFullscreen, (isFullscreenNow, wasFullscreen) => {
 function isInteractiveTarget(target: EventTarget | null): boolean {
   return (
     target instanceof Element &&
-    !!target.closest('button, .image-floating-toolbar, .lightbox-carousel-controls, .viewer-top-actions')
+    !!target.closest('button, .image-floating-toolbar, .lightbox-carousel-controls, .viewer-top-actions, .viewer-context-menu')
   );
 }
 
+watch(
+  [() => currentActiveItem.value?.id, () => currentActiveItem.value?.url, activeFullscreen],
+  () => closeContextMenu()
+);
+
 onMounted(() => {
+  window.addEventListener('keydown', handleCaptureKeyDown, true);
   window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('pointerdown', handleGlobalPointerDown, true);
+  window.addEventListener('blur', closeContextMenu);
+  window.addEventListener('resize', closeContextMenu);
 });
 
 onUnmounted(() => {
   clearToolbarTimer();
+  window.removeEventListener('keydown', handleCaptureKeyDown, true);
   window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('pointerdown', handleGlobalPointerDown, true);
+  window.removeEventListener('blur', closeContextMenu);
+  window.removeEventListener('resize', closeContextMenu);
 });
 
 // 手势与工具栏操作
@@ -353,6 +469,7 @@ function handleRotateCcw() {
 }
 
 function onWheel(e: WheelEvent) {
+  closeContextMenu();
   resetToolbarTimer();
   emit('wheel', e);
   if (!isScaleControlled.value) {
@@ -363,6 +480,10 @@ function onWheel(e: WheelEvent) {
 function onPointerDown(e: PointerEvent) {
   resetToolbarTimer();
   if (isInteractiveTarget(e.target)) return;
+  if (contextMenu.value.open) {
+    closeContextMenu();
+    return;
+  }
   emit('pointerdown', e);
   if (!isDraggingControlled.value) {
     internalCanvas.handlePointerDown(e);
@@ -372,6 +493,10 @@ function onPointerDown(e: PointerEvent) {
 function onMouseDown(e: MouseEvent) {
   resetToolbarTimer();
   if (isInteractiveTarget(e.target)) return;
+  if (contextMenu.value.open) {
+    closeContextMenu();
+    return;
+  }
   emit('mousedown', e);
   if (!isDraggingControlled.value) {
     internalCanvas.handleMouseDown(e);
@@ -450,6 +575,7 @@ defineExpose({
     @mouseenter="handleMouseEnter"
     @mousemove="handleMouseMove"
     @mouseleave="handleMouseLeave"
+    @contextmenu="onContextMenu"
   >
     <!-- 右上角快捷操作栏（收藏 / 下载 / 删除） -->
     <div
@@ -655,6 +781,44 @@ defineExpose({
       >
         <Minimize2 v-if="activeFullscreen" :size="15" />
         <Maximize2 v-else :size="15" />
+      </button>
+    </div>
+
+    <!-- 右键菜单面板 -->
+    <div
+      v-if="contextMenu.open"
+      ref="contextMenuRef"
+      class="viewer-context-menu"
+      role="menu"
+      aria-label="图片操作菜单"
+      :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
+      @pointerdown.stop
+      @mousedown.stop
+      @dblclick.stop
+      @wheel.stop
+      @contextmenu.stop.prevent
+    >
+      <button
+        type="button"
+        role="menuitem"
+        class="viewer-context-item"
+        :disabled="!canCopyCurrentImage || isCopyingImage"
+        @click.stop="handleContextMenuCopy"
+      >
+        <Copy :size="14" />
+        <span>复制</span>
+      </button>
+
+      <button
+        v-if="canContextDelete"
+        type="button"
+        role="menuitem"
+        class="viewer-context-item is-danger"
+        :disabled="deleteDisabled"
+        @click.stop="handleContextMenuDelete"
+      >
+        <Trash2 :size="14" />
+        <span>删除</span>
       </button>
     </div>
   </div>
@@ -1120,6 +1284,68 @@ defineExpose({
     height: 14px;
     background: $border-strong;
     margin: 0 2px;
+  }
+}
+
+.viewer-context-menu {
+  position: absolute;
+  z-index: 60;
+  min-width: 148px;
+  padding: 5px;
+  box-sizing: border-box;
+  border-radius: $radius-md;
+  background: $bg-glass;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid $border-color;
+  box-shadow: $shadow-lg;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  .viewer-context-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: none;
+    border-radius: $radius-sm;
+    background: transparent;
+    color: $text-main;
+    font-size: 0.82rem;
+    line-height: normal;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.12s ease, color 0.12s ease;
+
+    &:focus {
+      outline: none;
+    }
+
+    &:focus-visible {
+      outline: 1px solid $accent-border;
+      outline-offset: -1px;
+    }
+
+    &:hover:not(:disabled) {
+      background: $bg-surface-hover;
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    &.is-danger {
+      color: $danger;
+
+      &:hover:not(:disabled) {
+        background: $danger-subtle;
+        color: $danger;
+      }
+    }
   }
 }
 

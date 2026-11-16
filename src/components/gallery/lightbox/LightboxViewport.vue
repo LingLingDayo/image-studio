@@ -12,6 +12,7 @@ withDefaults(defineProps<{
   showFavorite?: boolean;
   showDownload?: boolean;
   showDelete?: boolean;
+  allowContextDelete?: boolean;
   scale?: number;
   translateX?: number;
   translateY?: number;
@@ -23,6 +24,7 @@ withDefaults(defineProps<{
   showFavorite: false,
   showDownload: false,
   showDelete: false,
+  allowContextDelete: undefined,
   isFullscreen: false
 });
 
@@ -41,6 +43,8 @@ const emit = defineEmits<{
   (e: 'toggleFavorite'): void;
   (e: 'download'): void;
   (e: 'delete'): void;
+  (e: 'copy'): void;
+  (e: 'showToast', message: string, type: 'success' | 'error' | 'info'): void;
   (e: 'wheel', event: WheelEvent): void;
   (e: 'pointerdown', event: PointerEvent): void;
   (e: 'mousedown', event: MouseEvent): void;
@@ -59,10 +63,11 @@ defineExpose({
   <UiImageViewer
     ref="viewerRef"
     :src="activeItem?.url"
+    :blob="activeItem?.blob"
     :alt="activeItem?.prompt"
     :status="activeItem?.status"
     :error-message="activeItem?.errorMessage"
-    :images="batchAssets.map((a, idx) => ({ id: a.id ?? idx, url: a.url, alt: a.prompt, status: a.status, errorMessage: a.errorMessage }))"
+    :images="batchAssets.map((a, idx) => ({ id: a.id ?? idx, url: a.url, blob: a.blob, alt: a.prompt, status: a.status, errorMessage: a.errorMessage }))"
     :current-index="currentIndex"
     :standalone="standalone"
     :can-navigate="canNavigate"
@@ -72,6 +77,7 @@ defineExpose({
     :show-download="showDownload"
     :download-disabled="activeItem?.status === 'failed'"
     :show-delete="showDelete"
+    :allow-context-delete="allowContextDelete"
     :scale="scale"
     :translate-x="translateX"
     :translate-y="translateY"
@@ -92,6 +98,8 @@ defineExpose({
     @toggle-favorite="emit('toggleFavorite')"
     @download="emit('download')"
     @delete="emit('delete')"
+    @copy="emit('copy')"
+    @show-toast="(msg, type) => emit('showToast', msg, type)"
     @wheel="emit('wheel', $event)"
     @pointerdown="emit('pointerdown', $event)"
     @mousedown="emit('mousedown', $event)"

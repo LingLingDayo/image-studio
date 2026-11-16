@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { X } from '@lucide/vue';
 import { UiImageViewer } from '@/components/ui';
 import { useConfigStore } from '@/stores/configStore';
-import type { ReferencePreviewItem } from '@/types/task';
+import type { ReferencePreviewItem, TaskReferenceImage } from '@/types/task';
 
 const props = defineProps<{
   item: ReferencePreviewItem | null;
@@ -12,6 +12,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:item', item: ReferencePreviewItem): void;
   (e: 'close'): void;
+  (e: 'showToast', message: string, type: 'success' | 'error' | 'info'): void;
 }>();
 
 const configStore = useConfigStore();
@@ -180,12 +181,14 @@ onUnmounted(() => {
         <UiImageViewer
           ref="viewerRef"
           :src="item.previewUrl"
+          :blob="(item as Partial<TaskReferenceImage>).file"
           :alt="'参考图 ' + (currentIndex + 1)"
-          :images="imageList.map((image, index) => ({ id: image.id, url: image.previewUrl, alt: '参考图 ' + (index + 1) }))"
+          :images="imageList.map((image, index) => ({ id: image.id, url: image.previewUrl, blob: (image as Partial<TaskReferenceImage>).file, alt: '参考图 ' + (index + 1) }))"
           :current-index="currentIndex"
           :is-fullscreen="isFullscreen"
           @update:is-fullscreen="changeFullscreen"
           @update:current-index="selectImage"
+          @show-toast="(msg, type) => emit('showToast', msg, type)"
           @close="close"
         />
       </div>

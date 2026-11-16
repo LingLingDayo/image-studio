@@ -634,4 +634,158 @@ describe('UiImageViewer (src/components/ui/UiImageViewer.vue)', () => {
 
     app.unmount();
   });
+
+  it('在图片查看器中右键显示菜单面板，支持复制与删除操作及多种关闭方式', async () => {
+    const originalClipboard = navigator.clipboard;
+    const originalClipboardItem = globalThis.ClipboardItem;
+    const write = vi.fn().mockResolvedValue(undefined);
+    class MockClipboardItem {
+      readonly items: Record<string, Blob>;
+      constructor(items: Record<string, Blob>) {
+        this.items = items;
+      }
+    }
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { write } });
+    Object.defineProperty(globalThis, 'ClipboardItem', { configurable: true, writable: true, value: MockClipboardItem });
+
+    let copyCount = 0;
+    let deleteCount = 0;
+    const toasts: Array<{ msg: string; type: string }> = [];
+    const blob = new Blob(['png-bytes'], { type: 'image/png' });
+
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, {
+          src: 'blob:viewer-png',
+          blob,
+          showDelete: true,
+          onCopy: () => { copyCount++; },
+          onDelete: () => { deleteCount++; },
+          onShowToast: (msg: string, type: string) => { toasts.push({ msg, type }); }
+        });
+      }
+    });
+
+    try {
+      app.mount(container);
+      await nextTick();
+
+      const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+      panel.getBoundingClientRect = () => ({
+        left: 0,
+        top: 0,
+        right: 400,
+        bottom: 300,
+        width: 400,
+        height: 300,
+        x: 0,
+        y: 0,
+        toJSON: () => {}
+      });
+
+      expect(container.querySelector('.viewer-context-menu')).toBeNull();
+
+      // 靠近右下角右键时自动夹紧在视口范围以内
+      const ctxEvent = new MouseEvent('contextmenu', {
+        clientX: 390,
+        clientY: 290,
+        bubbles: true,
+        cancelable: true
+      });
+      panel.dispatchEvent(ctxEvent);
+      await nextTick();
+      await nextTick();
+
+      expect(ctxEvent.defaultPrevented).toBe(true);
+      const menu = container.querySelector('.viewer-context-menu') as HTMLDivElement;
+      expect(menu).not.toBeNull();
+      expect(parseFloat(menu.style.left)).toBeLessThanOrEqual(244);
+      expect(parseFloat(menu.style.top)).toBeLessThanOrEqual(200);
+
+      const items = menu.querySelectorAll<HTMLButtonElement>('.viewer-context-item');
+      expect(items).toHaveLength(2);
+      expect(items[0].textContent?.trim()).toBe('复制');
+      expect(items[1].textContent?.trim()).toBe('删除');
+
+      // 点击复制
+      items[0].click();
+      await nextTick();
+      await vi.waitFor(() => expect(copyCount).toBe(1));
+      expect(write).toHaveBeenCalledTimes(1);
+      expect(toasts).toContainEqual({ msg: '图片已复制到剪贴板', type: 'success' });
+      expect(container.querySelector('.viewer-context-menu')).toBeNull();
+
+      // 再次右键打开菜单，点击删除
+      panel.dispatchEvent(new MouseEvent('contextmenu', { clientX: 60, clientY: 80, bubbles: true, cancelable: true }));
+      await nextTick();
+      const deleteMenuBtn = container.querySelectorAll<HTMLButtonElement>('.viewer-context-item')[1];
+      deleteMenuBtn.click();
+      await nextTick();
+      expect(deleteCount).toBe(1);
+      expect(container.querySelector('.viewer-context-menu')).toBeNull();
+
+      // 再次右键打开菜单，按 Escape 只关闭右键菜单而不退出全屏
+      const fullscreenBtn = container.querySelector('.image-floating-toolbar [data-tip="全屏显示"]') as HTMLButtonElement;
+      fullscreenBtn.click();
+      await nextTick();
+      expect(panel.classList.contains('is-fullscreen')).toBe(true);
+
+      panel.dispatchEvent(new MouseEvent('contextmenu', { clientX: 60, clientY: 80, bubbles: true, cancelable: true }));
+      await nextTick();
+      expect(container.querySelector('.viewer-context-menu')).not.toBeNull();
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      await nextTick();
+      expect(container.querySelector('.viewer-context-menu')).toBeNull();
+      expect(panel.classList.contains('is-fullscreen')).toBe(true);
+
+      // 滚轮滚动或点击画布外部区域也关闭右键菜单
+      panel.dispatchEvent(new MouseEvent('contextmenu', { clientX: 60, clientY: 80, bubbles: true, cancelable: true }));
+      await nextTick();
+      panel.dispatchEvent(new WheelEvent('wheel', { deltaY: -50, bubbles: true, cancelable: true }));
+      await nextTick();
+      expect(container.querySelector('.viewer-context-menu')).toBeNull();
+    } finally {
+      app.unmount();
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: originalClipboard });
+      if (originalClipboardItem !== undefined) {
+        Object.defineProperty(globalThis, 'ClipboardItem', { configurable: true, writable: true, value: originalClipboardItem });
+      } else {
+        Reflect.deleteProperty(globalThis, 'ClipboardItem');
+      }
+    }
+  });
+
+  it('失败状态的图片右键菜单禁用复制并保留删除可用', async () => {
+    let deleteCount = 0;
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, {
+          src: '',
+          status: 'failed',
+          errorMessage: '生图失败',
+          showDelete: true,
+          onDelete: () => { deleteCount++; }
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+    panel.dispatchEvent(new MouseEvent('contextmenu', { clientX: 40, clientY: 40, bubbles: true, cancelable: true }));
+    await nextTick();
+
+    const items = container.querySelectorAll<HTMLButtonElement>('.viewer-context-item');
+    expect(items).toHaveLength(2);
+    expect(items[0].disabled).toBe(true);
+    expect(items[1].disabled).toBe(false);
+
+    items[1].click();
+    await nextTick();
+    expect(deleteCount).toBe(1);
+
+    app.unmount();
+  });
 });

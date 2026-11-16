@@ -328,6 +328,7 @@ async function confirmPendingDelete() {
       v-model:item="activePreviewRefImage"
       :images="activePreviewRefBatch"
       @close="handleCloseRefPreview"
+      @show-toast="showToast"
     />
 
     <!-- 删除确认弹窗（回车确认） -->

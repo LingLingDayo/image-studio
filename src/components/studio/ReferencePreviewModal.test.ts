@@ -239,4 +239,24 @@ describe('ReferencePreviewModal', () => {
     await nextTick();
     expect(exitFullscreen).toHaveBeenCalledOnce();
   });
+
+  it('参考图预览右键显示复制菜单，按 Escape 优先关闭菜单而不关闭参考图弹窗', async () => {
+    const state = await mount();
+    const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+    panel.dispatchEvent(new MouseEvent('contextmenu', { clientX: 50, clientY: 60, bubbles: true, cancelable: true }));
+    await nextTick();
+
+    const items = container.querySelectorAll<HTMLButtonElement>('.viewer-context-menu .viewer-context-item');
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent?.trim()).toBe('复制');
+
+    key('Escape');
+    await nextTick();
+    expect(container.querySelector('.viewer-context-menu')).toBeNull();
+    expect(state.close).not.toHaveBeenCalled();
+
+    key('Escape');
+    await nextTick();
+    expect(state.close).toHaveBeenCalledOnce();
+  });
 });

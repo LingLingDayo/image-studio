@@ -1265,6 +1265,43 @@ describe('图片预览与作品详情的入口区分', () => {
 
     detailApp.unmount();
   });
+
+  it.each(['preview', 'detail'] as const)('灯箱 %s 模式下查看器右键菜单均展示复制和删除并触发对应行为', async (mode) => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGalleryStore();
+    store.items = [createMockAsset(11, '右键菜单测试')];
+    const deletes: number[] = [];
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: store.items[0],
+          allAssets: [store.items[0]],
+          mode,
+          onDelete: (id: number) => deletes.push(id)
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+    panel.dispatchEvent(new MouseEvent('contextmenu', { clientX: 80, clientY: 90, bubbles: true, cancelable: true }));
+    await nextTick();
+
+    const items = container.querySelectorAll<HTMLButtonElement>('.viewer-context-menu .viewer-context-item');
+    expect(items).toHaveLength(2);
+    expect(items[0].textContent?.trim()).toBe('复制');
+    expect(items[1].textContent?.trim()).toBe('删除');
+
+    items[1].click();
+    await nextTick();
+    expect(deletes).toEqual([11]);
+
+    app.unmount();
+  });
 });
 
 describe('作品详情中的参考图', () => {
