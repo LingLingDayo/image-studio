@@ -708,9 +708,10 @@ export function formatSizeSetting(size?: string | null): string {
 
 /**
  * 使用小分母有理数逼近将小数比例转为直观的整数比（如 1.1 -> 11:10，1.833 -> 11:6，0.5625 -> 9:16）
+ * 并返回是否精确相等（isExact）
  */
-function approximateIntegerRatio(ratioValue: number, maxDenom = 16): string {
-  if (!Number.isFinite(ratioValue) || ratioValue <= 0) return '1:1';
+function approximateIntegerRatio(ratioValue: number, maxDenom = 16): { ratio: string; isExact: boolean } {
+  if (!Number.isFinite(ratioValue) || ratioValue <= 0) return { ratio: '1:1', isExact: true };
 
   const inverted = ratioValue < 1;
   const target = inverted ? 1 / ratioValue : ratioValue;
@@ -735,21 +736,27 @@ function approximateIntegerRatio(ratioValue: number, maxDenom = 16): string {
   const divisor = gcd(bestW, bestH);
   const w = bestW / divisor;
   const h = bestH / divisor;
-  return inverted ? `${h}:${w}` : `${w}:${h}`;
+  return {
+    ratio: inverted ? `${h}:${w}` : `${w}:${h}`,
+    isExact: bestErr < 1e-6
+  };
 }
 
 /**
  * 格式化作品详情页中的“实际比例”
- * 如果不是确定的比例（如带有约等号前缀、或非预设的小数近似比例），使用小分母整数比逼近并加上约等号 ≈
+ * 如果是精确比例（预设比例、可约分整数比或精确匹配的小分母整数比），直接显示比例；
+ * 仅在存在近似误差或原始值本身标记为约等于时才加上 ≈ 前缀
  */
 export function formatActualRatio(
   ratio?: string,
   dimensions?: { width?: number; height?: number }
 ): string {
   let targetRatio = ratio;
+  const rawInput = ratio ? String(ratio).trim() : '';
+  const isInputApprox = /^[≈~]/.test(rawInput);
 
-  // 1. 如果没有 ratio，但有真实宽高，先推导 ratio
-  if ((!targetRatio || targetRatio === 'auto' || isReferenceRatio(targetRatio)) && dimensions?.width && dimensions?.height) {
+  // 1. 如果没有有效 ratio（或原始 ratio 仅是近似标记），且有真实宽高，优先从真实宽高精确推导
+  if ((!targetRatio || targetRatio === 'auto' || isReferenceRatio(targetRatio) || isInputApprox) && dimensions?.width && dimensions?.height) {
     const w = dimensions.width;
     const h = dimensions.height;
     const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
@@ -769,7 +776,8 @@ export function formatActualRatio(
     } else if (reducedW <= 50 && reducedH <= 50) {
       targetRatio = `${reducedW}:${reducedH}`;
     } else {
-      targetRatio = `≈${approximateIntegerRatio(r)}`;
+      const approx = approximateIntegerRatio(r);
+      targetRatio = approx.isExact ? approx.ratio : `≈${approx.ratio}`;
     }
   }
 
@@ -783,7 +791,7 @@ export function formatActualRatio(
   // 2. 如果原始字符串本身带有约等号前缀，确保输出为整数比并保留约等号
   if (hasApproxPrefix) {
     if (rawParsed && (!Number.isInteger(rawParsed.w) || !Number.isInteger(rawParsed.h))) {
-      return `≈${approximateIntegerRatio(rawParsed.w / rawParsed.h)}`;
+      return `≈${approximateIntegerRatio(rawParsed.w / rawParsed.h).ratio}`;
     }
     return `≈${displayRatio}`;
   }
@@ -793,7 +801,7 @@ export function formatActualRatio(
     return displayRatio;
   }
 
-  // 4. 检查是否为整数之比（如 8:5）
+  // 4. 检查是否为整数之比（如 8:5），或可精确转为小分母整数比
   const parts = displayRatio.split(':');
   if (parts.length === 2) {
     const w = Number(parts[0]);
@@ -801,11 +809,12 @@ export function formatActualRatio(
     if (Number.isInteger(w) && Number.isInteger(h)) {
       return displayRatio;
     }
-    if (rawParsed && rawParsed.w > 0 && rawParsed.h > 0) {
-      return `≈${approximateIntegerRatio(rawParsed.w / rawParsed.h)}`;
-    }
-    if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
-      return `≈${approximateIntegerRatio(w / h)}`;
+    const numericRatio = rawParsed && rawParsed.w > 0 && rawParsed.h > 0
+      ? rawParsed.w / rawParsed.h
+      : (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0 ? w / h : null);
+    if (numericRatio !== null) {
+      const approx = approximateIntegerRatio(numericRatio);
+      return approx.isExact ? approx.ratio : `≈${approx.ratio}`;
     }
   }
 
