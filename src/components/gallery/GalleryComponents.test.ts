@@ -1513,6 +1513,24 @@ describe('作品详情中的参考图', () => {
     app.unmount();
   });
 
+  it('规格区块应将图片信息展示在生图设定上方', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+
+    const app = createApp({
+      render() {
+        return h(LightboxDetailPanel, { item: createMockAsset(30, '规格顺序测试'), rotation: 0 });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const groupNames = Array.from(container.querySelectorAll('.specs-section .group-name')).map((el) => el.textContent?.trim());
+    expect(groupNames).toEqual(['图片信息', '生图设定']);
+    app.unmount();
+  });
+
   it('点击参考图打开独立预览弹窗，Esc 只关预览并保留作品详情', async () => {
     const pinia = createPinia();
     setActivePinia(pinia);

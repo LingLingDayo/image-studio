@@ -197,8 +197,33 @@ async function handleCopyPrompt() {
         </div>
       </section>
 
-      <!-- 规格：以单列属性表分段呈现设定与结果 -->
+      <!-- 规格：以单列属性表分段呈现图片信息与生图设定 -->
       <section class="specs-section">
+        <div class="spec-group">
+          <div class="spec-group-head">
+            <span class="group-name">图片信息</span>
+            <span v-if="item.transparent" class="group-tag">透明底</span>
+          </div>
+          <dl class="spec-list">
+            <div class="spec-item">
+              <dt class="spec-k">实际分辨率</dt>
+              <dd class="spec-v">{{ actualResolution }}</dd>
+            </div>
+            <div class="spec-item">
+              <dt class="spec-k">实际比例</dt>
+              <dd class="spec-v">{{ actualRatio }}</dd>
+            </div>
+            <div class="spec-item">
+              <dt class="spec-k">真实尺寸</dt>
+              <dd class="spec-v is-mono">{{ actualDimension }}</dd>
+            </div>
+            <div class="spec-item">
+              <dt class="spec-k">图像格式</dt>
+              <dd class="spec-v">{{ actualFormat }}</dd>
+            </div>
+          </dl>
+        </div>
+
         <div class="spec-group">
           <div class="spec-group-head">
             <span class="group-name">生图设定</span>
@@ -224,31 +249,6 @@ async function handleCopyPrompt() {
             <div v-if="item.moderation" class="spec-item">
               <dt class="spec-k">设定审核</dt>
               <dd class="spec-v">{{ item.moderation === 'low' ? '低' : '默认' }}</dd>
-            </div>
-          </dl>
-        </div>
-
-        <div class="spec-group">
-          <div class="spec-group-head">
-            <span class="group-name">实际结果</span>
-            <span v-if="item.transparent" class="group-tag">透明底</span>
-          </div>
-          <dl class="spec-list">
-            <div class="spec-item">
-              <dt class="spec-k">实际分辨率</dt>
-              <dd class="spec-v">{{ actualResolution }}</dd>
-            </div>
-            <div class="spec-item">
-              <dt class="spec-k">实际比例</dt>
-              <dd class="spec-v">{{ actualRatio }}</dd>
-            </div>
-            <div class="spec-item">
-              <dt class="spec-k">真实尺寸</dt>
-              <dd class="spec-v is-mono">{{ actualDimension }}</dd>
-            </div>
-            <div class="spec-item">
-              <dt class="spec-k">图像格式</dt>
-              <dd class="spec-v">{{ actualFormat }}</dd>
             </div>
           </dl>
         </div>
