@@ -71,13 +71,14 @@ describe('imageSize (imageSize.ts)', () => {
     expect(formatActualRatio('8:5')).toBe('8:5');
     expect(formatActualRatio('#16:9')).toBe('16:9');
 
-    // 约等于比例（包含非预设小数比例、带约等号前缀）
-    expect(formatActualRatio('≈1.8:1')).toBe('≈1.8:1');
-    expect(formatActualRatio('~1.8:1')).toBe('≈1.8:1');
-    expect(formatActualRatio('≈1.833:1')).toBe('≈1.8:1');
-    expect(formatActualRatio('1.8:1')).toBe('≈1.8:1');
-    expect(formatActualRatio('2.3:1')).toBe('≈2.3:1');
-    expect(formatActualRatio('0.5625:1')).toBe('≈0.6:1');
+    // 约等于比例（包含非预设小数比例、带约等号前缀，使用小分母整数比逼近）
+    expect(formatActualRatio('≈1.1:1')).toBe('≈11:10');
+    expect(formatActualRatio('≈1.8:1')).toBe('≈9:5');
+    expect(formatActualRatio('~1.8:1')).toBe('≈9:5');
+    expect(formatActualRatio('≈1.833:1')).toBe('≈11:6');
+    expect(formatActualRatio('1.8:1')).toBe('≈9:5');
+    expect(formatActualRatio('2.3:1')).toBe('≈23:10');
+    expect(formatActualRatio('0.5625:1')).toBe('≈9:16');
     expect(formatActualRatio('≈16:9')).toBe('≈16:9');
 
     // 默认或自动
@@ -87,7 +88,7 @@ describe('imageSize (imageSize.ts)', () => {
     // 根据真实尺寸推导
     expect(formatActualRatio(undefined, { width: 1920, height: 1080 })).toBe('16:9');
     expect(formatActualRatio(undefined, { width: 1024, height: 1024 })).toBe('1:1');
-    expect(formatActualRatio(undefined, { width: 1000, height: 430 })).toBe('≈2.3:1');
+    expect(formatActualRatio(undefined, { width: 1000, height: 430 })).toBe('≈7:3');
   });
 
   it('should compute max size using the long-side resolution cap', () => {

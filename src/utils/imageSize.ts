@@ -707,8 +707,40 @@ export function formatSizeSetting(size?: string | null): string {
 }
 
 /**
+ * 使用小分母有理数逼近将小数比例转为直观的整数比（如 1.1 -> 11:10，1.833 -> 11:6，0.5625 -> 9:16）
+ */
+function approximateIntegerRatio(ratioValue: number, maxDenom = 16): string {
+  if (!Number.isFinite(ratioValue) || ratioValue <= 0) return '1:1';
+
+  const inverted = ratioValue < 1;
+  const target = inverted ? 1 / ratioValue : ratioValue;
+
+  let bestW = Math.max(1, Math.round(target));
+  let bestH = 1;
+  let bestErr = Math.abs(target - bestW);
+
+  for (let h = 2; h <= maxDenom; h += 1) {
+    const w = Math.round(target * h);
+    if (w <= 0) continue;
+    const err = Math.abs(target - w / h);
+    if (err < bestErr - 1e-6) {
+      bestErr = err;
+      bestW = w;
+      bestH = h;
+      if (bestErr < 1e-6) break;
+    }
+  }
+
+  const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+  const divisor = gcd(bestW, bestH);
+  const w = bestW / divisor;
+  const h = bestH / divisor;
+  return inverted ? `${h}:${w}` : `${w}:${h}`;
+}
+
+/**
  * 格式化作品详情页中的“实际比例”
- * 如果不是确定的比例（如带有约等号前缀、或非预设的小数近似比例），前面加上约等号 ≈
+ * 如果不是确定的比例（如带有约等号前缀、或非预设的小数近似比例），使用小分母整数比逼近并加上约等号 ≈
  */
 export function formatActualRatio(
   ratio?: string,
@@ -737,7 +769,7 @@ export function formatActualRatio(
     } else if (reducedW <= 50 && reducedH <= 50) {
       targetRatio = `${reducedW}:${reducedH}`;
     } else {
-      targetRatio = `≈${Math.round(r * 10) / 10}:1`;
+      targetRatio = `≈${approximateIntegerRatio(r)}`;
     }
   }
 
@@ -746,18 +778,22 @@ export function formatActualRatio(
   const raw = String(targetRatio).trim();
   const hasApproxPrefix = /^[≈~]/.test(raw);
   const displayRatio = formatDisplayRatio(raw);
+  const rawParsed = parseRatio(raw);
 
-  // 1. 如果原始字符串本身带有约等号前缀，则输出带约等号
+  // 2. 如果原始字符串本身带有约等号前缀，确保输出为整数比并保留约等号
   if (hasApproxPrefix) {
+    if (rawParsed && (!Number.isInteger(rawParsed.w) || !Number.isInteger(rawParsed.h))) {
+      return `≈${approximateIntegerRatio(rawParsed.w / rawParsed.h)}`;
+    }
     return `≈${displayRatio}`;
   }
 
-  // 2. 如果是标准预设比例（如 16:9, 1:1, 1.91:1, 1:1.91 等），为确定比例
+  // 3. 如果是标准预设比例（如 16:9, 1:1, 1.91:1, 1:1.91 等），为确定比例
   if (PRESET_RATIO_VALUES.includes(displayRatio)) {
     return displayRatio;
   }
 
-  // 3. 检查是否为整数之比（如 8:5）
+  // 4. 检查是否为整数之比（如 8:5）
   const parts = displayRatio.split(':');
   if (parts.length === 2) {
     const w = Number(parts[0]);
@@ -765,9 +801,15 @@ export function formatActualRatio(
     if (Number.isInteger(w) && Number.isInteger(h)) {
       return displayRatio;
     }
+    if (rawParsed && rawParsed.w > 0 && rawParsed.h > 0) {
+      return `≈${approximateIntegerRatio(rawParsed.w / rawParsed.h)}`;
+    }
+    if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+      return `≈${approximateIntegerRatio(w / h)}`;
+    }
   }
 
-  // 4. 其他情况（如 2.3:1, 1.8:1, 0.6:1 等非预设小数近似比）属于约等于比例
+  // 5. 其他无法解析为整数之比的情况保留约等于前缀
   return `≈${displayRatio}`;
 }
 
