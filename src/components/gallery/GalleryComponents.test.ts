@@ -654,6 +654,56 @@ describe('LightboxModal 作品切换箭头', () => {
     app.unmount();
   });
 
+  it('灯箱三层链路下拖拽与旋转同步更新画布镜像，详情面板读到同一旋转角', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGalleryStore();
+    store.items = [createMockAsset(1, '画布镜像作品')];
+
+    const app = createApp({
+      render() {
+        return h(LightboxModal, {
+          item: store.items[0],
+          allAssets: [store.items[0]]
+        });
+      }
+    });
+    app.use(pinia);
+    app.mount(container);
+    await nextTick();
+
+    const panel = container.querySelector('.modal-image-panel') as HTMLElement;
+    const stage = container.querySelector('.image-stage') as HTMLElement;
+    const img = container.querySelector('.image-stage img') as HTMLImageElement;
+
+    panel.dispatchEvent(new PointerEvent('pointerdown', {
+      pointerId: 91, pointerType: 'mouse', button: 0,
+      clientX: 100, clientY: 100, bubbles: true, cancelable: true
+    }));
+    window.dispatchEvent(new PointerEvent('pointermove', {
+      pointerId: 91, pointerType: 'mouse', button: 0,
+      clientX: 160, clientY: 140, bubbles: true, cancelable: true
+    }));
+    await nextTick();
+    expect(stage.style.transform).toContain('translate(60px, 40px)');
+    expect(panel.classList.contains('is-dragging')).toBe(true);
+
+    window.dispatchEvent(new PointerEvent('pointerup', {
+      pointerId: 91, pointerType: 'mouse', button: 0, bubbles: true
+    }));
+    await nextTick();
+
+    // rotation 经 UiImageViewer -> LightboxViewport -> LightboxModal 的 update:canvas
+    // 同步到状态镜像，详情面板与下载逻辑读到的必须是同一个值
+    const rotateBtn = container.querySelector('.image-floating-toolbar [data-tip*="向右旋转"]') as HTMLButtonElement;
+    rotateBtn.click();
+    await nextTick();
+    expect(img.style.transform).toContain('rotate(90deg)');
+    expect(container.querySelector('.modal-info-panel')?.textContent).toContain('下载旋转 (90°) 原图');
+
+    app.unmount();
+  });
+
   it('ArtworkCard 和 TaskCard 不在 card-tags 中显示批量 tag，而在 image-badge-overlay 显示共 N 张', async () => {
     const pinia = createPinia();
     setActivePinia(pinia);
