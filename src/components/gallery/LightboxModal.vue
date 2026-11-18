@@ -2,7 +2,7 @@
 import { ref, computed, watch, onUnmounted } from 'vue';
 import type { MediaAsset } from '@/types/asset';
 import { downloadRotatedImage, generateAssetFilename, supportsCanvasImageFormat } from '@/utils/download';
-import { useViewportCanvas } from '@/composables/useViewportCanvas';
+import { createDefaultViewportCanvasState, type ViewportCanvasState } from '@/composables/useViewportCanvas';
 import { useArtworkSwitcher, findNextAssetAfterDelete } from '@/composables/useArtworkSwitcher';
 import { useConfigStore } from '@/stores/configStore';
 import { useGalleryStore } from '@/stores/galleryStore';
@@ -34,8 +34,6 @@ const emit = defineEmits<{
 }>();
 
 const currentActiveItem = ref<MediaAsset | null>(props.item);
-const viewportRef = ref<InstanceType<typeof LightboxViewport> | null>(null);
-const panelRef = computed<HTMLElement | null>(() => viewportRef.value?.containerRef || null);
 
 const {
   currentWorkIndex,
@@ -46,24 +44,11 @@ const {
   nextImage
 } = useArtworkSwitcher(currentActiveItem);
 
-const {
-  scale,
-  translateX,
-  translateY,
-  rotation,
-  isDragging,
-  zoomIn,
-  zoomOut,
-  resetScale,
-  resetView,
-  resetTransform,
-  rotateCw,
-  rotateCcw,
-  handleWheel,
-  handlePointerDown,
-  handleMouseDown,
-  handleDoubleClick
-} = useViewportCanvas(panelRef);
+// 画布状态由 UiImageViewer 独占，这里只保留一份只读镜像供下载命名、旋转导出与详情面板展示。
+const canvasState = ref<ViewportCanvasState>(createDefaultViewportCanvasState());
+function handleCanvasChange(state: ViewportCanvasState) {
+  canvasState.value = state;
+}
 
 const configStore = useConfigStore();
 const galleryStore = useGalleryStore();
@@ -78,7 +63,6 @@ watch(() => props.item, (newItem) => {
   const normalized = newItem ?? null;
   if (normalized !== currentActiveItem.value) {
     currentActiveItem.value = normalized;
-    resetTransform();
   }
 }, { flush: 'sync' });
 
@@ -107,7 +91,6 @@ watch(
       const nextItem = findNextAssetAfterDelete(lastVisibleStoreAssets, active.id, newVisibleAssets);
       if (nextItem) {
         setCurrentActiveItem(nextItem);
-        resetTransform();
       } else {
         setCurrentActiveItem(null);
         emit('close');
@@ -184,7 +167,6 @@ function handlePrev() {
   if (currentWorkIndex.value >= 0) {
     if (prevImage()) {
       emit('update:item', currentActiveItem.value);
-      resetTransform();
     }
     return;
   }
@@ -192,14 +174,12 @@ function handlePrev() {
   if (list.length <= 1) return;
   const nextIdx = (currentAssetIndex.value - 1 + list.length) % list.length;
   setCurrentActiveItem(list[nextIdx]);
-  resetTransform();
 }
 
 function handleNext() {
   if (currentWorkIndex.value >= 0) {
     if (nextImage()) {
       emit('update:item', currentActiveItem.value);
-      resetTransform();
     }
     return;
   }
@@ -207,7 +187,6 @@ function handleNext() {
   if (list.length <= 1) return;
   const nextIdx = (currentAssetIndex.value + 1) % list.length;
   setCurrentActiveItem(list[nextIdx]);
-  resetTransform();
 }
 
 async function handleDownload() {
@@ -222,11 +201,11 @@ async function handleDownload() {
     const targetFormat = configStore.downloadImageFormat;
     const origExt = (item.format || 'png').replace(/^\./, '');
     const finalExt = targetFormat && targetFormat !== 'auto' ? targetFormat : origExt;
-    const filename = generateAssetFilename(item, undefined, rotation.value, { pattern, targetFormat });
-    const normRot = ((rotation.value % 360) + 360) % 360;
+    const filename = generateAssetFilename(item, undefined, canvasState.value.rotation, { pattern, targetFormat });
+    const normRot = ((canvasState.value.rotation % 360) + 360) % 360;
     
     try {
-      await downloadRotatedImage(url, filename, rotation.value, finalExt, origExt);
+      await downloadRotatedImage(url, filename, canvasState.value.rotation, finalExt, origExt);
       const message = normRot !== 0 && !supportsCanvasImageFormat(finalExt)
         ? '已开始下载原件，GIF/SVG 不应用旋转'
         : normRot !== 0 ? `已下载旋转 (${normRot}°) 后的图片！` : '已开始下载图片！';
@@ -369,7 +348,6 @@ onUnmounted(() => {
       <div class="modal-body" :class="{ 'is-preview': !showDetailPanel }">
         <!-- 左侧大图展示与交互视口 -->
         <LightboxViewport
-          ref="viewportRef"
           :active-item="currentActiveItem"
           :batch-assets="currentBatchAssets"
           :current-index="currentAssetIndex"
@@ -379,30 +357,16 @@ onUnmounted(() => {
           :show-download="showViewerTopActions"
           :show-delete="showViewerTopActions && currentActiveItem.id != null"
           :allow-context-delete="currentActiveItem.id != null"
-          :scale="scale"
-          :translate-x="translateX"
-          :translate-y="translateY"
-          :rotation="rotation"
-          :is-dragging="isDragging"
           v-model:is-fullscreen="isFullscreen"
+          @update:canvas="handleCanvasChange"
           @prev="handlePrev"
           @next="handleNext"
-          @zoom-in="zoomIn"
-          @zoom-out="zoomOut"
-          @reset-scale="resetScale"
-          @reset-view="resetView"
-          @rotate-cw="rotateCw"
-          @rotate-ccw="rotateCcw"
           @toggle-fullscreen="toggleFullscreen"
           @exit-fullscreen="exitFullscreen"
           @toggle-favorite="handleToggleCurrentFavorite"
           @download="handleDownload"
           @delete="handleDeleteCurrent"
           @show-toast="(msg, type) => emit('showToast', msg, type)"
-          @wheel="handleWheel"
-          @pointerdown="handlePointerDown"
-          @mousedown="handleMouseDown"
-          @dblclick="handleDoubleClick"
         />
 
         <!-- 右侧信息与操作（仅作品详情模式） -->
@@ -410,7 +374,7 @@ onUnmounted(() => {
           <LightboxDetailPanel
             v-show="!isFullscreen"
             :item="currentActiveItem"
-            :rotation="rotation"
+            :rotation="canvasState.rotation"
             @toggle-favorite="emit('toggleFavorite', $event)"
             @reuse="handleReuse"
             @edit-as-reference="handleEditAsReference"

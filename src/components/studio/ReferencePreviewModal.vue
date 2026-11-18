@@ -17,7 +17,6 @@ const emit = defineEmits<{
 
 const configStore = useConfigStore();
 const dialogRef = ref<HTMLElement | null>(null);
-const viewerRef = ref<InstanceType<typeof UiImageViewer> | null>(null);
 const isFullscreen = ref(false);
 const imageList = computed(() => props.images.length > 0 ? props.images : props.item ? [props.item] : []);
 const currentIndex = computed(() => Math.max(0, imageList.value.findIndex((item) => item.id === props.item?.id)));
@@ -137,9 +136,6 @@ watch(() => props.item !== null, async (open) => {
   await nextTick();
   if (props.item && !disposed) dialogRef.value?.querySelector<HTMLElement>('.modal-close-btn')?.focus();
 }, { immediate: true });
-watch(() => props.item?.id, () => {
-  viewerRef.value?.resetTransform();
-});
 watch(() => configStore.previewFullscreenMode, () => {
   if (isFullscreen.value) {
     if (configStore.previewFullscreenMode === 'native') void changeFullscreen(true);
@@ -179,7 +175,6 @@ onUnmounted(() => {
       </button>
       <div class="modal-body ref-preview-body">
         <UiImageViewer
-          ref="viewerRef"
           :src="item.previewUrl"
           :blob="(item as Partial<TaskReferenceImage>).file"
           :alt="'参考图 ' + (currentIndex + 1)"

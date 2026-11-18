@@ -1,8 +1,21 @@
-import { ref, onUnmounted, getCurrentInstance, type Ref } from 'vue';
+import { ref, computed, onUnmounted, getCurrentInstance, type Ref } from 'vue';
 
 export interface ViewportCanvasOptions {
   minScale?: number;
   maxScale?: number;
+}
+
+/** 画布状态的完整只读快照，供外部观测；真实状态始终由本 composable 的实例持有 */
+export interface ViewportCanvasState {
+  scale: number;
+  translateX: number;
+  translateY: number;
+  rotation: number;
+  isDragging: boolean;
+}
+
+export function createDefaultViewportCanvasState(): ViewportCanvasState {
+  return { scale: 1, translateX: 0, translateY: 0, rotation: 0, isDragging: false };
 }
 
 export function useViewportCanvas(panelRef: Ref<HTMLElement | null>, options: ViewportCanvasOptions = {}) {
@@ -197,6 +210,13 @@ export function useViewportCanvas(panelRef: Ref<HTMLElement | null>, options: Vi
     translateY,
     rotation,
     isDragging,
+    state: computed<ViewportCanvasState>(() => ({
+      scale: scale.value,
+      translateX: translateX.value,
+      translateY: translateY.value,
+      rotation: rotation.value,
+      isDragging: isDragging.value
+    })),
     zoomTo,
     zoomIn,
     zoomOut,

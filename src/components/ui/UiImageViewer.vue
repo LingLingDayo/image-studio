@@ -18,7 +18,7 @@ import {
   Trash2,
   Copy
 } from '@lucide/vue';
-import { useViewportCanvas } from '@/composables/useViewportCanvas';
+import { useViewportCanvas, type ViewportCanvasState } from '@/composables/useViewportCanvas';
 import { getErrorHeadline } from '@/utils/apiError';
 import { copyImageToClipboard } from '@/utils/clipboard';
 
@@ -39,12 +39,6 @@ const props = withDefaults(defineProps<{
   // 多图
   images?: Array<string | ViewerImageItem>;
   currentIndex?: number;
-  // 画布控制（若父组件传入则使用受控模式，若不传则组件内部自管理）
-  scale?: number;
-  translateX?: number;
-  translateY?: number;
-  rotation?: number;
-  isDragging?: boolean;
   // 全屏控制
   isFullscreen?: boolean;
   allowFullscreen?: boolean;
@@ -95,7 +89,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'update:currentIndex', index: number): void;
   (e: 'update:isFullscreen', isFullscreen: boolean): void;
-  (e: 'update:rotation', rotation: number): void;
+  (e: 'update:canvas', state: ViewportCanvasState): void;
   (e: 'prev'): void;
   (e: 'next'): void;
   (e: 'close'): void;
@@ -120,8 +114,21 @@ const emit = defineEmits<{
 
 const containerRef = ref<HTMLElement | null>(null);
 
-// 是否受控只看父组件「是否声明了该 prop」，不读 prop 值：Boolean prop 缺席时 Vue 会补成 false，
-// 显式传 undefined 同样会让基于值的判定失真。模板里的 kebab-case 写法需统一成 camelCase 再比对。
+// 画布状态与手势的唯一所有者：组件永远只走这一条代码路径，不存在父级接管的分支。
+// 父级需要状态就监听 update:canvas 拿只读快照，需要控制就调用 defineExpose 暴露的命令式方法；
+// wheel / pointerdown / mousedown / dblclick 等事件仅作通知，不用于驱动画布。
+const canvas = useViewportCanvas(containerRef);
+const {
+  scale: currentScale,
+  translateX: currentTranslateX,
+  translateY: currentTranslateY,
+  rotation: currentRotation,
+  isDragging: currentIsDragging
+} = canvas;
+watch(canvas.state, (state) => emit('update:canvas', state), { flush: 'sync' });
+
+// 导航与全屏允许父级接管：只看父组件「是否声明了该 prop」，不读 prop 值，
+// 避免 Boolean casting 或显式传 undefined 让判定失真。kebab-case 写法需归一化成 camelCase。
 const instance = getCurrentInstance();
 const declaredProps = new Set(
   Object.keys(instance?.vnode.props ?? {}).map((key) => key.replace(/-[a-z]/g, (m) => m[1].toUpperCase()))
@@ -129,13 +136,6 @@ const declaredProps = new Set(
 function isDeclared(...keys: string[]): boolean {
   return keys.some((key) => declaredProps.has(key));
 }
-
-// 画布状态是同一份 useViewportCanvas 的整体：任一维度被父级声明即整体接管，所有手势分支共用这一个开关，
-// 杜绝「一半受控、一半自管理」导致的拖拽/缩放表现割裂。父级接管时需自行响应 pointerdown / wheel 等事件。
-const isCanvasControlled = isDeclared(
-  'scale', 'translateX', 'translateY', 'rotation', 'isDragging',
-  'onUpdate:scale', 'onUpdate:translateX', 'onUpdate:translateY', 'onUpdate:rotation', 'onUpdate:isDragging'
-);
 const isIndexControlled = isDeclared('currentIndex', 'onUpdate:currentIndex');
 const isFullscreenControlled = isDeclared('isFullscreen', 'onUpdate:isFullscreen');
 
@@ -192,14 +192,10 @@ const currentActiveItem = computed<ViewerImageItem | null>(() => {
   return normalizedImages.value[activeIndex.value];
 });
 
-// 组件内部自管理画布手势（非受控模式下使用）
-const internalCanvas = useViewportCanvas(containerRef);
-
-const currentScale = computed(() => isCanvasControlled ? (props.scale ?? 1) : internalCanvas.scale.value);
-const currentTranslateX = computed(() => isCanvasControlled ? (props.translateX ?? 0) : internalCanvas.translateX.value);
-const currentTranslateY = computed(() => isCanvasControlled ? (props.translateY ?? 0) : internalCanvas.translateY.value);
-const currentRotation = computed(() => isCanvasControlled ? (props.rotation ?? 0) : internalCanvas.rotation.value);
-const currentIsDragging = computed(() => isCanvasControlled ? (props.isDragging ?? false) : internalCanvas.isDragging.value);
+// 换图时画布回到初始状态，无论索引由组件内部还是父级驱动，避免两种接法出现差异。
+watch([activeIndex, () => currentActiveItem.value?.id, () => currentActiveItem.value?.url], () => {
+  canvas.resetTransform();
+});
 
 // 内部全屏管理（非受控时使用）
 const internalFullscreen = ref(false);
@@ -428,64 +424,48 @@ onUnmounted(() => {
   window.removeEventListener('resize', closeContextMenu);
 });
 
-// 手势与工具栏操作
+// 手势与工具栏操作：无论父级是否监听这些事件，画布动作都由本组件执行，行为恒定。
 function handleZoomIn() {
   resetToolbarTimer();
   emit('zoomIn');
-  if (!isCanvasControlled) {
-    internalCanvas.zoomIn();
-  }
+  canvas.zoomIn();
 }
 
 function handleZoomOut() {
   resetToolbarTimer();
   emit('zoomOut');
-  if (!isCanvasControlled) {
-    internalCanvas.zoomOut();
-  }
+  canvas.zoomOut();
 }
 
 function handleResetScale() {
   resetToolbarTimer();
   emit('resetScale');
-  if (!isCanvasControlled) {
-    internalCanvas.resetScale();
-  }
+  canvas.resetScale();
 }
 
 function handleResetView() {
   resetToolbarTimer();
   emit('resetView');
-  if (!isCanvasControlled) {
-    internalCanvas.resetView();
-  }
+  canvas.resetView();
 }
 
 function handleRotateCw() {
   resetToolbarTimer();
   emit('rotateCw');
-  if (!isCanvasControlled) {
-    internalCanvas.rotateCw();
-    emit('update:rotation', internalCanvas.rotation.value);
-  }
+  canvas.rotateCw();
 }
 
 function handleRotateCcw() {
   resetToolbarTimer();
   emit('rotateCcw');
-  if (!isCanvasControlled) {
-    internalCanvas.rotateCcw();
-    emit('update:rotation', internalCanvas.rotation.value);
-  }
+  canvas.rotateCcw();
 }
 
 function onWheel(e: WheelEvent) {
   closeContextMenu();
   resetToolbarTimer();
   emit('wheel', e);
-  if (!isCanvasControlled) {
-    internalCanvas.handleWheel(e);
-  }
+  canvas.handleWheel(e);
 }
 
 function onPointerDown(e: PointerEvent) {
@@ -496,9 +476,7 @@ function onPointerDown(e: PointerEvent) {
     return;
   }
   emit('pointerdown', e);
-  if (!isCanvasControlled) {
-    internalCanvas.handlePointerDown(e);
-  }
+  canvas.handlePointerDown(e);
 }
 
 function onMouseDown(e: MouseEvent) {
@@ -509,17 +487,13 @@ function onMouseDown(e: MouseEvent) {
     return;
   }
   emit('mousedown', e);
-  if (!isCanvasControlled) {
-    internalCanvas.handleMouseDown(e);
-  }
+  canvas.handleMouseDown(e);
 }
 
 function onDoubleClick(e: MouseEvent) {
   resetToolbarTimer();
   emit('dblclick', e);
-  if (!isCanvasControlled) {
-    internalCanvas.handleDoubleClick(e);
-  }
+  canvas.handleDoubleClick(e);
 }
 
 function handlePrev() {
@@ -531,9 +505,6 @@ function handlePrev() {
       internalIndex.value = prevIdx;
     }
     emit('update:currentIndex', prevIdx);
-    if (!isCanvasControlled) {
-      internalCanvas.resetTransform();
-    }
   }
 }
 
@@ -546,9 +517,6 @@ function handleNext() {
       internalIndex.value = nextIdx;
     }
     emit('update:currentIndex', nextIdx);
-    if (!isCanvasControlled) {
-      internalCanvas.resetTransform();
-    }
   }
 }
 
@@ -561,7 +529,7 @@ defineExpose({
   activeIndex,
   prev: handlePrev,
   next: handleNext,
-  resetTransform: internalCanvas.resetTransform,
+  resetTransform: canvas.resetTransform,
   resetView: handleResetView,
   zoomIn: handleZoomIn,
   zoomOut: handleZoomOut,
