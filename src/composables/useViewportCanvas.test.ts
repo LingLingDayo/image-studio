@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ref } from 'vue';
-import { useViewportCanvas } from './useViewportCanvas';
+import { useViewportCanvas, createDefaultViewportCanvasState } from './useViewportCanvas';
 
 describe('useViewportCanvas (useViewportCanvas.ts)', () => {
   it('should initialize with default 100% scale and 0 rotation', () => {
@@ -137,5 +137,25 @@ describe('useViewportCanvas (useViewportCanvas.ts)', () => {
     );
 
     expect(canvas.isDragging.value).toBe(false);
+  });
+
+  it('state 快照始终反映全部画布维度，且与默认状态工厂一致', () => {
+    const dummyRef = ref<HTMLElement | null>(null);
+    const canvas = useViewportCanvas(dummyRef);
+
+    expect(canvas.state.value).toEqual(createDefaultViewportCanvasState());
+
+    canvas.zoomTo(2, 0, 0);
+    canvas.rotateCw();
+    canvas.translateX.value = 30;
+    canvas.isDragging.value = true;
+
+    expect(canvas.state.value).toEqual({
+      scale: 2,
+      translateX: 30,
+      translateY: 0,
+      rotation: 90,
+      isDragging: true
+    });
   });
 });

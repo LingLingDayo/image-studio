@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { computed, createApp, defineComponent, h, nextTick, ref, type Component } from 'vue';
+import { createApp, h, nextTick, ref, type VNode } from 'vue';
 import UiImageViewer from './UiImageViewer.vue';
-import { useViewportCanvas } from '@/composables/useViewportCanvas';
+import { createDefaultViewportCanvasState, type ViewportCanvasState } from '@/composables/useViewportCanvas';
 
 describe('UiImageViewer (src/components/ui/UiImageViewer.vue)', () => {
   let container: HTMLDivElement;
@@ -869,132 +869,270 @@ describe('UiImageViewer (src/components/ui/UiImageViewer.vue)', () => {
     vi.useRealTimers();
   });
 
-  // 行为一致性契约：父级是否接管画布属于实现差异，同一组用户手势应得到相同的视觉结果。
-  // 受控侧复刻 LightboxModal 的接法（useViewportCanvas + 全量画布 props + 手势事件监听）。
-  const ControlledHost = defineComponent({
-    setup() {
-      const viewerRef = ref<InstanceType<typeof UiImageViewer> | null>(null);
-      const panelRef = computed<HTMLElement | null>(() => viewerRef.value?.containerRef ?? null);
-      const canvas = useViewportCanvas(panelRef);
-      return () => h(UiImageViewer, {
-        ref: viewerRef,
-        src: 'blob:consistency',
-        scale: canvas.scale.value,
-        translateX: canvas.translateX.value,
-        translateY: canvas.translateY.value,
-        rotation: canvas.rotation.value,
-        isDragging: canvas.isDragging.value,
-        onPointerdown: canvas.handlePointerDown,
-        onMousedown: canvas.handleMouseDown,
-        onWheel: canvas.handleWheel,
-        onDblclick: canvas.handleDoubleClick
-      });
-    }
-  });
+  // 行为一致性契约：画布状态与手势的唯一所有者是查看器本身，
+  // 因此展示参数、导航/全屏是否由父级接管、父级是否额外监听手势通知，都不应改变画布表现。
+  type CanvasTrace = {
+    afterDrag: string;
+    dragging: boolean;
+    afterWheel: string;
+    afterDoubleClick: string;
+    rotation: string;
+    afterReset: string;
+  };
 
-  async function captureDrag(hostComponent: Component) {
+  function mountViewer(renderViewer: () => VNode) {
     const host = document.createElement('div');
     document.body.appendChild(host);
-    const app = createApp(hostComponent);
+    const app = createApp({ render: renderViewer });
     app.mount(host);
+    return { host, app };
+  }
+
+  function dragBy(panel: HTMLElement, dx: number, dy: number, pointerId = 41) {
+    panel.dispatchEvent(new PointerEvent('pointerdown', {
+      pointerId, pointerType: 'mouse', button: 0,
+      clientX: 100, clientY: 100, bubbles: true, cancelable: true
+    }));
+    window.dispatchEvent(new PointerEvent('pointermove', {
+      pointerId, pointerType: 'mouse', button: 0,
+      clientX: 100 + dx, clientY: 100 + dy, bubbles: true, cancelable: true
+    }));
+    window.dispatchEvent(new PointerEvent('pointerup', {
+      pointerId, pointerType: 'mouse', button: 0, bubbles: true
+    }));
+  }
+
+  async function traceCanvas(renderViewer: () => VNode): Promise<CanvasTrace> {
+    const { host, app } = mountViewer(renderViewer);
     await nextTick();
 
     const panel = host.querySelector('.modal-image-panel') as HTMLElement;
     const stage = host.querySelector('.image-stage') as HTMLElement;
-    const before = stage.style.transform;
+    const img = host.querySelector('.image-stage img') as HTMLImageElement;
 
     panel.dispatchEvent(new PointerEvent('pointerdown', {
-      pointerId: 21, pointerType: 'mouse', button: 0,
+      pointerId: 41, pointerType: 'mouse', button: 0,
       clientX: 100, clientY: 100, bubbles: true, cancelable: true
     }));
     window.dispatchEvent(new PointerEvent('pointermove', {
-      pointerId: 21, pointerType: 'mouse', button: 0,
+      pointerId: 41, pointerType: 'mouse', button: 0,
       clientX: 160, clientY: 140, bubbles: true, cancelable: true
     }));
     await nextTick();
-    await nextTick();
-    const during = {
-      transform: stage.style.transform,
-      dragging: panel.classList.contains('is-dragging')
-    };
-
+    const afterDrag = stage.style.transform;
+    const dragging = panel.classList.contains('is-dragging');
     window.dispatchEvent(new PointerEvent('pointerup', {
-      pointerId: 21, pointerType: 'mouse', button: 0, bubbles: true
+      pointerId: 41, pointerType: 'mouse', button: 0, bubbles: true
     }));
     await nextTick();
-    const after = {
-      transform: stage.style.transform,
-      dragging: panel.classList.contains('is-dragging')
-    };
-
-    app.unmount();
-    host.remove();
-    return { before, during, after };
-  }
-
-  it('全受控与全非受控两种接法，相同拖拽手势下画布表现一致', async () => {
-    const uncontrolled = await captureDrag({
-      render: () => h(UiImageViewer, { src: 'blob:consistency' })
-    });
-    const controlled = await captureDrag(ControlledHost);
-
-    expect(uncontrolled.during.transform).toContain('translate(60px, 40px)');
-    expect(uncontrolled.during.dragging).toBe(true);
-    expect(uncontrolled.after.dragging).toBe(false);
-    expect(controlled.before).toBe(uncontrolled.before);
-    expect(controlled.during).toEqual(uncontrolled.during);
-    expect(controlled.after).toEqual(uncontrolled.after);
-  });
-
-  it('父级只声明部分画布参数时，已传入的值仍生效且其余维度回落默认值', async () => {
-    const app = createApp({
-      render: () => h(UiImageViewer, { src: 'blob:consistency', translateX: 50 })
-    });
-    app.mount(container);
-    await nextTick();
-
-    const stage = container.querySelector('.image-stage') as HTMLElement;
-    expect(stage.style.transform).toContain('translate(50px, 0px)');
-    app.unmount();
-  });
-
-  it('父级整体接管画布后，拖拽/滚轮/双击统一由父级驱动，不会部分生效', async () => {
-    const app = createApp({
-      render: () => h(UiImageViewer, { src: 'blob:consistency', scale: 1 })
-    });
-    app.mount(container);
-    await nextTick();
-
-    const panel = container.querySelector('.modal-image-panel') as HTMLElement;
-    const stage = container.querySelector('.image-stage') as HTMLElement;
-    const initial = stage.style.transform;
-
-    panel.dispatchEvent(new PointerEvent('pointerdown', {
-      pointerId: 31, pointerType: 'mouse', button: 0,
-      clientX: 100, clientY: 100, bubbles: true, cancelable: true
-    }));
-    window.dispatchEvent(new PointerEvent('pointermove', {
-      pointerId: 31, pointerType: 'mouse', button: 0,
-      clientX: 130, clientY: 120, bubbles: true, cancelable: true
-    }));
-    window.dispatchEvent(new PointerEvent('pointerup', {
-      pointerId: 31, pointerType: 'mouse', button: 0, bubbles: true
-    }));
-    await nextTick();
-    expect(stage.style.transform).toBe(initial);
 
     panel.dispatchEvent(new WheelEvent('wheel', {
       deltaY: -120, clientX: 100, clientY: 100, bubbles: true, cancelable: true
     }));
     await nextTick();
-    expect(stage.style.transform).toBe(initial);
+    const afterWheel = stage.style.transform;
 
     panel.dispatchEvent(new MouseEvent('dblclick', {
       clientX: 100, clientY: 100, bubbles: true, cancelable: true
     }));
     await nextTick();
-    expect(stage.style.transform).toBe(initial);
+    const afterDoubleClick = stage.style.transform;
+
+    (host.querySelector('.image-floating-toolbar [data-tip*="向右旋转"]') as HTMLButtonElement).click();
+    await nextTick();
+    const rotation = img.style.transform;
+
+    (host.querySelector('.image-floating-toolbar [data-tip*="重置视图"]') as HTMLButtonElement).click();
+    await nextTick();
+    const afterReset = stage.style.transform;
 
     app.unmount();
+    host.remove();
+    return { afterDrag, dragging, afterWheel, afterDoubleClick, rotation, afterReset };
+  }
+
+  const viewerVariants: Array<{ name: string; render: () => VNode }> = [
+    {
+      name: '裸组件（默认参数）',
+      render: () => h(UiImageViewer, { src: 'blob:consistency' })
+    },
+    {
+      name: '父级接管索引与全屏',
+      render: () => h(UiImageViewer, {
+        src: 'blob:consistency',
+        currentIndex: 0,
+        isFullscreen: false,
+        'onUpdate:currentIndex': () => {},
+        'onUpdate:isFullscreen': () => {}
+      })
+    },
+    {
+      name: '嵌入式多图 + 顶部操作栏',
+      render: () => h(UiImageViewer, {
+        images: ['blob:consistency-a', 'blob:consistency-b'],
+        standalone: false,
+        canNavigate: true,
+        keyboardNavigation: false,
+        showFavorite: true,
+        showDownload: true,
+        showDelete: true
+      })
+    },
+    {
+      name: '父级额外监听手势与工具栏通知',
+      render: () => h(UiImageViewer, {
+        src: 'blob:consistency',
+        onWheel: () => {},
+        onPointerdown: () => {},
+        onMousedown: () => {},
+        onDblclick: () => {},
+        onZoomIn: () => {},
+        onResetView: () => {}
+      })
+    }
+  ];
+
+  it('不同展示参数与父级接法下，相同手势序列的画布表现完全一致', async () => {
+    const baseline = await traceCanvas(viewerVariants[0].render);
+    expect(baseline.afterDrag).toContain('translate(60px, 40px)');
+    expect(baseline.dragging).toBe(true);
+    expect(baseline.rotation).toContain('rotate(90deg)');
+    expect(baseline.afterReset).toContain('translate(0px, 0px) scale(1)');
+
+    for (const variant of viewerVariants.slice(1)) {
+      expect(await traceCanvas(variant.render), variant.name).toEqual(baseline);
+    }
+  });
+
+  it('update:canvas 输出完整只读快照，父级修改镜像不会反向影响画布', async () => {
+    const mirror = ref<ViewportCanvasState>(createDefaultViewportCanvasState());
+    const snapshots: ViewportCanvasState[] = [];
+    const { host, app } = mountViewer(() => h('div', [
+      h('span', { class: 'mirror-output' }, String(mirror.value.scale)),
+      h(UiImageViewer, {
+        src: 'blob:consistency',
+        'onUpdate:canvas': (state: ViewportCanvasState) => {
+          snapshots.push(state);
+          mirror.value = state;
+        }
+      })
+    ]));
+    await nextTick();
+
+    const panel = host.querySelector('.modal-image-panel') as HTMLElement;
+    const stage = host.querySelector('.image-stage') as HTMLElement;
+
+    dragBy(panel, 60, 40, 51);
+    await nextTick();
+
+    expect(mirror.value).toEqual({
+      scale: 1, translateX: 60, translateY: 40, rotation: 0, isDragging: false
+    });
+    expect(snapshots[snapshots.length - 1]).toEqual(mirror.value);
+    expect(stage.style.transform).toContain('translate(60px, 40px)');
+
+    // 父级把镜像改成任意值并触发重渲染，组件仍以自己持有的状态为准
+    mirror.value = { scale: 99, translateX: -999, translateY: 999, rotation: 270, isDragging: true };
+    await nextTick();
+    expect(host.querySelector('.mirror-output')?.textContent).toBe('99');
+    expect(stage.style.transform).toContain('translate(60px, 40px)');
+
+    // 再次拖拽时位移从真实状态推进，而不是从父级镜像推进
+    dragBy(panel, 20, 10, 52);
+    await nextTick();
+    expect(stage.style.transform).toContain('translate(80px, 50px)');
+
+    app.unmount();
+    host.remove();
+  });
+
+  it('受控与非受控索引切换图片时都统一重置画布', async () => {
+    const controlledIndex = ref(0);
+    const images = ['blob:consistency-a', 'blob:consistency-b'];
+    const variants: Array<{ name: string; render: () => VNode }> = [
+      { name: '非受控索引', render: () => h(UiImageViewer, { images }) },
+      {
+        name: '受控索引',
+        render: () => h(UiImageViewer, {
+          images,
+          currentIndex: controlledIndex.value,
+          'onUpdate:currentIndex': (idx: number) => { controlledIndex.value = idx; }
+        })
+      }
+    ];
+
+    for (const variant of variants) {
+      controlledIndex.value = 0;
+      const { host, app } = mountViewer(variant.render);
+      await nextTick();
+
+      const panel = host.querySelector('.modal-image-panel') as HTMLElement;
+      const stage = host.querySelector('.image-stage') as HTMLElement;
+      const img = host.querySelector('.image-stage img') as HTMLImageElement;
+
+      dragBy(panel, 60, 40, 61);
+      (host.querySelector('.image-floating-toolbar [data-tip*="向右旋转"]') as HTMLButtonElement).click();
+      await nextTick();
+      expect(stage.style.transform).toContain('translate(60px, 40px)');
+      expect(img.style.transform).toContain('rotate(90deg)');
+
+      (host.querySelector('.btn-lightbox-nav.next') as HTMLButtonElement).click();
+      await nextTick();
+      // 用变体名做断言上下文，失败时能直接定位是哪种索引接法
+      expect({ name: variant.name, transform: stage.style.transform }).toEqual({
+        name: variant.name,
+        transform: 'translate(0px, 0px) scale(1)'
+      });
+      expect(img.style.transform).toContain('rotate(0deg)');
+
+      app.unmount();
+      host.remove();
+    }
+  });
+
+  it('切换全屏不会误重置画布状态', async () => {
+    const isFullscreen = ref(false);
+    const { host, app } = mountViewer(() => h(UiImageViewer, {
+      src: 'blob:consistency',
+      isFullscreen: isFullscreen.value,
+      'onUpdate:isFullscreen': (val: boolean) => { isFullscreen.value = val; }
+    }));
+    await nextTick();
+
+    const panel = host.querySelector('.modal-image-panel') as HTMLElement;
+    const stage = host.querySelector('.image-stage') as HTMLElement;
+    dragBy(panel, 60, 40, 71);
+    await nextTick();
+    expect(stage.style.transform).toContain('translate(60px, 40px)');
+
+    (host.querySelector('.image-floating-toolbar [data-tip="全屏显示"]') as HTMLButtonElement).click();
+    await nextTick();
+    expect(isFullscreen.value).toBe(true);
+    expect(stage.style.transform).toContain('translate(60px, 40px)');
+
+    app.unmount();
+    host.remove();
+  });
+
+  it('暴露的命令式 resetTransform 可供父级主动重置画布', async () => {
+    const viewerRef = ref<InstanceType<typeof UiImageViewer> | null>(null);
+    const { host, app } = mountViewer(() => h(UiImageViewer, {
+      ref: viewerRef,
+      src: 'blob:consistency'
+    }));
+    await nextTick();
+
+    const panel = host.querySelector('.modal-image-panel') as HTMLElement;
+    const stage = host.querySelector('.image-stage') as HTMLElement;
+    dragBy(panel, 60, 40, 81);
+    await nextTick();
+    expect(stage.style.transform).toContain('translate(60px, 40px)');
+
+    viewerRef.value?.resetTransform();
+    await nextTick();
+    expect(stage.style.transform).toContain('translate(0px, 0px) scale(1)');
+
+    app.unmount();
+    host.remove();
   });
 });
