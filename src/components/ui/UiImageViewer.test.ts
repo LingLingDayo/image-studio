@@ -161,6 +161,44 @@ describe('UiImageViewer (src/components/ui/UiImageViewer.vue)', () => {
     app.unmount();
   });
 
+  it('非受控模式下指针拖拽可平移画布，松开后结束拖拽', async () => {
+    const app = createApp({
+      render() {
+        return h(UiImageViewer, {
+          src: 'https://example.com/test.png'
+        });
+      }
+    });
+
+    app.mount(container);
+    await nextTick();
+
+    const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
+    const stage = container.querySelector('.image-stage') as HTMLElement;
+    expect(stage.style.transform).toContain('translate(0px, 0px)');
+
+    panel.dispatchEvent(new PointerEvent('pointerdown', {
+      pointerId: 1, pointerType: 'mouse', button: 0,
+      clientX: 100, clientY: 100, bubbles: true, cancelable: true
+    }));
+    window.dispatchEvent(new PointerEvent('pointermove', {
+      pointerId: 1, pointerType: 'mouse', button: 0,
+      clientX: 160, clientY: 140, bubbles: true, cancelable: true
+    }));
+    await nextTick();
+
+    expect(stage.style.transform).toContain('translate(60px, 40px)');
+    expect(panel.classList.contains('is-dragging')).toBe(true);
+
+    window.dispatchEvent(new PointerEvent('pointerup', {
+      pointerId: 1, pointerType: 'mouse', button: 0, bubbles: true
+    }));
+    await nextTick();
+    expect(panel.classList.contains('is-dragging')).toBe(false);
+
+    app.unmount();
+  });
+
   it('非受控模式下统一使用页面内全屏，且支持右上角退出按钮和 Escape 键退出全屏', async () => {
     let exitFullscreenEmitted = false;
     const app = createApp({

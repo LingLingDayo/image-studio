@@ -74,6 +74,8 @@ const props = withDefaults(defineProps<{
   // 工具栏静止隐藏时间 (ms)，默认 4000ms (4s)
   idleTimeout?: number;
 }>(), {
+  // Boolean prop 缺席时 Vue 会补成 false，显式给 undefined 才能区分「未传（组件自管理手势）」与「传值（父级受控）」
+  isDragging: undefined,
   allowFullscreen: true,
   showToolbar: true,
   showNavigation: true,
