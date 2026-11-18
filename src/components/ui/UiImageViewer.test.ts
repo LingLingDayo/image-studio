@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createApp, h, nextTick, ref } from 'vue';
+import { computed, createApp, defineComponent, h, nextTick, ref, type Component } from 'vue';
 import UiImageViewer from './UiImageViewer.vue';
+import { useViewportCanvas } from '@/composables/useViewportCanvas';
 
 describe('UiImageViewer (src/components/ui/UiImageViewer.vue)', () => {
   let container: HTMLDivElement;
@@ -866,5 +867,134 @@ describe('UiImageViewer (src/components/ui/UiImageViewer.vue)', () => {
 
     app.unmount();
     vi.useRealTimers();
+  });
+
+  // 行为一致性契约：父级是否接管画布属于实现差异，同一组用户手势应得到相同的视觉结果。
+  // 受控侧复刻 LightboxModal 的接法（useViewportCanvas + 全量画布 props + 手势事件监听）。
+  const ControlledHost = defineComponent({
+    setup() {
+      const viewerRef = ref<InstanceType<typeof UiImageViewer> | null>(null);
+      const panelRef = computed<HTMLElement | null>(() => viewerRef.value?.containerRef ?? null);
+      const canvas = useViewportCanvas(panelRef);
+      return () => h(UiImageViewer, {
+        ref: viewerRef,
+        src: 'blob:consistency',
+        scale: canvas.scale.value,
+        translateX: canvas.translateX.value,
+        translateY: canvas.translateY.value,
+        rotation: canvas.rotation.value,
+        isDragging: canvas.isDragging.value,
+        onPointerdown: canvas.handlePointerDown,
+        onMousedown: canvas.handleMouseDown,
+        onWheel: canvas.handleWheel,
+        onDblclick: canvas.handleDoubleClick
+      });
+    }
+  });
+
+  async function captureDrag(hostComponent: Component) {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const app = createApp(hostComponent);
+    app.mount(host);
+    await nextTick();
+
+    const panel = host.querySelector('.modal-image-panel') as HTMLElement;
+    const stage = host.querySelector('.image-stage') as HTMLElement;
+    const before = stage.style.transform;
+
+    panel.dispatchEvent(new PointerEvent('pointerdown', {
+      pointerId: 21, pointerType: 'mouse', button: 0,
+      clientX: 100, clientY: 100, bubbles: true, cancelable: true
+    }));
+    window.dispatchEvent(new PointerEvent('pointermove', {
+      pointerId: 21, pointerType: 'mouse', button: 0,
+      clientX: 160, clientY: 140, bubbles: true, cancelable: true
+    }));
+    await nextTick();
+    await nextTick();
+    const during = {
+      transform: stage.style.transform,
+      dragging: panel.classList.contains('is-dragging')
+    };
+
+    window.dispatchEvent(new PointerEvent('pointerup', {
+      pointerId: 21, pointerType: 'mouse', button: 0, bubbles: true
+    }));
+    await nextTick();
+    const after = {
+      transform: stage.style.transform,
+      dragging: panel.classList.contains('is-dragging')
+    };
+
+    app.unmount();
+    host.remove();
+    return { before, during, after };
+  }
+
+  it('全受控与全非受控两种接法，相同拖拽手势下画布表现一致', async () => {
+    const uncontrolled = await captureDrag({
+      render: () => h(UiImageViewer, { src: 'blob:consistency' })
+    });
+    const controlled = await captureDrag(ControlledHost);
+
+    expect(uncontrolled.during.transform).toContain('translate(60px, 40px)');
+    expect(uncontrolled.during.dragging).toBe(true);
+    expect(uncontrolled.after.dragging).toBe(false);
+    expect(controlled.before).toBe(uncontrolled.before);
+    expect(controlled.during).toEqual(uncontrolled.during);
+    expect(controlled.after).toEqual(uncontrolled.after);
+  });
+
+  it('父级只声明部分画布参数时，已传入的值仍生效且其余维度回落默认值', async () => {
+    const app = createApp({
+      render: () => h(UiImageViewer, { src: 'blob:consistency', translateX: 50 })
+    });
+    app.mount(container);
+    await nextTick();
+
+    const stage = container.querySelector('.image-stage') as HTMLElement;
+    expect(stage.style.transform).toContain('translate(50px, 0px)');
+    app.unmount();
+  });
+
+  it('父级整体接管画布后，拖拽/滚轮/双击统一由父级驱动，不会部分生效', async () => {
+    const app = createApp({
+      render: () => h(UiImageViewer, { src: 'blob:consistency', scale: 1 })
+    });
+    app.mount(container);
+    await nextTick();
+
+    const panel = container.querySelector('.modal-image-panel') as HTMLElement;
+    const stage = container.querySelector('.image-stage') as HTMLElement;
+    const initial = stage.style.transform;
+
+    panel.dispatchEvent(new PointerEvent('pointerdown', {
+      pointerId: 31, pointerType: 'mouse', button: 0,
+      clientX: 100, clientY: 100, bubbles: true, cancelable: true
+    }));
+    window.dispatchEvent(new PointerEvent('pointermove', {
+      pointerId: 31, pointerType: 'mouse', button: 0,
+      clientX: 130, clientY: 120, bubbles: true, cancelable: true
+    }));
+    window.dispatchEvent(new PointerEvent('pointerup', {
+      pointerId: 31, pointerType: 'mouse', button: 0, bubbles: true
+    }));
+    await nextTick();
+    expect(stage.style.transform).toBe(initial);
+
+    panel.dispatchEvent(new WheelEvent('wheel', {
+      deltaY: -120, clientX: 100, clientY: 100, bubbles: true, cancelable: true
+    }));
+    await nextTick();
+    expect(stage.style.transform).toBe(initial);
+
+    panel.dispatchEvent(new MouseEvent('dblclick', {
+      clientX: 100, clientY: 100, bubbles: true, cancelable: true
+    }));
+    await nextTick();
+    expect(stage.style.transform).toBe(initial);
+
+    app.unmount();
   });
 });
