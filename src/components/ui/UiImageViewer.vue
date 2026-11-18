@@ -74,8 +74,6 @@ const props = withDefaults(defineProps<{
   // 工具栏静止隐藏时间 (ms)，默认 4000ms (4s)
   idleTimeout?: number;
 }>(), {
-  // Boolean prop 缺席时 Vue 会补成 false，显式给 undefined 才能区分「未传（组件自管理手势）」与「传值（父级受控）」
-  isDragging: undefined,
   allowFullscreen: true,
   showToolbar: true,
   showNavigation: true,
@@ -122,6 +120,25 @@ const emit = defineEmits<{
 
 const containerRef = ref<HTMLElement | null>(null);
 
+// 是否受控只看父组件「是否声明了该 prop」，不读 prop 值：Boolean prop 缺席时 Vue 会补成 false，
+// 显式传 undefined 同样会让基于值的判定失真。模板里的 kebab-case 写法需统一成 camelCase 再比对。
+const instance = getCurrentInstance();
+const declaredProps = new Set(
+  Object.keys(instance?.vnode.props ?? {}).map((key) => key.replace(/-[a-z]/g, (m) => m[1].toUpperCase()))
+);
+function isDeclared(...keys: string[]): boolean {
+  return keys.some((key) => declaredProps.has(key));
+}
+
+// 画布状态是同一份 useViewportCanvas 的整体：任一维度被父级声明即整体接管，所有手势分支共用这一个开关，
+// 杜绝「一半受控、一半自管理」导致的拖拽/缩放表现割裂。父级接管时需自行响应 pointerdown / wheel 等事件。
+const isCanvasControlled = isDeclared(
+  'scale', 'translateX', 'translateY', 'rotation', 'isDragging',
+  'onUpdate:scale', 'onUpdate:translateX', 'onUpdate:translateY', 'onUpdate:rotation', 'onUpdate:isDragging'
+);
+const isIndexControlled = isDeclared('currentIndex', 'onUpdate:currentIndex');
+const isFullscreenControlled = isDeclared('isFullscreen', 'onUpdate:isFullscreen');
+
 // 归一化图片列表
 const normalizedImages = computed<ViewerImageItem[]>(() => {
   if (props.images && props.images.length > 0) {
@@ -152,7 +169,6 @@ const normalizedImages = computed<ViewerImageItem[]>(() => {
 });
 
 const internalIndex = ref(0);
-const isIndexControlled = computed(() => props.currentIndex !== undefined);
 
 watch(
   () => normalizedImages.value.length,
@@ -167,7 +183,7 @@ watch(
 
 const activeIndex = computed(() => {
   if (normalizedImages.value.length === 0) return 0;
-  const raw = isIndexControlled.value ? (props.currentIndex ?? 0) : internalIndex.value;
+  const raw = isIndexControlled ? (props.currentIndex ?? 0) : internalIndex.value;
   return Math.min(Math.max(0, raw), normalizedImages.value.length - 1);
 });
 
@@ -179,31 +195,15 @@ const currentActiveItem = computed<ViewerImageItem | null>(() => {
 // 组件内部自管理画布手势（非受控模式下使用）
 const internalCanvas = useViewportCanvas(containerRef);
 
-// 判断当前各状态是否受控
-const instance = getCurrentInstance();
-const isScaleControlled = computed(() => props.scale !== undefined);
-const isTransformControlled = computed(() => props.translateX !== undefined && props.translateY !== undefined);
-const isRotationControlled = computed(() => props.rotation !== undefined);
-const isDraggingControlled = computed(() => props.isDragging !== undefined);
-const isFullscreenControlled = computed(() => {
-  if (!instance?.vnode.props) return false;
-  return (
-    'isFullscreen' in instance.vnode.props ||
-    'is-fullscreen' in instance.vnode.props ||
-    'onUpdate:isFullscreen' in instance.vnode.props ||
-    'onUpdate:is-fullscreen' in instance.vnode.props
-  );
-});
-
-const currentScale = computed(() => isScaleControlled.value ? (props.scale ?? 1) : internalCanvas.scale.value);
-const currentTranslateX = computed(() => isTransformControlled.value ? (props.translateX ?? 0) : internalCanvas.translateX.value);
-const currentTranslateY = computed(() => isTransformControlled.value ? (props.translateY ?? 0) : internalCanvas.translateY.value);
-const currentRotation = computed(() => isRotationControlled.value ? (props.rotation ?? 0) : internalCanvas.rotation.value);
-const currentIsDragging = computed(() => isDraggingControlled.value ? (props.isDragging ?? false) : internalCanvas.isDragging.value);
+const currentScale = computed(() => isCanvasControlled ? (props.scale ?? 1) : internalCanvas.scale.value);
+const currentTranslateX = computed(() => isCanvasControlled ? (props.translateX ?? 0) : internalCanvas.translateX.value);
+const currentTranslateY = computed(() => isCanvasControlled ? (props.translateY ?? 0) : internalCanvas.translateY.value);
+const currentRotation = computed(() => isCanvasControlled ? (props.rotation ?? 0) : internalCanvas.rotation.value);
+const currentIsDragging = computed(() => isCanvasControlled ? (props.isDragging ?? false) : internalCanvas.isDragging.value);
 
 // 内部全屏管理（非受控时使用）
 const internalFullscreen = ref(false);
-const activeFullscreen = computed(() => isFullscreenControlled.value ? (props.isFullscreen ?? false) : internalFullscreen.value);
+const activeFullscreen = computed(() => isFullscreenControlled ? (props.isFullscreen ?? false) : internalFullscreen.value);
 
 // 独立查看器弹窗或全屏模式下展示左右切图按钮，嵌入式查看器（如详情左侧）不显示
 const isSideNavContext = computed(() => props.standalone || activeFullscreen.value);
@@ -346,7 +346,7 @@ function handleControlMouseLeave() {
 function handleToggleFullscreen() {
   resetToolbarTimer();
   emit('toggleFullscreen');
-  if (isFullscreenControlled.value) {
+  if (isFullscreenControlled) {
     emit('update:isFullscreen', !props.isFullscreen);
     return;
   }
@@ -356,7 +356,7 @@ function handleToggleFullscreen() {
 function handleExitFullscreen() {
   resetToolbarTimer();
   emit('exitFullscreen');
-  if (isFullscreenControlled.value) {
+  if (isFullscreenControlled) {
     emit('update:isFullscreen', false);
     return;
   }
@@ -370,7 +370,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 function handleKeyDown(e: KeyboardEvent) {
-  if (!isFullscreenControlled.value && e.key === 'Escape' && activeFullscreen.value) {
+  if (!isFullscreenControlled && e.key === 'Escape' && activeFullscreen.value) {
     handleExitFullscreen();
     return;
   }
@@ -432,7 +432,7 @@ onUnmounted(() => {
 function handleZoomIn() {
   resetToolbarTimer();
   emit('zoomIn');
-  if (!isScaleControlled.value) {
+  if (!isCanvasControlled) {
     internalCanvas.zoomIn();
   }
 }
@@ -440,7 +440,7 @@ function handleZoomIn() {
 function handleZoomOut() {
   resetToolbarTimer();
   emit('zoomOut');
-  if (!isScaleControlled.value) {
+  if (!isCanvasControlled) {
     internalCanvas.zoomOut();
   }
 }
@@ -448,7 +448,7 @@ function handleZoomOut() {
 function handleResetScale() {
   resetToolbarTimer();
   emit('resetScale');
-  if (!isScaleControlled.value) {
+  if (!isCanvasControlled) {
     internalCanvas.resetScale();
   }
 }
@@ -456,7 +456,7 @@ function handleResetScale() {
 function handleResetView() {
   resetToolbarTimer();
   emit('resetView');
-  if (!isScaleControlled.value && !isTransformControlled.value) {
+  if (!isCanvasControlled) {
     internalCanvas.resetView();
   }
 }
@@ -464,7 +464,7 @@ function handleResetView() {
 function handleRotateCw() {
   resetToolbarTimer();
   emit('rotateCw');
-  if (!isRotationControlled.value) {
+  if (!isCanvasControlled) {
     internalCanvas.rotateCw();
     emit('update:rotation', internalCanvas.rotation.value);
   }
@@ -473,7 +473,7 @@ function handleRotateCw() {
 function handleRotateCcw() {
   resetToolbarTimer();
   emit('rotateCcw');
-  if (!isRotationControlled.value) {
+  if (!isCanvasControlled) {
     internalCanvas.rotateCcw();
     emit('update:rotation', internalCanvas.rotation.value);
   }
@@ -483,7 +483,7 @@ function onWheel(e: WheelEvent) {
   closeContextMenu();
   resetToolbarTimer();
   emit('wheel', e);
-  if (!isScaleControlled.value) {
+  if (!isCanvasControlled) {
     internalCanvas.handleWheel(e);
   }
 }
@@ -496,7 +496,7 @@ function onPointerDown(e: PointerEvent) {
     return;
   }
   emit('pointerdown', e);
-  if (!isDraggingControlled.value) {
+  if (!isCanvasControlled) {
     internalCanvas.handlePointerDown(e);
   }
 }
@@ -509,7 +509,7 @@ function onMouseDown(e: MouseEvent) {
     return;
   }
   emit('mousedown', e);
-  if (!isDraggingControlled.value) {
+  if (!isCanvasControlled) {
     internalCanvas.handleMouseDown(e);
   }
 }
@@ -517,7 +517,7 @@ function onMouseDown(e: MouseEvent) {
 function onDoubleClick(e: MouseEvent) {
   resetToolbarTimer();
   emit('dblclick', e);
-  if (!isScaleControlled.value && !isTransformControlled.value) {
+  if (!isCanvasControlled) {
     internalCanvas.handleDoubleClick(e);
   }
 }
@@ -527,11 +527,11 @@ function handlePrev() {
   emit('prev');
   if (normalizedImages.value.length > 1) {
     const prevIdx = (activeIndex.value - 1 + normalizedImages.value.length) % normalizedImages.value.length;
-    if (!isIndexControlled.value) {
+    if (!isIndexControlled) {
       internalIndex.value = prevIdx;
     }
     emit('update:currentIndex', prevIdx);
-    if (!isScaleControlled.value) {
+    if (!isCanvasControlled) {
       internalCanvas.resetTransform();
     }
   }
@@ -542,11 +542,11 @@ function handleNext() {
   emit('next');
   if (normalizedImages.value.length > 1) {
     const nextIdx = (activeIndex.value + 1) % normalizedImages.value.length;
-    if (!isIndexControlled.value) {
+    if (!isIndexControlled) {
       internalIndex.value = nextIdx;
     }
     emit('update:currentIndex', nextIdx);
-    if (!isScaleControlled.value) {
+    if (!isCanvasControlled) {
       internalCanvas.resetTransform();
     }
   }
