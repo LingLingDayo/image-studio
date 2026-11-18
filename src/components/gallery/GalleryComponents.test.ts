@@ -1579,6 +1579,23 @@ describe('作品详情中的参考图', () => {
     const viewerImg = container.querySelector('.ref-preview-backdrop .image-stage img') as HTMLImageElement;
     expect(viewerImg.getAttribute('src')).toBe(refUrls[1]);
 
+    // 详情参考图预览与上传参考图共用弹窗，拖拽平移同样应可用
+    const refPanel = container.querySelector('.ref-preview-backdrop .modal-image-panel') as HTMLElement;
+    const refStage = container.querySelector('.ref-preview-backdrop .image-stage') as HTMLElement;
+    refPanel.dispatchEvent(new PointerEvent('pointerdown', {
+      pointerId: 11, pointerType: 'mouse', button: 0,
+      clientX: 100, clientY: 100, bubbles: true, cancelable: true
+    }));
+    window.dispatchEvent(new PointerEvent('pointermove', {
+      pointerId: 11, pointerType: 'mouse', button: 0,
+      clientX: 140, clientY: 130, bubbles: true, cancelable: true
+    }));
+    window.dispatchEvent(new PointerEvent('pointerup', {
+      pointerId: 11, pointerType: 'mouse', button: 0, bubbles: true
+    }));
+    await nextTick();
+    expect(refStage.style.transform).toContain('translate(40px, 30px)');
+
     document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     await nextTick();
     expect(container.querySelector('.ref-preview-backdrop')).toBeNull();

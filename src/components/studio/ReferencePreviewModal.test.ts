@@ -240,6 +240,31 @@ describe('ReferencePreviewModal', () => {
     expect(exitFullscreen).toHaveBeenCalledOnce();
   });
 
+  it('参考图预览支持指针拖拽平移图片，松开后结束拖拽', async () => {
+    await mount();
+    const panel = container.querySelector('.modal-image-panel') as HTMLElement;
+    const stage = container.querySelector('.image-stage') as HTMLElement;
+
+    panel.dispatchEvent(new PointerEvent('pointerdown', {
+      pointerId: 7, pointerType: 'mouse', button: 0,
+      clientX: 100, clientY: 100, bubbles: true, cancelable: true
+    }));
+    window.dispatchEvent(new PointerEvent('pointermove', {
+      pointerId: 7, pointerType: 'mouse', button: 0,
+      clientX: 150, clientY: 130, bubbles: true, cancelable: true
+    }));
+    await nextTick();
+
+    expect(stage.style.transform).toContain('translate(50px, 30px)');
+    expect(panel.classList.contains('is-dragging')).toBe(true);
+
+    window.dispatchEvent(new PointerEvent('pointerup', {
+      pointerId: 7, pointerType: 'mouse', button: 0, bubbles: true
+    }));
+    await nextTick();
+    expect(panel.classList.contains('is-dragging')).toBe(false);
+  });
+
   it('参考图预览右键显示复制菜单，按 Escape 优先关闭菜单而不关闭参考图弹窗', async () => {
     const state = await mount();
     const panel = container.querySelector('.modal-image-panel') as HTMLDivElement;
