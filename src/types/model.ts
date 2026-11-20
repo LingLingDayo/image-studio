@@ -117,6 +117,7 @@ export type ModelProfileDefinition = Partial<Omit<ModelProfile, 'id' | 'defaultP
 export {
   DEFAULT_IMAGE_MODEL_ID,
   GPT_IMAGE_2_PROFILE,
+  IMAGE_MODEL_FAMILY_TOKENS,
   MODERATION_OPTIONS,
   PREFERRED_IMAGE_MODEL_IDS,
   TRANSPARENT_CAPABLE_FORMATS,

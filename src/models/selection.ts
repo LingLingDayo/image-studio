@@ -35,8 +35,49 @@ export function formatImageModelName(id: string): string {
   return id;
 }
 
+/**
+ * 主流生图模型家族的名称片段，用于从 OpenAI 兼容 /models 结果中筛出候选。
+ * /models 通常只返回 id、不含能力字段，因此按家族名做部分匹配；只登记当前仍在
+ * 使用的家族，不枚举历史版本、日期快照或冷门别名，也不用厂商名泛化，避免把
+ * doubao-pro、gemini-2.5-pro、seedance 等同厂商的对话/视频模型混入列表。
+ * 片段只决定列表可见性；模型能力仍按精确 ID 解析，未登记模型使用默认配置。
+ */
+export const IMAGE_MODEL_FAMILY_TOKENS: readonly string[] = [
+  // 通用 *-image 命名：gpt-image、qwen-image、hunyuan-image、glm-image、imagen、image-01
+  'image',
+  // xAI grok-imagine
+  'imagine',
+  // Google nano-banana 全系
+  'banana',
+  // 字节跳动即梦 / 豆包：seedream、seededit、jimeng
+  'seedream',
+  'seededit',
+  'jimeng',
+  // Black Forest Labs FLUX 全系
+  'flux',
+  // Stability AI（存量仍广泛使用）
+  'diffusion',
+  'sdxl',
+  // 主流第三方生图服务
+  'midjourney',
+  'recraft',
+  'ideogram',
+  // 国内其他主流生图家族
+  'cogview',
+  'kolors',
+  'wanx',
+  // OpenAI 存量 DALL·E
+  'dalle'
+];
+
+/** 抹平大小写与 - _ . 空格差异，让 Nano_Banana_Pro、DALL-E-3 也能命中家族名。 */
+function normalizeModelId(id: string): string {
+  return id.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 export function isImageGenerationModel(id: string): boolean {
-  return /image|dall-e|dalle|flux|diffusion|sdxl|midjourney|recraft|ideogram/i.test(id);
+  const normalized = normalizeModelId(id);
+  return IMAGE_MODEL_FAMILY_TOKENS.some((token) => normalized.includes(token));
 }
 
 /** 优先保留生图模型；若 Key 未返回任何生图模型则回退完整列表。 */
