@@ -20,6 +20,20 @@ describe('独立模型能力配置', () => {
     }
   });
 
+  it('主流生图模型有专属定义时加载专属能力，否则使用默认配置', () => {
+    for (const id of ['seedream-5.5', 'nano-banana-pro', 'gemini-3.1-flash-image']) {
+      const profile = createImageModelProfile(id);
+      expect(profile.id).toBe(id);
+      expect(profile.formatOptions).toEqual(GPT_IMAGE_2_PROFILE.formatOptions);
+      expect(profile.qualityOptions).toEqual(GPT_IMAGE_2_PROFILE.qualityOptions);
+      expect(profile.defaultParams).toEqual(GPT_IMAGE_2_PROFILE.defaultParams);
+    }
+
+    const registered = createImageModelProfile('gpt-image-2.6-flare');
+    expect(registered.name).toBe('GPT-Image-2.6 Flare');
+    expect(registered.formatOptions.map((option) => option.value)).toContain('svg');
+  });
+
   it('日期快照继承对应模型能力并保留请求 ID', () => {
     const profile = createImageModelProfile('gpt-image-2.6-sunburst-2026-11-01');
     expect(profile.id).toBe('gpt-image-2.6-sunburst-2026-11-01');

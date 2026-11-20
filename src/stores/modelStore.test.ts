@@ -83,6 +83,38 @@ describe('useModelStore', () => {
     expect(store.activeModelId).toBe('gpt-image-2.6-flare');
   });
 
+  it('should keep seedream and banana models from a mixed key model list', async () => {
+    const configStore = useConfigStore();
+    configStore.updateConfig({
+      baseUrl: 'https://api.example.com',
+      apiKey: 'sk-test'
+    });
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          data: [
+            { id: 'gpt-4o' },
+            { id: 'seedream-5.5' },
+            { id: 'nano-banana-pro' },
+            { id: 'gemini-3.1-flash-image' },
+            { id: 'deepseek-v4.1-flash' }
+          ]
+        })
+    });
+
+    const store = useModelStore();
+    await store.refreshAvailableModels({ adjustSelection: true });
+
+    expect(store.availableModels).toEqual([
+      'seedream-5.5',
+      'nano-banana-pro',
+      'gemini-3.1-flash-image'
+    ]);
+    expect(store.activeModelId).toBe('seedream-5.5');
+  });
+
   it('should select gpt-image-2.5-flare when 2.6-flare is unavailable', async () => {
     const configStore = useConfigStore();
     configStore.updateConfig({

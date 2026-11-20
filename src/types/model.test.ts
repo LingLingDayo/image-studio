@@ -93,6 +93,67 @@ describe('Model Profile Specification (model.ts)', () => {
     expect(isImageGenerationModel('gpt-4o')).toBe(false);
   });
 
+  it('should recognize current mainstream image model families by partial tokens', () => {
+    const imageModels = [
+      'gpt-image-2.6-flare',
+      'qwen-image-plus',
+      'hunyuan-image-v3.0',
+      'gemini-3.1-flash-image-preview',
+      'imagen-4-ultra',
+      'MiniMax-Image-01',
+      'nano-banana',
+      'nano-banana-pro',
+      'Nano_Banana_2',
+      'seedream-5.5',
+      'doubao-seedream-4.5',
+      'seededit-3.0',
+      'jimeng-4.0',
+      'flux-2-pro',
+      'stable-diffusion-3.5',
+      'sdxl-turbo',
+      'midjourney-v7',
+      'recraft-v3',
+      'ideogram-v3',
+      'cogview-4',
+      'kolors-2.0',
+      'wanx-2.1-t2i',
+      'grok-imagine',
+      'dall-e-3'
+    ];
+    for (const id of imageModels) {
+      expect(isImageGenerationModel(id), id).toBe(true);
+    }
+  });
+
+  it('should not treat chat, video or embedding models as image models', () => {
+    const otherModels = [
+      'gpt-4o',
+      'deepseek-v4.1-flash',
+      'qwen-max',
+      'doubao-pro-32k',
+      'gemini-2.5-pro',
+      'sora-2',
+      'seedance-1.0',
+      'veo-3',
+      'wan2.5-t2v',
+      'text-embedding-3-large',
+      'whisper-1'
+    ];
+    for (const id of otherModels) {
+      expect(isImageGenerationModel(id), id).toBe(false);
+    }
+  });
+
+  it('should keep every recognized image model from a mixed key list', () => {
+    expect(resolveImageModelList([
+      'gpt-4o',
+      'seedream-5.5',
+      'nano-banana-pro',
+      'gemini-3.1-flash-image',
+      'deepseek-v4.1-flash'
+    ])).toEqual(['seedream-5.5', 'nano-banana-pro', 'gemini-3.1-flash-image']);
+  });
+
   it('should pick image models by priority: 2.6-flare -> 2.5-flare -> 2 -> first model in list', () => {
     expect(
       resolveImageModelList(['gpt-4o', 'gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.6-flare'])
