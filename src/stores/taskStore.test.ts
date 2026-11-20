@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { toRaw } from 'vue';
-import { MAX_TASK_HISTORY, useTaskStore } from './taskStore';
+import { MAX_TASK_HISTORY, TASK_STORAGE_KEY, useTaskStore } from './taskStore';
 import type { GenerationTask, TaskStatus } from '@/types/task';
 
 function task(id: string, status: TaskStatus = 'succeeded'): GenerationTask {
@@ -17,7 +17,10 @@ function task(id: string, status: TaskStatus = 'succeeded'): GenerationTask {
 }
 
 describe('任务历史保留策略', () => {
-  beforeEach(() => setActivePinia(createPinia()));
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
 
   it('仅保留最近30个成功或取消任务，并从两份集合释放更早的文件引用', () => {
     const store = useTaskStore();
@@ -83,5 +86,54 @@ describe('任务历史保留策略', () => {
     } finally {
       revoke.mockRestore();
     }
+  });
+
+  it('报错失败的任务会被持久化保存并在刷新后成功恢复，错误信息与卡片依然可见', () => {
+    const store = useTaskStore();
+    const failedTask = {
+      ...task('task-seedream-err', 'failed'),
+      errorMessage: '生图失败: images endpoint requires an image model, got "seedream-5.5"'
+    };
+    store.addTask(failedTask);
+
+    expect(localStorage.getItem(TASK_STORAGE_KEY)).not.toBeNull();
+
+    // 模拟页面刷新（重新初始化 Pinia 与 store 实例）
+    setActivePinia(createPinia());
+    const restoredStore = useTaskStore();
+
+    expect(restoredStore.tasks).toHaveLength(1);
+    expect(restoredStore.activeTasks).toHaveLength(1);
+    expect(restoredStore.activeTasks[0].id).toBe('task-seedream-err');
+    expect(restoredStore.activeTasks[0].status).toBe('failed');
+    expect(restoredStore.activeTasks[0].errorMessage).toBe(
+      '生图失败: images endpoint requires an image model, got "seedream-5.5"'
+    );
+    expect(restoredStore.activeTasks[0].params.prompt).toBe('task-seedream-err');
+
+    // 显式移除该报错任务卡片后，持久化同步清除
+    restoredStore.removeTask('task-seedream-err');
+    expect(restoredStore.tasks).toHaveLength(0);
+
+    // 再次刷新验证已彻底删除
+    setActivePinia(createPinia());
+    const cleanStore = useTaskStore();
+    expect(cleanStore.tasks).toHaveLength(0);
+    expect(cleanStore.activeTasks).toHaveLength(0);
+  });
+
+  it('页面刷新前处于 processing 的任务恢复后被安全转为 failed 状态，避免永久卡在加载中', () => {
+    const store = useTaskStore();
+    store.addTask(task('task-in-flight', 'processing'));
+
+    // 模拟页面刷新中断
+    setActivePinia(createPinia());
+    const restoredStore = useTaskStore();
+
+    expect(restoredStore.runningTasks).toHaveLength(0);
+    expect(restoredStore.activeTasks).toHaveLength(1);
+    expect(restoredStore.activeTasks[0].id).toBe('task-in-flight');
+    expect(restoredStore.activeTasks[0].status).toBe('failed');
+    expect(restoredStore.activeTasks[0].errorMessage).toContain('页面刷新或异常中断');
   });
 });
